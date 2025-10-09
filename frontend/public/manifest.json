@@ -1,0 +1,14 @@
+{
+  "short_name": "Study Guardian",
+  "name": "Intelligent Study Session Guardian",
+  "description": "A comprehensive web-based study companion for focused learning",
+  "icons": [],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#0ea5e9",
+  "background_color": "#f8fafc",
+  "categories": ["education", "productivity"],
+  "lang": "en",
+  "scope": "/",
+  "orientation": "portrait-primary"
+}
