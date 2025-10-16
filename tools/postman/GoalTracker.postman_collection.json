@@ -1,0 +1,615 @@
+{
+  "info": {
+    "name": "Goal Tracker API",
+    "description": "Comprehensive Goal Tracker API for the Intelligent Study Session Guardian",
+    "version": "1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{authToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:50021/api",
+      "type": "string"
+    },
+    {
+      "key": "authToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "goalId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "milestoneId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"testpassword\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Goals",
+      "item": [
+        {
+          "name": "Get All Goals",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/goals?limit=10&skip=0",
+              "host": ["{{baseUrl}}"],
+              "path": ["goals"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Number of goals to return"
+                },
+                {
+                  "key": "skip",
+                  "value": "0",
+                  "description": "Number of goals to skip"
+                },
+                {
+                  "key": "targetType",
+                  "value": "",
+                  "description": "Filter by target type (hours, sessions, tasks)",
+                  "disabled": true
+                },
+                {
+                  "key": "completed",
+                  "value": "",
+                  "description": "Filter by completion status (true, false)",
+                  "disabled": true
+                },
+                {
+                  "key": "userId",
+                  "value": "",
+                  "description": "Get goals for specific user (requires permission)",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Goal by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/goals/{{goalId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["goals", "{{goalId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Goal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Learn Advanced React\",\n  \"description\": \"Master advanced React concepts including hooks, context, and performance optimization\",\n  \"targetType\": \"hours\",\n  \"targetValue\": 100,\n  \"startDate\": \"2024-01-01\",\n  \"endDate\": \"2024-06-30\",\n  \"visibility\": \"private\",\n  \"milestones\": [\n    {\n      \"title\": \"Complete Hooks Tutorial\",\n      \"dueDate\": \"2024-02-15\"\n    },\n    {\n      \"title\": \"Build Context API Project\",\n      \"dueDate\": \"2024-04-15\"\n    },\n    {\n      \"title\": \"Performance Optimization Study\",\n      \"dueDate\": \"2024-05-30\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/goals",
+              "host": ["{{baseUrl}}"],
+              "path": ["goals"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Goal",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Learn Advanced React (Updated)\",\n  \"description\": \"Updated description for advanced React learning\",\n  \"targetValue\": 120,\n  \"visibility\": \"shared\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/goals/{{goalId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["goals", "{{goalId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Goal",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/goals/{{goalId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["goals", "{{goalId}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Progress Management",
+      "item": [
+        {
+          "name": "Update Progress (+5)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 5\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/goals/{{goalId}}/progress",
+              "host": ["{{baseUrl}}"],
+              "path": ["goals", "{{goalId}}", "progress"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Progress (+1)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/goals/{{goalId}}/progress",
+              "host": ["{{baseUrl}}"],
+              "path": ["goals", "{{goalId}}", "progress"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Progress (-1)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": -1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/goals/{{goalId}}/progress",
+              "host": ["{{baseUrl}}"],
+              "path": ["goals", "{{goalId}}", "progress"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Bulk Progress Update",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 25\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/goals/{{goalId}}/progress",
+              "host": ["{{baseUrl}}"],
+              "path": ["goals", "{{goalId}}", "progress"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Milestone Management",
+      "item": [
+        {
+          "name": "Toggle Milestone Completion",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/goals/{{goalId}}/milestones/{{milestoneId}}/toggle",
+              "host": ["{{baseUrl}}"],
+              "path": ["goals", "{{goalId}}", "milestones", "{{milestoneId}}", "toggle"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Filtering & Querying",
+      "item": [
+        {
+          "name": "Get Goals by Type (Hours)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/goals?targetType=hours",
+              "host": ["{{baseUrl}}"],
+              "path": ["goals"],
+              "query": [
+                {
+                  "key": "targetType",
+                  "value": "hours"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Goals by Type (Sessions)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/goals?targetType=sessions",
+              "host": ["{{baseUrl}}"],
+              "path": ["goals"],
+              "query": [
+                {
+                  "key": "targetType",
+                  "value": "sessions"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Goals by Type (Tasks)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/goals?targetType=tasks",
+              "host": ["{{baseUrl}}"],
+              "path": ["goals"],
+              "query": [
+                {
+                  "key": "targetType",
+                  "value": "tasks"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Completed Goals",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/goals?completed=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["goals"],
+              "query": [
+                {
+                  "key": "completed",
+                  "value": "true"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get In-Progress Goals",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/goals?completed=false",
+              "host": ["{{baseUrl}}"],
+              "path": ["goals"],
+              "query": [
+                {
+                  "key": "completed",
+                  "value": "false"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Goals by Date Range",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/goals?startDate=2024-01-01&endDate=2024-06-30",
+              "host": ["{{baseUrl}}"],
+              "path": ["goals"],
+              "query": [
+                {
+                  "key": "startDate",
+                  "value": "2024-01-01"
+                },
+                {
+                  "key": "endDate",
+                  "value": "2024-06-30"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Privacy & Sharing",
+      "item": [
+        {
+          "name": "Create Private Goal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Personal Learning Goal\",\n  \"description\": \"A private goal for personal development\",\n  \"targetType\": \"hours\",\n  \"targetValue\": 50,\n  \"startDate\": \"2024-01-01\",\n  \"endDate\": \"2024-03-31\",\n  \"visibility\": \"private\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/goals",
+              "host": ["{{baseUrl}}"],
+              "path": ["goals"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Shared Goal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Shared Learning Goal\",\n  \"description\": \"A goal shared with guardians and teachers\",\n  \"targetType\": \"sessions\",\n  \"targetValue\": 30,\n  \"startDate\": \"2024-01-01\",\n  \"endDate\": \"2024-04-30\",\n  \"visibility\": \"shared\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/goals",
+              "host": ["{{baseUrl}}"],
+              "path": ["goals"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Privacy Settings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "me"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Example Workflows",
+      "item": [
+        {
+          "name": "Complete Goal Workflow",
+          "item": [
+            {
+              "name": "1. Create New Goal",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Weekly Reading Goal\",\n  \"description\": \"Read technical articles and books to improve skills\",\n  \"targetType\": \"hours\",\n  \"targetValue\": 20,\n  \"startDate\": \"2024-01-01\",\n  \"endDate\": \"2024-01-31\",\n  \"visibility\": \"private\",\n  \"milestones\": [\n    {\n      \"title\": \"Week 1: 5 hours\",\n      \"dueDate\": \"2024-01-07\"\n    },\n    {\n      \"title\": \"Week 2: 10 hours\",\n      \"dueDate\": \"2024-01-14\"\n    },\n    {\n      \"title\": \"Week 3: 15 hours\",\n      \"dueDate\": \"2024-01-21\"\n    },\n    {\n      \"title\": \"Week 4: 20 hours\",\n      \"dueDate\": \"2024-01-28\"\n    }\n  ]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/goals",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["goals"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "2. Update Progress Daily",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"amount\": 2\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/goals/{{goalId}}/progress",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["goals", "{{goalId}}", "progress"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "3. Complete Weekly Milestone",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/goals/{{goalId}}/milestones/{{milestoneId}}/toggle",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["goals", "{{goalId}}", "milestones", "{{milestoneId}}", "toggle"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "4. Check Goal Status",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/goals/{{goalId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["goals", "{{goalId}}"]
+                }
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Auto-set authentication token if available",
+          "const token = pm.environment.get('authToken') || pm.globals.get('authToken');",
+          "if (token) {",
+          "    pm.request.headers.add({",
+          "        key: 'Authorization',",
+          "        value: `Bearer ${token}`",
+          "    });",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Auto-extract goalId from response for chaining requests",
+          "if (pm.response.json() && pm.response.json().goal && pm.response.json().goal._id) {",
+          "    pm.environment.set('goalId', pm.response.json().goal._id);",
+          "}",
+          "",
+          "// Auto-extract milestoneId from response",
+          "if (pm.response.json() && pm.response.json().goal && pm.response.json().goal.milestones) {",
+          "    const milestones = pm.response.json().goal.milestones;",
+          "    if (milestones.length > 0) {",
+          "        pm.environment.set('milestoneId', milestones[0]._id);",
+          "    }",
+          "}",
+          "",
+          "// Auto-extract auth token from login response",
+          "if (pm.response.json() && pm.response.json().accessToken) {",
+          "    pm.environment.set('authToken', pm.response.json().accessToken);",
+          "}",
+          "",
+          "// Basic response validation",
+          "pm.test('Status code is success', function () {",
+          "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+          "});",
+          "",
+          "pm.test('Response has valid JSON', function () {",
+          "    pm.response.to.have.jsonBody();",
+          "});"
+        ]
+      }
+    }
+  ]
+}

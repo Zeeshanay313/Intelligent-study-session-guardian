@@ -9,6 +9,7 @@ require('dotenv').config();
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const deviceRoutes = require('./routes/devices');
+const goalTrackerRoutes = require('./routes/goalTracker');
 
 const app = express();
 
@@ -67,6 +68,7 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/devices', deviceRoutes);
+app.use('/api/goals', goalTrackerRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {

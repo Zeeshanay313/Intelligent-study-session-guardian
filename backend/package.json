@@ -7,6 +7,7 @@
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
     "seed": "node scripts/seed.js",
+    "seed:goals": "node src/seeds/seedGoals.js",
     "cleanup": "node scripts/cleanup.js",
     "lint": "eslint src/"
   },

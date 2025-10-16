@@ -15,6 +15,11 @@ const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
+// Goal Tracker Components
+const GoalListPage = lazy(() => import('./pages/GoalListPage'));
+const GoalFormPage = lazy(() => import('./pages/GoalFormPage'));
+const GoalDetailPage = lazy(() => import('./pages/GoalDetailPage'));
+
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
   
@@ -104,6 +109,11 @@ function App() {
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="privacy" element={<PrivacyPage />} />
+            {/* Goal Tracker Routes */}
+            <Route path="goals" element={<GoalListPage />} />
+            <Route path="goals/new" element={<GoalFormPage />} />
+            <Route path="goals/:id" element={<GoalDetailPage />} />
+            <Route path="goals/:id/edit" element={<GoalFormPage />} />
           </Route>
           
           {/* 404 Route */}

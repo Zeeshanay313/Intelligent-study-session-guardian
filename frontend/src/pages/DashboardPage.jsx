@@ -34,6 +34,12 @@ const DashboardPage = () => {
     setIsLoaded(true);
   }, []);
 
+  const handleStartStudySession = () => {
+    // For now, navigate to goals where users can track study progress
+    // This can be expanded later to include a dedicated study session timer
+    navigate('/goals');
+  };
+
   const modules = [
     // P1 Mid - 3 modules
     {
@@ -77,10 +83,11 @@ const DashboardPage = () => {
       title: 'Goal Tracker',
       description: 'Set and track weekly/monthly study goals',
       icon: StarIcon,
-      status: 'Coming Soon',
+      status: 'Active',
       phase: 'P1 Final',
+      path: '/goals',
       color: 'from-pink-500 to-rose-600',
-      progress: 0,
+      progress: 100,
       features: ['Goal Setting', 'Progress Tracking', 'Milestones', 'Achievement Badges']
     },
     {
@@ -483,7 +490,10 @@ const DashboardPage = () => {
                   <ArrowUpIcon className="h-4 w-4 rotate-45" />
                 </button>
                 
-                <button className="w-full flex items-center justify-between p-4 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors duration-200">
+                <button 
+                  onClick={handleStartStudySession}
+                  className="w-full flex items-center justify-between p-4 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors duration-200"
+                >
                   <div className="flex items-center space-x-3">
                     <PlayIcon className="h-5 w-5" />
                     <span className="font-medium">Start Study Session</span>

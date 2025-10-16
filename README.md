@@ -89,6 +89,17 @@ docker-compose -f docker-compose.dev.yml up -d
 - GDPR-compliant data handling
 - Privacy impact scoring
 
+### 🎯 Goal Tracker
+- **Weekly/monthly goals** with hours, sessions, and task targets
+- **Progress tracking** with visual progress bars and percentage completion
+- **Milestones and sub-tasks** with due dates and completion status
+- **History and achievement notifications** for completed goals and milestones
+- **Alerts and catch-up suggestions** when goals fall behind schedule
+- **Privacy-aware sharing** with optional guardian/teacher visibility (respects user privacy settings)
+- **Goal filtering and sorting** by type, completion status, and due dates
+- **Atomic progress updates** with race condition protection
+- **Real-time progress visualization** with color-coded indicators
+
 ### 🔄 Data Management
 - User data export functionality
 - Account deletion workflow
@@ -180,6 +191,23 @@ POST   /api/devices/:id/revoke        # Revoke device access
 DELETE /api/devices/:id               # Remove device
 ```
 
+### Goal Tracker
+```bash
+GET    /api/goals                     # Get all goals (with filtering)
+GET    /api/goals/:id                 # Get specific goal by ID
+POST   /api/goals                     # Create new goal
+PUT    /api/goals/:id                 # Update existing goal
+DELETE /api/goals/:id                 # Delete goal (soft delete)
+POST   /api/goals/:id/progress        # Update goal progress atomically
+POST   /api/goals/:id/milestones/:milestoneId/toggle # Toggle milestone completion
+```
+
+#### Goal API Query Parameters
+```bash
+GET /api/goals?targetType=hours&completed=false&limit=10&skip=0
+GET /api/goals?userId=<userId>  # Access other user's goals (requires permission)
+```
+
 ## 🧪 Sample API Calls
 
 ### Register User
@@ -241,6 +269,63 @@ curl -X POST http://localhost:5000/api/devices/register \
       "browser": "Chrome"
     }
   }'
+```
+
+### Goal Tracker Examples
+
+#### Create Goal with Milestones
+```bash
+curl -X POST http://localhost:5000/api/goals \
+  -H "Content-Type: application/json" \
+  -b cookies.txt \
+  -d '{
+    "title": "Learn Advanced React",
+    "description": "Master advanced React concepts including hooks, context, and performance optimization",
+    "targetType": "hours",
+    "targetValue": 100,
+    "startDate": "2024-01-01",
+    "endDate": "2024-06-30",
+    "visibility": "shared",
+    "milestones": [
+      {
+        "title": "Complete Hooks Tutorial",
+        "dueDate": "2024-02-15"
+      },
+      {
+        "title": "Build Context API Project",
+        "dueDate": "2024-04-15"
+      }
+    ]
+  }'
+```
+
+#### Update Goal Progress
+```bash
+curl -X POST http://localhost:5000/api/goals/:goalId/progress \
+  -H "Content-Type: application/json" \
+  -b cookies.txt \
+  -d '{"amount": 5}'
+```
+
+#### Get Goals with Filtering
+```bash
+# Get all hours-based goals
+curl -X GET "http://localhost:5000/api/goals?targetType=hours" \
+  -b cookies.txt
+
+# Get completed goals only
+curl -X GET "http://localhost:5000/api/goals?completed=true" \
+  -b cookies.txt
+
+# Get goals with pagination
+curl -X GET "http://localhost:5000/api/goals?limit=10&skip=0" \
+  -b cookies.txt
+```
+
+#### Toggle Milestone Completion
+```bash
+curl -X POST http://localhost:5000/api/goals/:goalId/milestones/:milestoneId/toggle \
+  -b cookies.txt
 ```
 
 ## 🗄️ Database Schema
@@ -319,6 +404,36 @@ curl -X POST http://localhost:5000/api/devices/register \
 }
 ```
 
+### Goal Collection
+```javascript
+{
+  userId: ObjectId (ref: User, required),
+  title: String (required, max: 200),
+  description: String (max: 1000),
+  targetType: "hours" | "sessions" | "tasks" (required),
+  targetValue: Number (required, min: 1, max: 10000),
+  progressValue: Number (default: 0, min: 0),
+  milestones: [{
+    title: String (required, max: 200),
+    done: Boolean (default: false),
+    dueDate: Date (required)
+  }],
+  startDate: Date (required),
+  endDate: Date (required, must be after startDate),
+  visibility: "private" | "shared" | "public" (default: "private"),
+  isActive: Boolean (default: true),
+  completedAt: Date (null if not completed),
+  createdAt: Date,
+  updatedAt: Date,
+  
+  // Virtual fields
+  progressPercentage: Number (calculated),
+  isCompleted: Boolean (calculated),
+  daysRemaining: Number (calculated),
+  milestoneProgress: Number (calculated)
+}
+```
+
 ## 🧪 Testing
 
 ### Backend Tests
@@ -326,6 +441,7 @@ curl -X POST http://localhost:5000/api/devices/register \
 cd backend
 npm test              # Run all tests
 npm run test:coverage # Run with coverage report
+npm run test:goals    # Run Goal Tracker tests specifically
 ```
 
 ### Frontend Tests
@@ -333,13 +449,34 @@ npm run test:coverage # Run with coverage report
 cd frontend
 npm test              # Run React tests
 npm run test:coverage # Run with coverage
+npm test -- --testPathPattern=GoalTracker  # Run Goal Tracker tests
 ```
+
+### Goal Tracker Test Coverage
+- **Backend**: CRUD operations, privacy enforcement, atomic updates, milestone management
+- **Frontend**: Component rendering, user interactions, API integration, error handling
+- **Integration**: End-to-end goal creation, progress tracking, milestone completion workflows
 
 ### Test Accounts
 After running `npm run seed`:
 - **Admin**: admin@studyguardian.com / AdminPass123!
-- **Test User**: testuser@example.com / TestPass123!
+- **Test User**: testuser@example.com / TestPass123! (with sample goals)
 - **Student**: student@example.com / StudentPass123!
+
+### Goal Tracker Seeding
+```bash
+cd backend
+npm run seed:goals    # Seed sample goals for testing
+node src/seeds/seedGoals.js  # Direct seeding script
+```
+
+### Sample Goals Created
+- **Mathematics Course** (120 hours target, 4 milestones)
+- **Daily Study Sessions** (100 sessions target, monthly milestones)  
+- **Research Paper Tasks** (25 tasks target, 6 research milestones)
+- **Language Learning** (50 hours target, vocabulary & grammar milestones)
+- **Programming Challenges** (52 tasks target, quarterly milestones)
+- **Physical Fitness** (150 sessions target, strength & endurance phases)
 
 ## 🚀 Deployment
 
@@ -368,6 +505,42 @@ npm run cleanup  # Remove expired users, devices, logs
 ### Health Check
 ```bash
 curl http://localhost:5000/health
+```
+
+## 🧰 Development Tools
+
+### Postman Collection
+Import the Goal Tracker API collection for testing:
+```bash
+# Located at: tools/postman/GoalTracker.postman_collection.json
+# Features:
+# - Complete API endpoint coverage
+# - Example requests with sample data
+# - Automatic token management
+# - Response validation tests
+# - Workflow examples for common use cases
+```
+
+### Frontend Routes
+```bash
+/goals              # Goal list and management
+/goals/new          # Create new goal
+/goals/:id          # Goal detail view
+/goals/:id/edit     # Edit existing goal
+/profile            # User profile with privacy settings
+```
+
+### Goal Tracker Components
+```bash
+frontend/src/modules/GoalTracker/
+├── components/
+│   ├── GoalList.jsx     # Goal overview with filtering and quick actions
+│   ├── GoalForm.jsx     # Create/edit goal form with milestone management
+│   └── GoalDetail.jsx   # Detailed goal view with progress controls
+├── api/
+│   └── goalApi.js       # API client for goal operations
+├── goalTrackerContext.js # React Context for state management
+└── tests/               # Comprehensive component tests
 ```
 
 ## 🤝 Development
