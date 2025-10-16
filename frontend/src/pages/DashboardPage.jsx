@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import IntegratedStudySession from '../components/IntegratedStudySession';
 import { 
   ChartBarIcon, 
   ClockIcon, 
@@ -59,10 +60,11 @@ const DashboardPage = () => {
       title: 'Focus Timer',
       description: 'Pomodoro and study sessions with custom presets',
       icon: ClockIcon,
-      status: 'Coming Soon',
+      status: 'Active',
       phase: 'P1 Mid',
+      path: '/timer',
       color: 'from-green-500 to-teal-600',
-      progress: 0,
+      progress: 100,
       features: ['Pomodoro Timer', 'Custom Presets', 'Break Reminders', 'Session Analytics']
     },
     {
@@ -70,10 +72,11 @@ const DashboardPage = () => {
       title: 'Reminder and Scheduling',
       description: 'Study reminders, calendar sync, and smart notifications',
       icon: CalendarIcon,
-      status: 'Coming Soon',
+      status: 'Active',
       phase: 'P1 Mid',
+      path: '/reminders',
       color: 'from-orange-500 to-red-600',
-      progress: 0,
+      progress: 100,
       features: ['Smart Reminders', 'Calendar Integration', 'Notifications', 'Schedule Optimization']
     },
     
@@ -293,6 +296,9 @@ const DashboardPage = () => {
           
           {/* Left Column - Charts and Progress */}
           <div className="lg:col-span-2 space-y-8">
+            
+            {/* Integrated Study Session */}
+            <IntegratedStudySession />
             
             {/* Weekly Progress Chart */}
             <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">

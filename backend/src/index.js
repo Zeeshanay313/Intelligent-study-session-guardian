@@ -4,21 +4,37 @@ const cookieParser = require('cookie-parser');
 const helmet = require('helmet');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
+const { createServer } = require('http');
+const { Server } = require('socket.io');
 require('dotenv').config();
 
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const deviceRoutes = require('./routes/devices');
 const goalTrackerRoutes = require('./routes/goalTracker');
+const timerRoutes = require('./modules/timer/timerRoutes');
+const reminderRoutes = require('./modules/reminder/reminderRoutes');
+const calendarRoutes = require('./modules/calendar/calendarRoutes');
+const { router: studySessionRoutes, setSocketIO } = require('./routes/studySession');
 
 const app = express();
+
+// Create HTTP server and Socket.IO instance
+const server = createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: ['http://localhost:3000', 'http://localhost:3001'],
+    methods: ['GET', 'POST'],
+    credentials: true
+  }
+});
 
 // Enhanced CORS configuration
 app.use(cors({
   origin: ['http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'x-dev-bypass'],
 }));
 
 // Handle preflight requests
@@ -51,6 +67,12 @@ app.use((req, res, next) => {
   next();
 });
 
+// Make socket.io available in routes
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ 
@@ -69,6 +91,10 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/devices', deviceRoutes);
 app.use('/api/goals', goalTrackerRoutes);
+app.use('/api/timers', timerRoutes);
+app.use('/api/reminders', reminderRoutes);
+app.use('/api/calendar', calendarRoutes);
+app.use('/api/study-session', studySessionRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -94,7 +120,24 @@ app.use((error, req, res, next) => {
   });
 });
 
-const PORT = process.env.PORT || 5002;
+const PORT = process.env.PORT || 5004;
+
+// Initialize study session orchestrator with socket.io
+setSocketIO(io);
+
+// Socket.IO connection handling
+io.on('connection', (socket) => {
+  console.log(`Socket connected: ${socket.id}`);
+  
+  socket.on('join', (userId) => {
+    socket.join(`user_${userId}`);
+    console.log(`User ${userId} joined socket room`);
+  });
+  
+  socket.on('disconnect', () => {
+    console.log(`Socket disconnected: ${socket.id}`);
+  });
+});
 
 // MongoDB connection with bulletproof error handling
 const connectDB = async () => {
@@ -150,21 +193,31 @@ const startServer = async () => {
     }
     
     // Now start server after database connection attempt
-    const server = app.listen(PORT, '0.0.0.0', () => {
+    const httpServer = server.listen(PORT, '0.0.0.0', async () => {
       console.log('✅ SERVER RUNNING SUCCESSFULLY!');
       console.log(`📡 Port: ${PORT}`);
       console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`🔗 Health check: http://localhost:${PORT}/health`);
       console.log(`🔗 API base: http://localhost:${PORT}/api`);
+      console.log(`🔌 Socket.IO enabled for real-time updates`);
+      
+      // Initialize reminder scheduler after server is running
+      try {
+        const { initializeReminders } = require('./modules/reminder/reminderController');
+        await initializeReminders(io);
+        console.log('✅ Reminder scheduler initialized');
+      } catch (error) {
+        console.error('❌ Failed to initialize reminder scheduler:', error.message);
+      }
       console.log('===============================================');
     });
 
     // Handle server errors
-    server.on('error', (error) => {
+    httpServer.on('error', (error) => {
       if (error.code === 'EADDRINUSE') {
         console.error(`❌ Port ${PORT} is already in use. Trying alternative port...`);
         const alternativePort = PORT + 1;
-        server.listen(alternativePort, '0.0.0.0', () => {
+        httpServer.listen(alternativePort, '0.0.0.0', () => {
           console.log(`✅ Server started on alternative port: ${alternativePort}`);
         });
       } else {
@@ -176,7 +229,7 @@ const startServer = async () => {
     const gracefulShutdown = (signal) => {
       console.log(`\n${signal} received, shutting down gracefully...`);
       
-      server.close(async () => {
+      httpServer.close(async () => {
         console.log('✅ HTTP server closed');
         
         try {
@@ -208,7 +261,7 @@ const startServer = async () => {
       // Don't exit - just log the error
     });
 
-    return server;
+    return httpServer;
     
   } catch (error) {
     console.error('❌ Failed to start server:', error);

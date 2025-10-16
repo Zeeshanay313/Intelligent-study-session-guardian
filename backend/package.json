@@ -1,37 +1,52 @@
-﻿{
+{
   "name": "intelligent-study-session-guardian-api",
   "version": "1.0.0",
   "description": "Backend API for Intelligent Study Session Guardian - Complete Study Management System",
   "main": "src/index.js",
   "scripts": {
     "dev": "nodemon src/index.js",
-    "start": "node src/index.js",
-    "seed": "node scripts/seed.js",
-    "seed:goals": "node src/seeds/seedGoals.js",
-    "cleanup": "node scripts/cleanup.js",
-    "lint": "eslint src/"
+    "start": "node src/index.js"
   },
   "dependencies": {
-    "archiver": "^6.0.1",
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
-    "crypto": "^1.0.1",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "express-rate-limit": "^6.10.0",
     "express-validator": "^7.0.1",
-    "fs-extra": "^11.1.1",
+    "firebase-admin": "^13.5.0",
+    "googleapis": "^126.0.1",
     "helmet": "^7.0.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^7.5.0",
-    "multer": "^1.4.5-lts.1"
+    "node-cron": "^4.2.1",
+    "nodemailer": "^6.10.1",
+    "socket.io": "^4.8.1"
   },
   "devDependencies": {
-    "eslint": "^8.47.0",
     "nodemon": "^3.0.1"
   },
-  "keywords": ["study", "guardian", "privacy", "profile", "education"],
+  "keywords": [
+    "study",
+    "guardian",
+    "privacy",
+    "profile",
+    "education"
+  ],
+  "jest": {
+    "testEnvironment": "node",
+    "collectCoverageFrom": [
+      "src/**/*.js",
+      "!src/index.js",
+      "!src/seeds/**",
+      "!src/config/**"
+    ],
+    "testMatch": [
+      "**/src/**/*.test.js",
+      "**/tests/**/*.test.js"
+    ]
+  },
   "author": "Study Guardian Team",
   "license": "MIT"
 }

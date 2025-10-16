@@ -217,7 +217,7 @@ export const useApi = () => {
     const config = { ...defaultOptions, ...options };
     
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${url}`, config);
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5004'}${url}`, config);
       return response;
     } catch (error) {
       console.error('API call error:', error);

@@ -5,6 +5,27 @@ const { verifyToken } = require('../config/auth');
 // Authentication middleware
 const authenticate = async (req, res, next) => {
   try {
+    // Development mode bypass - TODO: Remove in production  
+    if (req.headers['x-dev-bypass'] === 'true') {
+      // Create or find test user for development
+      const User = require('../models/User');
+      
+      let testUser = await User.findOne({ email: 'dev@test.com' });
+      if (!testUser) {
+        testUser = new User({
+          email: 'dev@test.com',
+          name: 'Dev User',
+          password: 'dev123', // This won't be used since we bypass auth
+          emailVerified: true
+        });
+        await testUser.save();
+        console.log('Created dev test user:', testUser._id);
+      }
+      
+      req.user = testUser;
+      return next();
+    }
+    
     let token = null;
     
     // Check for token in cookies first (preferred method)

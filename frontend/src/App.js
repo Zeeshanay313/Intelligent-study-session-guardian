@@ -4,6 +4,7 @@ import { useAuth } from './contexts/AuthContext';
 import Layout from './components/layout/Layout';
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorBoundary from './components/common/ErrorBoundary';
+import NotificationToast, { useNotifications } from './components/shared/NotificationToast';
 
 // Lazy load heavy components
 const LoginPage = lazy(() => import('./pages/LoginPage'));
@@ -19,6 +20,10 @@ const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 const GoalListPage = lazy(() => import('./pages/GoalListPage'));
 const GoalFormPage = lazy(() => import('./pages/GoalFormPage'));
 const GoalDetailPage = lazy(() => import('./pages/GoalDetailPage'));
+
+// Timer and Reminder Components
+const TimerPage = lazy(() => import('./pages/timer/TimerPage'));
+const RemindersPage = lazy(() => import('./pages/reminders/RemindersPage'));
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -57,6 +62,8 @@ const PublicRoute = ({ children }) => {
 };
 
 function App() {
+  const { notifications, removeNotification, clearAllNotifications } = useNotifications();
+
   return (
     <ErrorBoundary>
       <div className="min-h-screen bg-secondary-50 dark:bg-secondary-900">
@@ -114,12 +121,24 @@ function App() {
             <Route path="goals/new" element={<GoalFormPage />} />
             <Route path="goals/:id" element={<GoalDetailPage />} />
             <Route path="goals/:id/edit" element={<GoalFormPage />} />
+            {/* Timer and Reminder Routes */}
+            <Route path="timer" element={<TimerPage />} />
+            <Route path="focus-timer" element={<TimerPage />} />
+            <Route path="reminders" element={<RemindersPage />} />
+            <Route path="reminder-scheduling" element={<RemindersPage />} />
           </Route>
           
           {/* 404 Route */}
           <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </Suspense>
+        
+        {/* Global Notification Toast */}
+        <NotificationToast 
+          notifications={notifications}
+          onDismiss={removeNotification}
+          onDismissAll={clearAllNotifications}
+        />
       </div>
     </ErrorBoundary>
   );
