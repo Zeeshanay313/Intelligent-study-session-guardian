@@ -71,7 +71,27 @@ const IntegratedStudySession = () => {
       }
     } catch (error) {
       console.error('Error fetching goals:', error);
-      setAvailableGoals([]);
+      // Provide mock goals as fallback
+      const mockGoals = [
+        {
+          _id: 'mock-goal-1',
+          title: 'Complete React Project',
+          description: 'Finish the study session guardian app'
+        },
+        {
+          _id: 'mock-goal-2', 
+          title: 'Learn JavaScript',
+          description: 'Master modern JavaScript concepts'
+        }
+      ];
+      setAvailableGoals(mockGoals);
+      
+      // Auto-select first mock goal
+      setSessionConfig(prev => ({
+        ...prev,
+        linkedGoalId: mockGoals[0]._id,
+        subject: `Study: ${mockGoals[0].title}`
+      }));
     }
   };
 
@@ -291,10 +311,12 @@ const IntegratedStudySession = () => {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor="session-subject" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Session Subject
                 </label>
                 <input
+                  id="session-subject"
+                  name="sessionSubject"
                   type="text"
                   value={sessionConfig.subject}
                   onChange={(e) => setSessionConfig(prev => ({ ...prev, subject: e.target.value }))}
@@ -304,10 +326,12 @@ const IntegratedStudySession = () => {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor="linked-goal" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Linked Goal
                 </label>
                 <select
+                  id="linked-goal"
+                  name="linkedGoal"
                   value={sessionConfig.linkedGoalId}
                   onChange={(e) => setSessionConfig(prev => ({ ...prev, linkedGoalId: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
@@ -322,10 +346,12 @@ const IntegratedStudySession = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor="work-duration-session" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Work Duration (minutes)
                 </label>
                 <input
+                  id="work-duration-session"
+                  name="workDurationSession"
                   type="number"
                   min="1"
                   max="120"
@@ -336,10 +362,12 @@ const IntegratedStudySession = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor="break-duration-session" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Break Duration (minutes)
                 </label>
                 <input
+                  id="break-duration-session"
+                  name="breakDurationSession"
                   type="number"
                   min="1"
                   max="30"

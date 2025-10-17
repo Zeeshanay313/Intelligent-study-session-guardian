@@ -1,10 +1,11 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import Layout from './components/layout/Layout';
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import NotificationToast, { useNotifications } from './components/shared/NotificationToast';
+import { useSocket } from './hooks/useSocket';
 
 // Lazy load heavy components
 const LoginPage = lazy(() => import('./pages/LoginPage'));
@@ -62,7 +63,45 @@ const PublicRoute = ({ children }) => {
 };
 
 function App() {
-  const { notifications, removeNotification, clearAllNotifications } = useNotifications();
+  const { notifications, removeNotification, clearAllNotifications, showInfo, showSuccess } = useNotifications();
+  const { socketService, setupReminderListeners } = useSocket();
+
+  // Set up reminder listeners
+  useEffect(() => {
+    if (socketService && setupReminderListeners) {
+      const handleReminderDue = (data) => {
+        console.log('Reminder due:', data);
+        showSuccess('Reminder', data.message || data.title, {
+          duration: 8000, // Show for 8 seconds
+          action: {
+            label: 'Dismiss',
+            onClick: () => {} // Already handled by the notification system
+          }
+        });
+        
+        // Try to show browser notification if permitted
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification(data.title, {
+            body: data.message,
+            icon: '/favicon.ico'
+          });
+        }
+      };
+
+      const unsubscribe = setupReminderListeners(handleReminderDue);
+      
+      return () => {
+        if (unsubscribe) unsubscribe();
+      };
+    }
+  }, [socketService, setupReminderListeners, showSuccess]);
+
+  // Request notification permission on app load
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
 
   return (
     <ErrorBoundary>

@@ -75,16 +75,38 @@ app.use((req, res, next) => {
 
 // Health check endpoint
 app.get('/health', (req, res) => {
+  console.log('🏥 Health check called');
+  console.log('🏥 Headers:', JSON.stringify(req.headers, null, 2));
   res.json({ 
     status: 'OK', 
     timestamp: new Date().toISOString(),
-    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    devBypass: req.headers['x-dev-bypass'] || 'not set'
   });
+});
+
+// Test endpoint for dev bypass
+app.get('/api/test-dev-bypass', (req, res) => {
+  console.log('🧪 Test dev bypass called');
+  console.log('🧪 x-dev-bypass header:', req.headers['x-dev-bypass']);
+  if (req.headers['x-dev-bypass'] === 'true') {
+    res.json({ message: 'Dev bypass is working!', timestamp: new Date().toISOString() });
+  } else {
+    res.status(401).json({ error: 'Dev bypass not detected' });
+  }
 });
 
 // Serve static files for uploads
 const path = require('path');
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
+// Debug middleware for API routes
+app.use('/api', (req, res, next) => {
+  console.log(`🔍 API Request: ${req.method} ${req.url}`);
+  console.log(`🔍 Headers:`, JSON.stringify(req.headers, null, 2));
+  console.log(`🔍 x-dev-bypass:`, req.headers['x-dev-bypass']);
+  next();
+});
 
 // API routes
 app.use('/api/auth', authRoutes);

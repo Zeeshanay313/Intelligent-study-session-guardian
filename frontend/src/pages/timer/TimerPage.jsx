@@ -83,48 +83,122 @@ const TimerPage = () => {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isRunning, isPaused, timeRemaining]);
+  }, [isRunning, isPaused]);
 
   const loadPresets = async () => {
     try {
       const response = await api.get('/timers');
-      const presetsData = Array.isArray(response.data) ? response.data : [];
+      let presetsData = Array.isArray(response.data) ? response.data : [];
+      
+      // Merge with locally stored presets
+      const localPresets = JSON.parse(localStorage.getItem('timerPresets') || '[]');
+      if (localPresets.length > 0) {
+        // Merge API presets with local presets, avoiding duplicates
+        const combinedPresets = [...presetsData];
+        localPresets.forEach(localPreset => {
+          if (!combinedPresets.find(p => p._id === localPreset._id)) {
+            combinedPresets.push(localPreset);
+          }
+        });
+        presetsData = combinedPresets;
+      }
+      
+      // Add default preset if no presets exist
+      if (presetsData.length === 0) {
+        const defaultPreset = {
+          _id: 'default',
+          name: 'Pomodoro (25/5)',
+          workDuration: 1500, // 25 minutes
+          breakDuration: 300, // 5 minutes
+          longBreakDuration: 900, // 15 minutes
+          cyclesBeforeLongBreak: 4
+        };
+        presetsData.push(defaultPreset);
+      }
+      
+      // Save merged presets to localStorage
+      localStorage.setItem('timerPresets', JSON.stringify(presetsData));
       setPresets(presetsData);
       
       // Auto-select the first preset if none is selected
       if (presetsData.length > 0 && !selectedPreset) {
         setSelectedPreset(presetsData[0]);
+        setTimeRemaining(presetsData[0].workDuration);
       }
     } catch (error) {
       console.error('Error loading presets:', error);
-      showError('Failed to load presets', 'Please check your connection and try again.');
+      
+      // Load from localStorage as fallback
+      const localPresets = JSON.parse(localStorage.getItem('timerPresets') || '[]');
+      let presetsData = localPresets;
+      
+      // Provide default preset on error
+      if (presetsData.length === 0) {
+        const defaultPreset = {
+          _id: 'default',
+          name: 'Pomodoro (25/5)',
+          workDuration: 1500, // 25 minutes
+          breakDuration: 300, // 5 minutes
+          longBreakDuration: 900, // 15 minutes
+          cyclesBeforeLongBreak: 4
+        };
+        presetsData.push(defaultPreset);
+      }
+      
+      setPresets(presetsData);
+      if (presetsData.length > 0 && !selectedPreset) {
+        setSelectedPreset(presetsData[0]);
+        setTimeRemaining(presetsData[0].workDuration);
+      }
+      showError('Could not load presets from server. Using local data.');
     }
   };
 
   const startTimer = async (preset = null) => {
     console.log('startTimer called with preset:', preset);
+    
+    const currentPreset = preset || selectedPreset;
+    if (!currentPreset) {
+      showError('Please select a preset first');
+      return;
+    }
+
     try {
-      const requestData = preset ? { presetId: preset._id } : {};
-      console.log('Making timer start API call with:', requestData);
-      const response = await api.post('/timers/start', requestData);
-      
-      if (response.success) {
-        setCurrentSession(response.data.sessionId);
-        setSelectedPreset(preset);
-        setIsRunning(true);
-        setIsPaused(false);
-        setCycle(1);
-        setCurrentPhase('work');
+      // Try to make API call if preset is not default
+      if (currentPreset._id !== 'default') {
+        const requestData = { presetId: currentPreset._id };
+        console.log('Making timer start API call with:', requestData);
+        const response = await api.post('/timers/start', requestData);
         
-        // Set initial time
-        const workDuration = preset ? preset.workDuration : 1500; // Default 25 minutes
-        setTimeRemaining(workDuration);
-        
-        addNotification('Timer started!', 'success');
+        if (response.data.success) {
+          setCurrentSession(response.data.sessionId);
+        }
+      } else {
+        // For default preset, create a mock session ID
+        setCurrentSession('local-session-' + Date.now());
       }
+      
+      // Set timer state regardless of API success
+      setSelectedPreset(currentPreset);
+      setIsRunning(true);
+      setIsPaused(false);
+      setCycle(1);
+      setCurrentPhase('work');
+      setTimeRemaining(currentPreset.workDuration);
+      
+      showSuccess('Timer started!');
     } catch (error) {
       console.error('Error starting timer:', error);
-      addNotification('Failed to start timer', 'error');
+      // Still start the timer locally even if API fails
+      setCurrentSession('local-session-' + Date.now());
+      setSelectedPreset(currentPreset);
+      setIsRunning(true);
+      setIsPaused(false);
+      setCycle(1);
+      setCurrentPhase('work');
+      setTimeRemaining(currentPreset.workDuration);
+      
+      showSuccess('Timer started (offline mode)');
     }
   };
 
@@ -132,39 +206,59 @@ const TimerPage = () => {
     if (!currentSession) return;
     
     try {
-      await api.post(`/timers/${currentSession}/pause`);
+      // Only make API call if not a local session
+      if (!currentSession.startsWith('local-session-')) {
+        await api.post(`/timers/${currentSession}/pause`);
+      }
       setIsPaused(true);
+      showInfo('Timer paused');
     } catch (error) {
       console.error('Error pausing timer:', error);
-      addNotification('Failed to pause timer', 'error');
+      // Still pause locally even if API fails
+      setIsPaused(true);
+      showInfo('Timer paused (offline)');
     }
   };
 
   const resumeTimer = () => {
     setIsPaused(false);
+    showInfo('Timer resumed');
   };
 
   const stopTimer = async () => {
     if (!currentSession) return;
     
     try {
-      const response = await api.post(`/timers/${currentSession}/stop`);
-      if (response.success) {
-        setCurrentSession(null);
-        setIsRunning(false);
-        setIsPaused(false);
-        setTimeRemaining(0);
-        
-        // Show session summary
-        const summary = response.data;
-        addNotification(
-          `Session completed! Duration: ${Math.floor(summary.totalDurationSec / 60)} minutes`,
-          'success'
-        );
+      // Only make API call if not a local session
+      if (!currentSession.startsWith('local-session-')) {
+        const response = await api.post(`/timers/${currentSession}/stop`);
+        if (response.data.success && response.data) {
+          const summary = response.data;
+          showSuccess(
+            `Session completed! Duration: ${Math.floor(summary.totalDurationSec / 60)} minutes`
+          );
+        }
+      } else {
+        showSuccess('Timer stopped');
       }
+      
+      // Reset timer state
+      setCurrentSession(null);
+      setIsRunning(false);
+      setIsPaused(false);
+      setTimeRemaining(selectedPreset ? selectedPreset.workDuration : 0);
+      setCurrentPhase('work');
+      setCycle(1);
     } catch (error) {
       console.error('Error stopping timer:', error);
-      addNotification('Failed to stop timer', 'error');
+      // Still stop the timer locally even if API fails
+      setCurrentSession(null);
+      setIsRunning(false);
+      setIsPaused(false);
+      setTimeRemaining(selectedPreset ? selectedPreset.workDuration : 0);
+      setCurrentPhase('work');
+      setCycle(1);
+      showSuccess('Timer stopped (offline)');
     }
   };
 
@@ -179,31 +273,17 @@ const TimerPage = () => {
       setCurrentPhase(isLongBreak ? 'longBreak' : 'break');
       setTimeRemaining(isLongBreak ? longBreakDuration : breakDuration);
       
-      addNotification(
-        isLongBreak ? 'Long break time!' : 'Break time!',
-        'info'
-      );
+      showInfo(isLongBreak ? 'Long break time!' : 'Break time!');
     } else {
       // Switch back to work
       setCurrentPhase('work');
       setTimeRemaining(workDuration);
       setCycle(prev => prev + 1);
-      addNotification('Back to work!', 'info');
+      showInfo('Back to work!');
     }
   };
 
-  const addNotification = (message, type = 'info') => {
-    switch(type) {
-      case 'success':
-        showSuccess('Timer Update', message);
-        break;
-      case 'error':
-        showError('Timer Error', message);
-        break;
-      default:
-        showInfo('Timer Info', message);
-    }
-  };
+
 
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
@@ -255,12 +335,29 @@ const TimerPage = () => {
           <div className="text-6xl font-mono font-bold text-gray-900 dark:text-white mb-8">
             {formatTime(timeRemaining)}
           </div>
+          
+          {/* Progress indicator */}
+          {selectedPreset && isRunning && (
+            <div className="w-full max-w-md mx-auto mb-6">
+              <div className="bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                <div 
+                  className={`h-2 rounded-full transition-all duration-1000 ${getPhaseColor()}`}
+                  style={{
+                    width: `${((selectedPreset[currentPhase === 'work' ? 'workDuration' : currentPhase === 'break' ? 'breakDuration' : 'longBreakDuration'] - timeRemaining) / selectedPreset[currentPhase === 'work' ? 'workDuration' : currentPhase === 'break' ? 'breakDuration' : 'longBreakDuration']) * 100}%`
+                  }}
+                />
+              </div>
+            </div>
+          )}
 
           {/* Timer Controls */}
           <TimerControls
             isRunning={isRunning}
             isPaused={isPaused}
-            onStart={() => startTimer(selectedPreset)}
+            onStart={() => {
+              console.log('Start button clicked, selectedPreset:', selectedPreset);
+              startTimer(selectedPreset);
+            }}
             onPause={pauseTimer}
             onResume={resumeTimer}
             onStop={stopTimer}

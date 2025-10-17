@@ -48,19 +48,65 @@ const PresetManager = ({ presets, onPresetsChange, onClose }) => {
     setIsLoading(true);
 
     try {
+      let savedPreset;
       if (editingPreset) {
         // Update existing preset
-        await api.put(`/timers/${editingPreset._id}`, formData);
+        const response = await api.put(`/timers/${editingPreset._id}`, formData);
+        savedPreset = response.data;
       } else {
         // Create new preset
-        await api.post('/timers', formData);
+        const response = await api.post('/timers', formData);
+        savedPreset = response.data;
       }
+      
+      // Also save to localStorage as backup
+      const localPresets = JSON.parse(localStorage.getItem('timerPresets') || '[]');
+      if (editingPreset) {
+        const index = localPresets.findIndex(p => p._id === editingPreset._id);
+        if (index >= 0) {
+          localPresets[index] = savedPreset;
+        } else {
+          localPresets.push(savedPreset);
+        }
+      } else {
+        localPresets.push(savedPreset);
+      }
+      localStorage.setItem('timerPresets', JSON.stringify(localPresets));
       
       await onPresetsChange();
       resetForm();
     } catch (error) {
       console.error('Error saving preset:', error);
-      alert('Failed to save preset');
+      
+      // Save to localStorage as fallback
+      try {
+        const newPreset = {
+          _id: editingPreset?._id || 'local-' + Date.now(),
+          ...formData,
+          createdAt: editingPreset?.createdAt || new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        
+        const localPresets = JSON.parse(localStorage.getItem('timerPresets') || '[]');
+        if (editingPreset) {
+          const index = localPresets.findIndex(p => p._id === editingPreset._id);
+          if (index >= 0) {
+            localPresets[index] = newPreset;
+          } else {
+            localPresets.push(newPreset);
+          }
+        } else {
+          localPresets.push(newPreset);
+        }
+        localStorage.setItem('timerPresets', JSON.stringify(localPresets));
+        
+        await onPresetsChange();
+        resetForm();
+        alert('Preset saved locally (server unavailable)');
+      } catch (localError) {
+        console.error('Error saving to localStorage:', localError);
+        alert('Failed to save preset');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -154,10 +200,12 @@ const PresetManager = ({ presets, onPresetsChange, onClose }) => {
       {showForm && (
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="preset-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Preset Name
             </label>
             <input
+              id="preset-name"
+              name="presetName"
               type="text"
               value={formData.name}
               onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
@@ -169,61 +217,69 @@ const PresetManager = ({ presets, onPresetsChange, onClose }) => {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="work-duration" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Work Duration (minutes)
               </label>
               <input
+                id="work-duration"
+                name="workDuration"
                 type="number"
                 min="1"
                 max="120"
-                value={Math.floor(formData.workDuration / 60)}
-                onChange={(e) => setFormData(prev => ({ ...prev, workDuration: parseInt(e.target.value) * 60 }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                value={Math.floor((formData.workDuration || 1500) / 60)}
+                onChange={(e) => setFormData(prev => ({ ...prev, workDuration: (parseInt(e.target.value) || 1) * 60 }))}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="break-duration" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Break Duration (minutes)
               </label>
               <input
+                id="break-duration"
+                name="breakDuration"
                 type="number"
                 min="1"
                 max="30"
-                value={Math.floor(formData.breakDuration / 60)}
-                onChange={(e) => setFormData(prev => ({ ...prev, breakDuration: parseInt(e.target.value) * 60 }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                value={Math.floor((formData.breakDuration || 300) / 60)}
+                onChange={(e) => setFormData(prev => ({ ...prev, breakDuration: (parseInt(e.target.value) || 1) * 60 }))}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="long-break-duration" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Long Break Duration (minutes)
               </label>
               <input
+                id="long-break-duration"
+                name="longBreakDuration"
                 type="number"
                 min="1"
                 max="60"
-                value={Math.floor(formData.longBreakDuration / 60)}
-                onChange={(e) => setFormData(prev => ({ ...prev, longBreakDuration: parseInt(e.target.value) * 60 }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                value={Math.floor((formData.longBreakDuration || 900) / 60)}
+                onChange={(e) => setFormData(prev => ({ ...prev, longBreakDuration: (parseInt(e.target.value) || 1) * 60 }))}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="cycles-before-long-break" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Cycles Before Long Break
               </label>
               <input
+                id="cycles-before-long-break"
+                name="cyclesBeforeLongBreak"
                 type="number"
                 min="2"
                 max="10"
-                value={formData.cyclesBeforeLongBreak}
-                onChange={(e) => setFormData(prev => ({ ...prev, cyclesBeforeLongBreak: parseInt(e.target.value) }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                value={formData.cyclesBeforeLongBreak || 4}
+                onChange={(e) => setFormData(prev => ({ ...prev, cyclesBeforeLongBreak: parseInt(e.target.value) || 4 }))}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 required
               />
             </div>

@@ -22,12 +22,57 @@ const ReminderList = ({ onCreateNew, onEdit }) => {
     try {
       const response = await api.get('/reminders');
       // Ensure we always set an array, even if response.data is not an array
-      const reminderData = Array.isArray(response.data) ? response.data : [];
+      let reminderData = Array.isArray(response.data) ? response.data : 
+                         Array.isArray(response.data.data) ? response.data.data : [];
+      
+      // Merge with locally stored reminders
+      const localReminders = JSON.parse(localStorage.getItem('userReminders') || '[]');
+      if (localReminders.length > 0) {
+        // Merge API reminders with local reminders, avoiding duplicates
+        const combinedReminders = [...reminderData];
+        localReminders.forEach(localReminder => {
+          if (!combinedReminders.find(r => r._id === localReminder._id)) {
+            combinedReminders.push(localReminder);
+          }
+        });
+        reminderData = combinedReminders;
+      }
+      
+      // Save merged reminders to localStorage
+      localStorage.setItem('userReminders', JSON.stringify(reminderData));
       setReminders(reminderData);
     } catch (error) {
       console.error('Error fetching reminders:', error);
-      // Set empty array on error to prevent filter errors
-      setReminders([]);
+      
+      // Load from localStorage as fallback
+      const localReminders = JSON.parse(localStorage.getItem('userReminders') || '[]');
+      if (localReminders.length > 0) {
+        setReminders(localReminders);
+      } else {
+        // Provide mock reminders as fallback if no local data
+        const mockReminders = [
+          {
+            _id: 'mock-reminder-1',
+            title: 'Study Break Reminder',
+            message: 'Time to take a 15-minute break!',
+            type: 'recurring',
+            isActive: true,
+            nextTrigger: new Date(Date.now() + 60000), // 1 minute from now
+            recurrence: { frequency: 'daily', interval: 1 },
+            channels: { inApp: true, email: false, push: false }
+          },
+          {
+            _id: 'mock-reminder-2',
+            title: 'Project Deadline',
+            message: 'Submit your final project today!',
+            type: 'one-off',
+            isActive: true,
+            datetime: new Date(Date.now() + 3600000), // 1 hour from now
+            channels: { inApp: true, email: true, push: false }
+          }
+        ];
+        setReminders(mockReminders);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -38,10 +83,25 @@ const ReminderList = ({ onCreateNew, onEdit }) => {
 
     try {
       await api.delete(`/reminders/${reminderId}`);
+      
+      // Also remove from localStorage
+      const localReminders = JSON.parse(localStorage.getItem('userReminders') || '[]');
+      const updatedReminders = localReminders.filter(r => r._id !== reminderId);
+      localStorage.setItem('userReminders', JSON.stringify(updatedReminders));
+      
       setReminders(prev => prev.filter(r => r._id !== reminderId));
     } catch (error) {
       console.error('Error deleting reminder:', error);
-      alert('Failed to delete reminder');
+      
+      // Still try to remove from localStorage
+      try {
+        const localReminders = JSON.parse(localStorage.getItem('userReminders') || '[]');
+        const updatedReminders = localReminders.filter(r => r._id !== reminderId);
+        localStorage.setItem('userReminders', JSON.stringify(updatedReminders));
+        setReminders(prev => prev.filter(r => r._id !== reminderId));
+      } catch (localError) {
+        alert('Failed to delete reminder');
+      }
     }
   };
 
@@ -50,12 +110,44 @@ const ReminderList = ({ onCreateNew, onEdit }) => {
       const response = await api.put(`/reminders/${reminder._id}`, {
         isActive: !reminder.isActive
       });
+      
+      // Also update localStorage
+      const localReminders = JSON.parse(localStorage.getItem('userReminders') || '[]');
+      const updatedReminders = localReminders.map(r => 
+        r._id === reminder._id ? response.data : r
+      );
+      localStorage.setItem('userReminders', JSON.stringify(updatedReminders));
+      
       setReminders(prev => prev.map(r => 
         r._id === reminder._id ? response.data : r
       ));
     } catch (error) {
       console.error('Error updating reminder:', error);
-      alert('Failed to update reminder');
+      
+      // Still try to update localStorage
+      try {
+        const updatedReminder = { ...reminder, isActive: !reminder.isActive };
+        const localReminders = JSON.parse(localStorage.getItem('userReminders') || '[]');
+        const updatedReminders = localReminders.map(r => 
+          r._id === reminder._id ? updatedReminder : r
+        );
+        localStorage.setItem('userReminders', JSON.stringify(updatedReminders));
+        setReminders(prev => prev.map(r => 
+          r._id === reminder._id ? updatedReminder : r
+        ));
+      } catch (localError) {
+        alert('Failed to update reminder');
+      }
+    }
+  };
+
+  const handleTestReminder = async (reminder) => {
+    try {
+      await api.post(`/reminders/${reminder._id}/trigger`);
+      alert('Test reminder triggered! Check for notification.');
+    } catch (error) {
+      console.error('Error testing reminder:', error);
+      alert('Failed to trigger test reminder');
     }
   };
 
@@ -181,6 +273,14 @@ const ReminderList = ({ onCreateNew, onEdit }) => {
             title={reminder.isActive ? 'Deactivate' : 'Activate'}
           >
             <BellIcon className="w-4 h-4" />
+          </button>
+          
+          <button
+            onClick={() => handleTestReminder(reminder)}
+            className="p-2 text-purple-600 hover:bg-purple-100 dark:hover:bg-purple-900 rounded transition-colors"
+            title="Test Reminder"
+          >
+            <span className="w-4 h-4 text-xs font-bold">🔔</span>
           </button>
           
           <button

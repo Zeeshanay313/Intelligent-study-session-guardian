@@ -157,7 +157,7 @@ const scheduleReminder = async (reminder) => {
       }
 
       const task = cron.schedule(reminder.cronExpression, async () => {
-        await executeReminderAction(reminder);
+        await executeReminderAction(reminder, executeReminderAction.io);
       }, {
         scheduled: true,
         timezone: 'UTC'
@@ -172,7 +172,7 @@ const scheduleReminder = async (reminder) => {
         const delay = reminderTime.getTime() - now.getTime();
         
         const timeout = setTimeout(async () => {
-          await executeReminderAction(reminder);
+          await executeReminderAction(reminder, executeReminderAction.io);
           activeCronJobs.delete(reminderId);
         }, delay);
 

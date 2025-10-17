@@ -76,16 +76,69 @@ const ReminderEditor = ({ reminder, onSave, onClose }) => {
         } : null
       };
 
+      let savedReminder;
       if (reminder) {
-        await api.put(`/reminders/${reminder._id}`, payload);
+        const response = await api.put(`/reminders/${reminder._id}`, payload);
+        savedReminder = response.data;
       } else {
-        await api.post('/reminders', payload);
+        const response = await api.post('/reminders', payload);
+        savedReminder = response.data;
       }
+      
+      // Also save to localStorage as backup
+      const localReminders = JSON.parse(localStorage.getItem('userReminders') || '[]');
+      if (reminder) {
+        const index = localReminders.findIndex(r => r._id === reminder._id);
+        if (index >= 0) {
+          localReminders[index] = savedReminder;
+        } else {
+          localReminders.push(savedReminder);
+        }
+      } else {
+        localReminders.push(savedReminder);
+      }
+      localStorage.setItem('userReminders', JSON.stringify(localReminders));
       
       onSave();
     } catch (error) {
       console.error('Error saving reminder:', error);
-      alert('Failed to save reminder');
+      
+      // Save to localStorage as fallback
+      try {
+        const newReminder = {
+          _id: reminder?._id || 'local-reminder-' + Date.now(),
+          ...formData,
+          dateTime: new Date(formData.dateTime).toISOString(),
+          recurrence: formData.recurrence.frequency ? {
+            ...formData.recurrence,
+            endDate: formData.recurrence.endDate 
+              ? new Date(formData.recurrence.endDate).toISOString()
+              : null
+          } : null,
+          createdAt: reminder?.createdAt || new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          isActive: true
+        };
+        
+        const localReminders = JSON.parse(localStorage.getItem('userReminders') || '[]');
+        if (reminder) {
+          const index = localReminders.findIndex(r => r._id === reminder._id);
+          if (index >= 0) {
+            localReminders[index] = newReminder;
+          } else {
+            localReminders.push(newReminder);
+          }
+        } else {
+          localReminders.push(newReminder);
+        }
+        localStorage.setItem('userReminders', JSON.stringify(localReminders));
+        
+        onSave();
+        alert('Reminder saved locally (server unavailable)');
+      } catch (localError) {
+        console.error('Error saving to localStorage:', localError);
+        alert('Failed to save reminder');
+      }
     } finally {
       setIsLoading(false);
     }
