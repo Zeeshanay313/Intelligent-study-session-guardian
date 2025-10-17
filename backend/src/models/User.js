@@ -122,6 +122,42 @@ const userSchema = new mongoose.Schema({
     enum: ['user', 'admin'],
     default: 'user'
   },
+  // Third-party integrations
+  integrations: {
+    googleCalendar: {
+      accessToken: String,
+      refreshToken: String,
+      expiryDate: Date,
+      connected: {
+        type: Boolean,
+        default: false
+      },
+      lastSync: Date
+    },
+    email: {
+      provider: {
+        type: String,
+        enum: ['gmail', 'outlook', 'custom'],
+        default: 'gmail'
+      },
+      smtpHost: String,
+      smtpPort: Number,
+      smtpUser: String,
+      smtpPass: String,
+      enabled: {
+        type: Boolean,
+        default: false
+      }
+    },
+    pushNotifications: {
+      fcmToken: String,
+      enabled: {
+        type: Boolean,
+        default: false
+      },
+      lastUpdated: Date
+    }
+  },
   refreshTokens: [{
     token: String,
     createdAt: {

@@ -36,12 +36,12 @@ export const AuthProvider = ({ children }) => {
 
   // Check authentication status on mount
   useEffect(() => {
-    // Force logout on page refresh/reload
+    // Clear authentication on page refresh - always redirect to login
     clearAuthData();
     dispatch({ type: 'LOGOUT' });
     dispatch({ type: 'SET_LOADING', payload: false });
     
-    // Uncomment the line below if you want to check auth instead of forcing logout
+    // Uncomment the line below if you want to verify token with backend
     // checkAuth();
   }, []);
 
@@ -124,7 +124,25 @@ export const AuthProvider = ({ children }) => {
       };
       
       const response = await authAPI.login(loginData);
-      dispatch({ type: 'SET_USER', payload: response.data.user });
+      
+      // Store user and token data
+      const userData = response.data.user;
+      const token = response.data.token || response.data.accessToken;
+      const refreshToken = response.data.refreshToken;
+      
+      if (userData) {
+        dispatch({ type: 'SET_USER', payload: userData });
+        localStorage.setItem('user', JSON.stringify(userData));
+      }
+      
+      if (token) {
+        localStorage.setItem('token', token);
+        localStorage.setItem('accessToken', token); // Fallback for old code
+      }
+      
+      if (refreshToken) {
+        localStorage.setItem('refreshToken', refreshToken);
+      }
       
       toast.success('Login successful!');
       return { success: true };
@@ -133,6 +151,8 @@ export const AuthProvider = ({ children }) => {
       dispatch({ type: 'SET_ERROR', payload: errorMessage });
       toast.error(errorMessage);
       return { success: false, error: errorMessage };
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
     }
   };
 
@@ -142,8 +162,10 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
+      // Clear all auth data
+      clearAuthData();
+      localStorage.removeItem('user'); // Clear stored user data
       dispatch({ type: 'LOGOUT' });
-      localStorage.removeItem('deviceId');
       
       // Aggressive form clearing on logout
       setTimeout(() => {
