@@ -1,0 +1,820 @@
+import axios from 'axios';
+
+// Configuration
+const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5004';
+const API_BASE = `${BASE_URL}/api`;
+const DEV_BYPASS = process.env.REACT_APP_DEV_BYPASS === 'true' || false; // Disable dev bypass for production
+
+console.log('🔧 API Configuration:');
+console.log('BASE_URL:', BASE_URL);
+console.log('API_BASE:', API_BASE);
+console.log('DEV_BYPASS:', DEV_BYPASS);
+
+// Real API configuration - no mock data
+
+// Backend availability check
+let backendAvailable = null;
+
+const checkBackendHealth = async () => {
+  try {
+    console.log('🔍 Checking backend health...');
+    console.log('🔍 Health URL:', `${BASE_URL}/health`);
+    
+    // Use raw axios instead of the configured instance to avoid base URL issues
+    const response = await axios.get(`${BASE_URL}/health`, { 
+      timeout: 3000
+    });
+    
+    if (response.status === 200) {
+      backendAvailable = true;
+      console.log('✅ Backend is available:', response.data);
+      return true;
+    }
+  } catch (error) {
+    backendAvailable = false;
+    console.warn('⚠️ Backend health check failed:', error.message);
+    
+    if (DEV_BYPASS) {
+      console.log('🔧 Dev bypass enabled - will use mock data for failed requests');
+    }
+    return false;
+  }
+};
+
+// Check backend on module load
+checkBackendHealth();
+
+// Create axios instance
+const api = axios.create({
+  baseURL: API_BASE,
+  timeout: 10000,
+  withCredentials: true,
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+
+// Request interceptor - Add auth token
+api.interceptors.request.use(
+  (config) => {
+    // Add auth token if available
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    
+    console.log(`📤 ${config.method?.toUpperCase()} ${config.url}`);
+    return config;
+  },
+  (error) => {
+    console.error('❌ Request interceptor error:', error);
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor - Handle auth and errors
+api.interceptors.response.use(
+  (response) => {
+    console.log(`✅ ${response.status} ${response.config.method?.toUpperCase()} ${response.config.url}`);
+    return response;
+  },
+  async (error) => {
+    const originalRequest = error.config;
+    
+    // Network/connection errors
+    if (!error.response) {
+      console.error('🌐 Network error - backend unreachable:', error.message);
+      return Promise.reject(new Error('Backend server is not running. Please start the backend server on port 5004.'));
+    }
+    
+    const { status } = error.response;
+    console.log(`❌ ${status} ${originalRequest.method?.toUpperCase()} ${originalRequest.url}`);
+    
+    // Handle 401 Unauthorized
+    if (status === 401) {
+      // Don't retry auth endpoints
+      if (originalRequest.url?.includes('/auth/')) {
+        console.log('🔐 Auth endpoint failed');
+        return Promise.reject(error);
+      }
+      
+      // Don't retry if already attempted
+      if (originalRequest._retry) {
+        console.log('🔄 Refresh already attempted, clearing tokens');
+        clearTokensAndRedirect();
+        return Promise.reject(error);
+      }
+      
+      // Attempt token refresh
+      const refreshToken = localStorage.getItem('refreshToken');
+      if (refreshToken) {
+        originalRequest._retry = true;
+        
+        try {
+          console.log('🔄 Attempting token refresh...');
+          const refreshResponse = await axios.post(`${API_BASE}/auth/refresh`, {}, {
+            headers: { 
+              'Authorization': `Bearer ${refreshToken}`
+            },
+            withCredentials: true
+          });
+          
+          if (refreshResponse.data.accessToken) {
+            localStorage.setItem('token', refreshResponse.data.accessToken);
+            originalRequest.headers.Authorization = `Bearer ${refreshResponse.data.accessToken}`;
+            console.log('✅ Token refreshed, retrying request');
+            return api(originalRequest);
+          }
+        } catch (refreshError) {
+          console.error('❌ Token refresh failed:', refreshError.message);
+        }
+      }
+      
+      // Clear tokens and redirect
+      clearTokensAndRedirect();
+      return Promise.reject(error);
+    }
+    
+    // Handle other errors
+    if (status >= 500) {
+      console.error('🔥 Server error:', error.response.data?.message || error.message);
+    } else if (status === 404) {
+      console.warn('🔍 Endpoint not found:', originalRequest.url);
+    }
+    
+    return Promise.reject(error);
+  }
+);
+
+// Real API configuration - removed mock response handler
+
+  
+  // Special handling for auth endpoints
+  if (mockKey.includes('auth/login')) {
+    console.log('🎭 Validating login credentials');
+    
+    // Parse login credentials from request
+    const loginData = JSON.parse(originalRequest.data || '{}');
+    const { email, password } = loginData;
+    
+    // Mock database of valid users
+    const validUsers = [
+      {
+        id: 'user-1',
+        email: 'dev@test.com',
+        password: 'password123',
+        name: 'Dev User',
+        profile: { displayName: 'Dev User', avatar: null }
+      },
+      {
+        id: 'user-2',
+        email: 'student@study.com',
+        password: 'study2024',
+        name: 'Study Student',
+        profile: { displayName: 'Study Student', avatar: null }
+      },
+      {
+        id: 'user-3',
+        email: 'test@example.com',
+        password: 'test123',
+        name: 'Test User',
+        profile: { displayName: 'Test User', avatar: null }
+      }
+    ];
+    
+    // Validate credentials
+    const user = validUsers.find(u => u.email === email && u.password === password);
+    
+    if (!user) {
+      console.log('❌ Invalid credentials provided:', { email, password: '***' });
+      return Promise.reject({
+        response: {
+          status: 401,
+          statusText: 'Unauthorized',
+          data: {
+            error: 'Invalid credentials. Please check your email and password.',
+            code: 'INVALID_CREDENTIALS'
+          }
+        }
+      });
+    }
+    
+    // Valid user - return success response
+    console.log('✅ Valid credentials for user:', user.email);
+    return Promise.resolve({
+      data: { 
+        user: { 
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          emailVerified: true,
+          profile: user.profile
+        },
+        token: `mock-jwt-token-${user.id}`,
+        accessToken: `mock-jwt-token-${user.id}`,
+        refreshToken: `mock-refresh-token-${user.id}`,
+        message: 'Login successful'
+      },
+      status: 200,
+      statusText: 'OK (Mock)',
+      config: originalRequest,
+      headers: {}
+    });
+  }
+  
+  // Special handling for timer operations
+  if (mockKey.includes('timers')) {
+    const method = originalRequest.method?.toLowerCase();
+    
+    if (method === 'post' && mockKey.includes('/start')) {
+      console.log('🎭 Mock timer start response');
+      return Promise.resolve({
+        data: { sessionId: 'mock-session-' + Date.now(), success: true },
+        status: 200,
+        statusText: 'OK (Mock)',
+        config: originalRequest,
+        headers: {}
+      });
+    }
+    
+    if (method === 'post' && (mockKey.includes('/pause') || mockKey.includes('/stop'))) {
+      console.log('🎭 Mock timer control response');
+      return Promise.resolve({
+        data: { success: true, totalDurationSec: 1500 },
+        status: 200,
+        statusText: 'OK (Mock)',
+        config: originalRequest,
+        headers: {}
+      });
+    }
+    
+    if (method === 'post' && !mockKey.includes('/start') && !mockKey.includes('/pause') && !mockKey.includes('/stop')) {
+      console.log('🎭 Mock preset create response');
+      const presetData = JSON.parse(originalRequest.data || '{}');
+      const newPreset = {
+        _id: 'preset-' + Date.now(),
+        name: presetData.name || 'New Preset',
+        workDuration: parseInt(presetData.workDuration) || 1500,
+        breakDuration: parseInt(presetData.breakDuration) || 300,
+        longBreakDuration: parseInt(presetData.longBreakDuration) || 900,
+        cyclesBeforeLongBreak: parseInt(presetData.cyclesBeforeLongBreak) || 4,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      MOCK_DATA.timers.push(newPreset);
+      console.log('✅ Created new preset:', newPreset);
+      return Promise.resolve({
+        data: newPreset,
+        status: 201,
+        statusText: 'Created (Mock)',
+        config: originalRequest,
+        headers: {}
+      });
+    }
+    
+    if (method === 'put') {
+      console.log('🎭 Mock preset update response');
+      const presetId = mockKey.split('/').pop();
+      const updateData = JSON.parse(originalRequest.data || '{}');
+      
+      // Find and update the preset in mock data
+      const presetIndex = MOCK_DATA.timers.findIndex(t => t._id === presetId);
+      if (presetIndex !== -1) {
+        MOCK_DATA.timers[presetIndex] = {
+          ...MOCK_DATA.timers[presetIndex],
+          ...updateData,
+          updatedAt: new Date().toISOString()
+        };
+        console.log('✅ Updated preset:', MOCK_DATA.timers[presetIndex]);
+        
+        return Promise.resolve({
+          data: MOCK_DATA.timers[presetIndex],
+          status: 200,
+          statusText: 'OK (Mock)',
+          config: originalRequest,
+          headers: {}
+        });
+      } else {
+        console.log('❌ Preset not found for update:', presetId);
+        return Promise.reject({
+          response: { status: 404, statusText: 'Preset not found' }
+        });
+      }
+    }
+    
+    if (method === 'delete') {
+      console.log('🎭 Mock preset delete response');
+      const presetId = mockKey.split('/').pop();
+      const initialLength = MOCK_DATA.timers.length;
+      MOCK_DATA.timers = MOCK_DATA.timers.filter(t => t._id !== presetId);
+      
+      if (MOCK_DATA.timers.length < initialLength) {
+        console.log('✅ Deleted preset:', presetId);
+        return Promise.resolve({
+          data: { success: true, message: 'Preset deleted successfully' },
+          status: 200,
+          statusText: 'OK (Mock)',
+          config: originalRequest,
+          headers: {}
+        });
+      } else {
+        console.log('❌ Preset not found for deletion:', presetId);
+        return Promise.reject({
+          response: { status: 404, statusText: 'Preset not found' }
+        });
+      }
+    }
+  }
+  
+  // Special handling for analytics/dashboard endpoints
+  if (mockKey.includes('analytics') || mockKey.includes('sessions/start')) {
+    console.log('🎭 Mock analytics/dashboard response');
+    
+    // Dashboard stats endpoint
+    if (mockKey.includes('analytics/sessions')) {
+      const today = new Date();
+      const hour = today.getHours();
+      return Promise.resolve({
+        data: Array.from({ length: Math.floor(hour * 0.3) }, (_, i) => ({
+          _id: 'session-' + i,
+          status: Math.random() > 0.2 ? 'completed' : 'active',
+          duration: 1200 + Math.random() * 1800, // 20-50 minutes
+          startTime: new Date(Date.now() - (i * 60 * 60 * 1000)).toISOString(),
+          subject: ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'History'][i % 5]
+        })),
+        status: 200,
+        statusText: 'OK (Mock)',
+        config: originalRequest,
+        headers: {}
+      });
+    }
+    
+    // User stats endpoint
+    if (mockKey.includes('analytics/user-stats')) {
+      return Promise.resolve({
+        data: {
+          focusStreak: 7 + Math.floor(Math.random() * 5),
+          studyHoursYesterday: 2.1 + Math.random() * 1.5,
+          achievementChange: 25 + Math.floor(Math.random() * 50)
+        },
+        status: 200,
+        statusText: 'OK (Mock)',
+        config: originalRequest,
+        headers: {}
+      });
+    }
+    
+    // Weekly progress endpoint
+    if (mockKey.includes('analytics/weekly-progress')) {
+      const today = new Date().getDay();
+      const daysOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const weeklyData = {};
+      
+      daysOfWeek.forEach((day, index) => {
+        const isPast = index < today;
+        const isToday = index === today;
+        
+        if (isPast) {
+          weeklyData[day] = Math.round((2 + Math.random() * 3) * 10) / 10;
+          weeklyData[day + 'Sessions'] = Math.floor(2 + Math.random() * 4);
+        } else if (isToday) {
+          const currentHour = new Date().getHours();
+          weeklyData[day] = Math.round((currentHour * 0.2 + Math.random() * 1) * 10) / 10;
+          weeklyData[day + 'Sessions'] = Math.floor(currentHour * 0.15 + Math.random() * 2);
+        } else {
+          weeklyData[day] = 0;
+          weeklyData[day + 'Sessions'] = 0;
+        }
+      });
+      
+      return Promise.resolve({
+        data: weeklyData,
+        status: 200,
+        statusText: 'OK (Mock)',
+        config: originalRequest,
+        headers: {}
+      });
+    }
+    
+    // Recent sessions endpoint
+    if (mockKey.includes('analytics/recent-sessions')) {
+      const subjects = ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'History'];
+      const now = new Date();
+      
+      const sessions = Array.from({ length: 4 }, (_, index) => {
+        const sessionTime = new Date(now.getTime() - (index * 2 * 60 * 60 * 1000));
+        return {
+          _id: `recent-session-${index + 1}`,
+          subject: subjects[index % subjects.length],
+          duration: 1500 + Math.floor(Math.random() * 1800),
+          createdAt: sessionTime.toISOString(),
+          startTime: sessionTime.toISOString(),
+          status: 'completed',
+          type: 'focus'
+        };
+      });
+      
+      return Promise.resolve({
+        data: sessions,
+        status: 200,
+        statusText: 'OK (Mock)',
+        config: originalRequest,
+        headers: {}
+      });
+    }
+    
+    // Session start endpoint
+    if (mockKey.includes('sessions/start')) {
+      return Promise.resolve({
+        data: {
+          sessionId: 'session-' + Date.now(),
+          status: 'started',
+          message: 'Study session started successfully',
+          startTime: new Date().toISOString()
+        },
+        status: 200,
+        statusText: 'OK (Mock)',
+        config: originalRequest,
+        headers: {}
+      });
+    }
+    
+    // Comprehensive session endpoint
+    if (mockKey.includes('sessions/comprehensive')) {
+      const sessionData = JSON.parse(originalRequest.data || '{}');
+      console.log('🎭 Mock comprehensive session save:', sessionData);
+      
+      return Promise.resolve({
+        data: {
+          sessionId: sessionData.sessionId || 'comprehensive-session-' + Date.now(),
+          status: 'saved',
+          message: 'Comprehensive session data saved successfully',
+          dataCollected: {
+            modules: Object.keys(sessionData.modules || {}),
+            totalDataPoints: Object.values(sessionData.modules || {}).reduce((total, module) => {
+              return total + Object.keys(module).length;
+            }, 0)
+          },
+          savedAt: new Date().toISOString()
+        },
+        status: 201,
+        statusText: 'Created (Mock)',
+        config: originalRequest,
+        headers: {}
+      });
+    }
+    
+    // Module stats endpoints for comprehensive data collection
+    if (mockKey.includes('timers/stats')) {
+      return Promise.resolve({
+        data: {
+          totalSessions: 15 + Math.floor(Math.random() * 50),
+          totalTime: 25000 + Math.floor(Math.random() * 50000),
+          averageSessionLength: 1400 + Math.floor(Math.random() * 400),
+          favoritePreset: 'default-pomodoro'
+        },
+        status: 200,
+        statusText: 'OK (Mock)',
+        config: originalRequest,
+        headers: {}
+      });
+    }
+    
+    if (mockKey.includes('reminders/stats')) {
+      return Promise.resolve({
+        data: {
+          totalTriggered: 8 + Math.floor(Math.random() * 20),
+          successRate: 75 + Math.floor(Math.random() * 25),
+          averageResponseTime: 45 + Math.floor(Math.random() * 120)
+        },
+        status: 200,
+        statusText: 'OK (Mock)',
+        config: originalRequest,
+        headers: {}
+      });
+    }
+    
+    if (mockKey.includes('goals/stats')) {
+      return Promise.resolve({
+        data: {
+          completedGoals: Math.floor(Math.random() * 10),
+          completionRate: 60 + Math.floor(Math.random() * 40),
+          averageCompletionTime: 5 + Math.floor(Math.random() * 25),
+          currentStreak: Math.floor(Math.random() * 15)
+        },
+        status: 200,
+        statusText: 'OK (Mock)',
+        config: originalRequest,
+        headers: {}
+      });
+    }
+    
+    if (mockKey.includes('profile') || mockKey.includes('settings')) {
+      return Promise.resolve({
+        data: {
+          id: 'user-profile-' + Date.now(),
+          name: 'Study User',
+          email: 'user@study.com',
+          theme: 'light',
+          notifications: true,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          language: 'en',
+          shareProgress: false,
+          allowTracking: true,
+          dataRetention: '1year'
+        },
+        status: 200,
+        statusText: 'OK (Mock)',
+        config: originalRequest,
+        headers: {}
+      });
+    }
+  }
+  
+  // Special handling for reminder operations
+  if (mockKey.includes('reminders')) {
+    const method = originalRequest.method?.toLowerCase();
+    
+    if (method === 'post' && mockKey.includes('/trigger')) {
+      console.log('🎭 Mock reminder trigger response');
+      
+      // Request notification permission if not granted
+      if (window.Notification && window.Notification.permission === 'default') {
+        window.Notification.requestPermission().then(permission => {
+          if (permission === 'granted') {
+            showReminderNotification();
+          } else {
+            console.log('Notification permission denied');
+            alert('Test Reminder: This is a test notification from the reminder system!');
+          }
+        });
+      } else if (window.Notification && window.Notification.permission === 'granted') {
+        showReminderNotification();
+      } else {
+        // Fallback to alert if notifications not supported or denied
+        alert('Test Reminder: This is a test notification from the reminder system!');
+      }
+      
+      function showReminderNotification() {
+        const notification = new window.Notification('🔔 Test Reminder', {
+          body: 'This is a test notification from the reminder system! The notification system is working correctly.',
+          icon: '/favicon.ico',
+          tag: 'test-reminder',
+          requireInteraction: true
+        });
+        
+        // Auto-close after 5 seconds if user doesn't interact
+        setTimeout(() => {
+          notification.close();
+        }, 5000);
+        
+        notification.onclick = () => {
+          window.focus();
+          notification.close();
+        };
+      }
+      
+      return Promise.resolve({
+        data: { success: true, message: 'Reminder triggered successfully' },
+        status: 200,
+        statusText: 'OK (Mock)',
+        config: originalRequest,
+        headers: {}
+      });
+    }
+    
+    if (method === 'post' && !mockKey.includes('/trigger')) {
+      console.log('🎭 Mock reminder create response');
+      const reminderData = JSON.parse(originalRequest.data || '{}');
+      const newReminder = {
+        _id: 'new-reminder-' + Date.now(),
+        ...reminderData,
+        createdAt: new Date().toISOString(),
+        isActive: true
+      };
+      
+      // If it's a test reminder with datetime in the near future, set up auto-trigger
+      if (reminderData.datetime && new Date(reminderData.datetime) <= new Date(Date.now() + 30000)) {
+        const triggerTime = new Date(reminderData.datetime).getTime() - Date.now();
+        if (triggerTime > 0) {
+          setTimeout(() => {
+            console.log('🔔 Auto-triggering test reminder');
+            if (window.Notification && window.Notification.permission === 'granted') {
+              const notification = new window.Notification('🔔 ' + reminderData.title, {
+                body: reminderData.message,
+                icon: '/favicon.ico',
+                tag: 'auto-reminder-' + newReminder._id
+              });
+              
+              setTimeout(() => notification.close(), 5000);
+              notification.onclick = () => {
+                window.focus();
+                notification.close();
+              };
+            } else {
+              alert(`🔔 ${reminderData.title}: ${reminderData.message}`);
+            }
+          }, triggerTime);
+        }
+      }
+      
+      MOCK_DATA.reminders.push(newReminder);
+      return Promise.resolve({
+        data: newReminder,
+        status: 201,
+        statusText: 'Created (Mock)',
+        config: originalRequest,
+        headers: {}
+      });
+    }
+    
+    if (method === 'put') {
+      console.log('🎭 Mock reminder update response');
+      const reminderId = mockKey.split('/').pop();
+      const updateData = JSON.parse(originalRequest.data || '{}');
+      
+      // Find and update the reminder in mock data
+      const reminderIndex = MOCK_DATA.reminders.findIndex(r => r._id === reminderId);
+      if (reminderIndex !== -1) {
+        MOCK_DATA.reminders[reminderIndex] = {
+          ...MOCK_DATA.reminders[reminderIndex],
+          ...updateData,
+          updatedAt: new Date().toISOString()
+        };
+        
+        return Promise.resolve({
+          data: MOCK_DATA.reminders[reminderIndex],
+          status: 200,
+          statusText: 'OK (Mock)',
+          config: originalRequest,
+          headers: {}
+        });
+      }
+    }
+    
+    if (method === 'delete') {
+      console.log('🎭 Mock reminder delete response');
+      const reminderId = mockKey.split('/').pop();
+      MOCK_DATA.reminders = MOCK_DATA.reminders.filter(r => r._id !== reminderId);
+      
+      return Promise.resolve({
+        data: { success: true, message: 'Reminder deleted successfully' },
+        status: 200,
+        statusText: 'OK (Mock)',
+        config: originalRequest,
+        headers: {}
+      });
+    }
+  }
+  
+  // Return mock data for other endpoints
+  const mockResponse = {
+    data: MOCK_DATA[mockKey] || [],
+    status: 200,
+    statusText: 'OK (Mock)',
+    config: originalRequest,
+    headers: {}
+  };
+  
+  return Promise.resolve(mockResponse);
+};
+
+// Clear tokens and redirect to login
+const clearTokensAndRedirect = () => {
+  localStorage.removeItem('token');
+  localStorage.removeItem('refreshToken');
+  document.cookie = 'refreshToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+  
+  // Only redirect if not already on login page
+  if (window.location.pathname !== '/login') {
+    console.log('🔐 Redirecting to login');
+    window.location.href = '/login';
+  }
+};
+
+// API methods
+export const authAPI = {
+  register: (userData) => api.post('/auth/register', userData),
+  login: (credentials) => api.post('/auth/login', credentials),
+  logout: () => api.post('/auth/logout'),
+  refresh: () => api.post('/auth/refresh'),
+  getMe: () => api.get('/auth/me'),
+  changePassword: (passwordData) => api.patch('/auth/change-password', passwordData),
+  forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
+  resetPassword: (token, password) => api.post('/auth/reset-password', { token, password }),
+  verifyResetToken: (token) => api.get(`/auth/verify-reset-token/${token}`)
+};
+
+export const userAPI = {
+  getProfile: () => api.get('/users/me'),
+  updateProfile: (profileData) => api.patch('/users/me/profile', profileData),
+  updatePrivacy: (privacyData) => api.patch('/users/me/privacy', privacyData),
+  uploadAvatar: (file) => {
+    const formData = new FormData();
+    formData.append('avatar', file);
+    return api.post('/users/me/avatar', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+  exportData: () => api.post('/users/me/export'),
+  deleteAccount: () => api.delete('/users/me')
+};
+
+export const goalAPI = {
+  getGoals: (params = {}) => api.get('/goals', { params }),
+  getGoal: (id) => api.get(`/goals/${id}`),
+  createGoal: (goalData) => api.post('/goals', goalData),
+  updateGoal: (id, goalData) => api.patch(`/goals/${id}`, goalData),
+  deleteGoal: (id) => api.delete(`/goals/${id}`),
+  updateProgress: (id, progressData) => api.patch(`/goals/${id}/progress`, progressData)
+};
+
+export const timerAPI = {
+  getPresets: () => api.get('/timers'),
+  createPreset: (presetData) => api.post('/timers', presetData),
+  updatePreset: (id, presetData) => api.put(`/timers/${id}`, presetData),
+  deletePreset: (id) => api.delete(`/timers/${id}`)
+};
+
+export const reminderAPI = {
+  getReminders: () => api.get('/reminders'),
+  createReminder: (reminderData) => api.post('/reminders', reminderData),
+  updateReminder: (id, reminderData) => api.put(`/reminders/${id}`, reminderData),
+  deleteReminder: (id) => api.delete(`/reminders/${id}`),
+  triggerReminder: (id) => api.post(`/reminders/${id}/trigger`)
+};
+
+export const sessionAPI = {
+  getCurrent: () => api.get('/study-session/current'),
+  start: (sessionData) => api.post('/study-session/start', sessionData),
+  pause: () => api.post('/study-session/pause'),
+  resume: () => api.post('/study-session/resume'),
+  stop: () => api.post('/study-session/stop')
+};
+
+export const deviceAPI = {
+  register: (deviceData) => api.post('/devices/register', deviceData),
+  getMyDevices: (activeOnly = false) => api.get('/devices/my-devices', { 
+    params: { activeOnly } 
+  }),
+  updateAccess: (deviceId, accessData) => api.patch(`/devices/${deviceId}/access`, accessData),
+  revokeAccess: (deviceId, reason) => api.post(`/devices/${deviceId}/revoke`, { reason }),
+  removeDevice: (deviceId) => api.delete(`/devices/${deviceId}`),
+  getDevice: (deviceId) => api.get(`/devices/${deviceId}`),
+  flagSuspicious: (deviceId, reason) => api.post(`/devices/${deviceId}/flag-suspicious`, { reason })
+};
+
+// Utility functions
+export const clearAuthData = () => {
+  localStorage.removeItem('token');
+  localStorage.removeItem('refreshToken');
+  localStorage.removeItem('accessToken');
+  document.cookie = 'refreshToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Strict; Secure';
+  // Clear any other auth-related localStorage items
+  localStorage.removeItem('user');
+  localStorage.removeItem('deviceId');
+};
+
+export const handleApiError = (error) => {
+  if (error.response?.data?.details) {
+    // Validation errors
+    return error.response.data.details.map(detail => detail.message).join(', ');
+  } else if (error.response?.data?.error) {
+    return error.response.data.error;
+  } else if (error.message) {
+    return error.message;
+  }
+  return 'An unexpected error occurred';
+};
+export const downloadFile = (blob, filename) => {
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+};
+
+export const getDeviceFingerprint = () => ({
+  screen: `${screen.width}x${screen.height}`,
+  timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  language: navigator.language,
+  platform: navigator.platform,
+  userAgent: navigator.userAgent
+});
+
+export const generateDeviceId = () => {
+  const stored = localStorage.getItem('deviceId');
+  if (stored) return stored;
+  
+  const deviceId = 'device_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+  localStorage.setItem('deviceId', deviceId);
+  return deviceId;
+};
+
+// Export status checker
+export { checkBackendHealth };
+
+export default api;

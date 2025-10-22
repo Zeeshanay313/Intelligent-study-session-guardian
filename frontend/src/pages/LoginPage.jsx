@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
+import SocialLoginSection from '../components/auth/SocialLoginSection';
 import toast from 'react-hot-toast';
 import FormClearingService from '../services/formClearingService';
 
@@ -128,25 +129,25 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-secondary-50 via-white to-primary-50 dark:from-secondary-950 dark:via-secondary-900 dark:to-secondary-800 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-secondary-50 via-white to-primary-50 dark:from-secondary-950 dark:via-secondary-900 dark:to-secondary-800 py-4 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-4">
         <div className="text-center">
           <div className="mx-auto h-16 w-16 bg-gradient-to-br from-primary-600 to-primary-700 rounded-2xl flex items-center justify-center shadow-xl">
             <svg className="h-10 w-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
             </svg>
           </div>
-          <h2 className="mt-8 text-center text-3xl font-bold font-display bg-gradient-to-r from-secondary-900 to-secondary-700 dark:from-secondary-100 dark:to-secondary-300 bg-clip-text text-transparent">
+          <h2 className="mt-4 text-center text-2xl font-bold font-display bg-gradient-to-r from-secondary-900 to-secondary-700 dark:from-secondary-100 dark:to-secondary-300 bg-clip-text text-transparent">
             Welcome Back
           </h2>
-          <p className="mt-3 text-center text-base text-secondary-600 dark:text-secondary-400 font-medium">
+          <p className="mt-2 text-center text-sm text-secondary-600 dark:text-secondary-400 font-medium">
             Sign in to access your Study Guardian account
           </p>
         </div>
 
         <form 
           key={formKey} 
-          className="mt-8 space-y-6" 
+          className="mt-4 space-y-4" 
           onSubmit={onSubmit}
           autoComplete="new-password"
           autoCorrect="off"
@@ -163,7 +164,7 @@ const LoginPage = () => {
             <input type="password" name="fakepasswordremembered" autoComplete="current-password" tabIndex="-1" />
           </div>
           
-          <div className="space-y-4">
+          <div className="space-y-3">
             <Input
               id={`email-${formKey}`}
               name={`email-${formKey}`}
@@ -239,16 +240,19 @@ const LoginPage = () => {
               Forgot your password?
             </Link>
           </div>
-
-          <div className="text-center">
-            <p className="text-sm text-secondary-600 dark:text-secondary-400">
-              Don't have an account?{' '}
-              <Link to="/register" className="font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300">
-                Sign up
-              </Link>
-            </p>
-          </div>
         </form>
+
+        {/* Social Login Section */}
+        <SocialLoginSection />
+
+        <div className="text-center">
+          <p className="text-sm text-secondary-600 dark:text-secondary-400">
+            Don't have an account?{' '}
+            <Link to="/register" className="font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300">
+              Sign up
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

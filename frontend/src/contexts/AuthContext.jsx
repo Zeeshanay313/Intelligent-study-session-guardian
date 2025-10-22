@@ -195,6 +195,40 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const socialLogin = async (socialData) => {
+    try {
+      dispatch({ type: 'SET_LOADING', payload: true });
+      dispatch({ type: 'CLEAR_ERROR' });
+      
+      // Store user and token data from social login
+      const userData = socialData.user;
+      const token = socialData.token || socialData.accessToken;
+      const refreshToken = socialData.refreshToken;
+      
+      if (userData) {
+        dispatch({ type: 'SET_USER', payload: userData });
+        localStorage.setItem('user', JSON.stringify(userData));
+      }
+      
+      if (token) {
+        localStorage.setItem('token', token);
+        localStorage.setItem('accessToken', token);
+      }
+      
+      if (refreshToken) {
+        localStorage.setItem('refreshToken', refreshToken);
+      }
+      
+      return { success: true };
+    } catch (error) {
+      const errorMessage = error.message || 'Social login failed';
+      dispatch({ type: 'SET_ERROR', payload: errorMessage });
+      return { success: false, error: errorMessage };
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  };
+
   const updateUser = (userData) => {
     dispatch({ type: 'SET_USER', payload: { ...state.user, ...userData } });
   };
@@ -223,6 +257,7 @@ export const AuthProvider = ({ children }) => {
     error: state.error,
     register,
     login,
+    socialLogin,
     logout,
     updateUser,
     clearError,
