@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { useAuth } from '../contexts/AuthContext';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
+import SocialLoginSection from '../components/auth/SocialLoginSection';
 
 const RegisterPage = () => {
   const { register: registerUser, error, loading } = useAuth();
@@ -171,16 +172,19 @@ const RegisterPage = () => {
               Create Account
             </Button>
           </div>
-
-          <div className="text-center">
-            <p className="text-sm text-secondary-600 dark:text-secondary-400">
-              Already have an account?{' '}
-              <Link to="/login" className="font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300">
-                Sign in
-              </Link>
-            </p>
-          </div>
         </form>
+
+        {/* Social Login Section */}
+        <SocialLoginSection />
+
+        <div className="text-center">
+          <p className="text-sm text-secondary-600 dark:text-secondary-400">
+            Already have an account?{' '}
+            <Link to="/login" className="font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300">
+              Sign in
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );
