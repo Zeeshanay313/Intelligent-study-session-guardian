@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import IntegratedStudySession from '../components/IntegratedStudySession';
 import dashboardService from '../services/dashboardService';
+import socialAuthService from '../services/socialAuthService';
 import toast from 'react-hot-toast';
 import { 
   ChartBarIcon, 
@@ -37,8 +38,38 @@ const DashboardPage = () => {
   const [recentSessions, setRecentSessions] = useState([]);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
 
-  // Load real-time dashboard data
+  // Handle OAuth callback and load real-time dashboard data
   useEffect(() => {
+    // Check for OAuth callback
+    const urlParams = new URLSearchParams(window.location.search);
+    const oauthSuccess = urlParams.get('oauth');
+    const oauthError = urlParams.get('error');
+    
+    if (oauthSuccess === 'signin_success') {
+      toast.success('Successfully signed in with Google!');
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (oauthSuccess === 'signup_success') {
+      toast.success('Welcome! Your account has been created successfully with Google!');
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (oauthSuccess === 'success') {
+      // Legacy support
+      toast.success('Successfully authenticated with Google!');
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (oauthError) {
+      const errorMessages = {
+        'oauth_failed': 'Google authentication failed. Please try again.',
+        'oauth_callback_failed': 'Authentication callback failed. Please try again.'
+      };
+      toast.error(errorMessages[oauthError] || 'Authentication error. Please try again.');
+      // Clean up URL and redirect to login
+      window.history.replaceState({}, document.title, '/login');
+      navigate('/login');
+      return;
+    }
+    
     loadDashboardData();
     setIsLoaded(true);
     
@@ -46,7 +77,7 @@ const DashboardPage = () => {
     const interval = setInterval(loadDashboardData, 2 * 60 * 1000);
     
     return () => clearInterval(interval);
-  }, []);
+  }, [navigate]);
 
   const loadDashboardData = async () => {
     try {
@@ -287,7 +318,7 @@ const DashboardPage = () => {
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
-                Welcome back, {user?.profile?.displayName || 'Student'}
+                Welcome , {user?.profile?.displayName || 'Student'}
               </h1>
               <p className="text-slate-600 dark:text-slate-300 mt-1">
                 Track your progress and stay focused on your learning journey

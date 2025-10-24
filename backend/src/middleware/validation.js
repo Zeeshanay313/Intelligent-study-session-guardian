@@ -37,8 +37,8 @@ const validateRegistration = [
     .trim()
     .isLength({ min: 2, max: 100 })
     .withMessage('Display name must be between 2 and 100 characters')
-    .matches(/^[a-zA-Z0-9\s\-'\.]+$/)
-    .withMessage('Display name can only contain letters, numbers, spaces, hyphens, apostrophes, and periods'),
+    .matches(/^[a-zA-Z\s\-']+$/)
+    .withMessage('Display name can only contain letters, spaces, hyphens, and apostrophes'),
   handleValidationErrors
 ];
 

@@ -36,13 +36,8 @@ export const AuthProvider = ({ children }) => {
 
   // Check authentication status on mount
   useEffect(() => {
-    // Clear authentication on page refresh - always redirect to login
-    clearAuthData();
-    dispatch({ type: 'LOGOUT' });
-    dispatch({ type: 'SET_LOADING', payload: false });
-    
-    // Uncomment the line below if you want to verify token with backend
-    // checkAuth();
+    // Check for existing authentication (especially for OAuth callbacks)
+    checkAuth();
   }, []);
 
   const checkAuth = async () => {
@@ -147,10 +142,24 @@ export const AuthProvider = ({ children }) => {
       toast.success('Login successful!');
       return { success: true };
     } catch (error) {
-      const errorMessage = error.response?.data?.error || 'Login failed';
+      const errorData = error.response?.data || {};
+      const errorMessage = errorData.error || 'Login failed';
+      
       dispatch({ type: 'SET_ERROR', payload: errorMessage });
-      toast.error(errorMessage);
-      return { success: false, error: errorMessage };
+      
+      // Handle specific error cases
+      if (errorData.suggestion === 'register' || errorMessage.includes('No account found')) {
+        toast.error('No account found with this email. Please create an account first.');
+        return { 
+          success: false, 
+          error: errorMessage, 
+          suggestion: 'register',
+          redirectToRegister: true
+        };
+      } else {
+        toast.error(errorMessage);
+        return { success: false, error: errorMessage };
+      }
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }

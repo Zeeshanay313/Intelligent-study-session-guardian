@@ -12,7 +12,14 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: true,
+    required: function() {
+      // Password is required only if no OAuth provider is connected
+      return !this.oauth || 
+             (!this.oauth.google?.id && 
+              !this.oauth.github?.id && 
+              !this.oauth.facebook?.id && 
+              !this.oauth.twitter?.id);
+    },
     minlength: 8
   },
   profile: {
@@ -156,6 +163,71 @@ const userSchema = new mongoose.Schema({
         default: false
       },
       lastUpdated: Date
+    }
+  },
+  // OAuth provider data
+  oauth: {
+    google: {
+      id: {
+        type: String,
+        sparse: true,
+        index: true
+      },
+      email: String,
+      name: String,
+      accessToken: String,
+      refreshToken: String,
+      connectedAt: {
+        type: Date,
+        default: Date.now
+      }
+    },
+    github: {
+      id: {
+        type: String,
+        sparse: true,
+        index: true
+      },
+      username: String,
+      email: String,
+      name: String,
+      accessToken: String,
+      refreshToken: String,
+      connectedAt: {
+        type: Date,
+        default: Date.now
+      }
+    },
+    facebook: {
+      id: {
+        type: String,
+        sparse: true,
+        index: true
+      },
+      email: String,
+      name: String,
+      accessToken: String,
+      refreshToken: String,
+      connectedAt: {
+        type: Date,
+        default: Date.now
+      }
+    },
+    twitter: {
+      id: {
+        type: String,
+        sparse: true,
+        index: true
+      },
+      username: String,
+      email: String,
+      name: String,
+      accessToken: String,
+      refreshToken: String,
+      connectedAt: {
+        type: Date,
+        default: Date.now
+      }
     }
   },
   refreshTokens: [{

@@ -1,12 +1,17 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cookieParser = require('cookie-parser');
+const session = require('express-session');
+const passport = require('passport');
 const helmet = require('helmet');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 require('dotenv').config();
+
+// Initialize Passport configuration
+require('./config/passport');
 
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
@@ -15,6 +20,7 @@ const goalTrackerRoutes = require('./routes/goalTracker');
 const timerRoutes = require('./modules/timer/timerRoutes');
 const reminderRoutes = require('./modules/reminder/reminderRoutes');
 const calendarRoutes = require('./modules/calendar/calendarRoutes');
+const oauthTestRoutes = require('./routes/oauthTest');
 const { router: studySessionRoutes, setSocketIO } = require('./routes/studySession');
 
 const app = express();
@@ -50,6 +56,21 @@ app.use(helmet({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
+
+// Session configuration for Passport
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'study-guardian-oauth-secret-key-change-in-production',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+}));
+
+// Passport middleware
+app.use(passport.initialize());
+app.use(passport.session());
 
 // Rate limiting - disabled for development
 if (process.env.NODE_ENV === 'production') {
@@ -117,6 +138,7 @@ app.use('/api/timers', timerRoutes);
 app.use('/api/reminders', reminderRoutes);
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/study-session', studySessionRoutes);
+app.use('/api', oauthTestRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {

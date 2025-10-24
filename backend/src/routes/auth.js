@@ -1,6 +1,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const mongoose = require('mongoose');
+const passport = require('passport');
 const User = require('../models/User');
 const AuditLog = require('../models/AuditLog');
 const { generateTokens, setTokenCookies, clearTokenCookies, verifyToken } = require('../config/auth');
@@ -149,12 +150,16 @@ router.post('/login', authLimiter, validateLogin, async (req, res) => {
   try {
     const { email, password, deviceId } = req.body;
     
-    // Find user
-    const user = await User.findOne({ email, deleted: false });
+    // Find user - must exist and not be deleted
+    const user = await User.findOne({ email: email.toLowerCase(), deleted: false });
     if (!user) {
       // Don't log audit entry for non-existent users to avoid userId validation error
       console.log(`Login attempt for non-existent user: ${email} from IP: ${req.ip}`);
-      return res.status(400).json({ error: 'Invalid credentials' });
+      return res.status(400).json({ 
+        error: 'Invalid credentials',
+        message: 'No account found with this email. Please create an account first.',
+        suggestion: 'register'
+      });
     }
     
     // Check password
@@ -680,5 +685,161 @@ router.get('/verify-reset-token/:token', async (req, res) => {
     });
   }
 });
+
+// Google OAuth Routes
+// Check if Google OAuth is configured
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  // Initiate Google OAuth for SIGN IN (existing users only)
+  router.get('/google/signin', 
+    (req, res, next) => {
+      // Store the intent in session
+      req.session.oauthIntent = 'signin';
+      next();
+    },
+    passport.authenticate('google', { 
+      scope: ['profile', 'email'] 
+    })
+  );
+
+  // Initiate Google OAuth for SIGN UP (new account creation)
+  router.get('/google/signup', 
+    (req, res, next) => {
+      // Store the intent in session
+      req.session.oauthIntent = 'signup';
+      next();
+    },
+    passport.authenticate('google', { 
+      scope: ['profile', 'email'] 
+    })
+  );
+
+  // Legacy route for backward compatibility (defaults to signin behavior)
+  router.get('/google', 
+    (req, res, next) => {
+      // Default to signin behavior for legacy route
+      req.session.oauthIntent = 'signin';
+      next();
+    },
+    passport.authenticate('google', { 
+      scope: ['profile', 'email'] 
+    })
+  );
+
+  // Google OAuth callback route
+  router.get('/google/callback', 
+    passport.authenticate('google', { 
+      failureRedirect: false  // Handle failures manually
+    }),
+  async (req, res) => {
+    try {
+      // Check for authentication failures
+      if (!req.user) {
+        const errorInfo = req.authInfo || {};
+        console.log('OAuth authentication failed:', errorInfo);
+        
+        if (errorInfo.message === 'account_not_found') {
+          // User tried to sign in but account doesn't exist
+          return res.redirect(
+            (process.env.FRONTEND_URL || 'http://localhost:3000') + 
+            `/register?error=account_not_found&email=${encodeURIComponent(errorInfo.email || '')}&message=${encodeURIComponent('Please create an account first')}`
+          );
+        } else if (errorInfo.message === 'account_exists') {
+          // User tried to sign up but account already exists
+          return res.redirect(
+            (process.env.FRONTEND_URL || 'http://localhost:3000') + 
+            `/login?error=account_exists&email=${encodeURIComponent(errorInfo.email || '')}&message=${encodeURIComponent('Account already exists. Please sign in instead.')}`
+          );
+        } else {
+          // Generic OAuth failure
+          return res.redirect(
+            (process.env.FRONTEND_URL || 'http://localhost:3000') + 
+            '/login?error=oauth_failed&message=' + encodeURIComponent('Google authentication failed. Please try again.')
+          );
+        }
+      }
+
+      console.log('=== GOOGLE OAUTH CALLBACK SUCCESS ===');
+      console.log('Authenticated user ID:', req.user._id);
+      console.log('User email:', req.user.email);
+      console.log('User display name:', req.user.profile?.displayName);
+      console.log('OAuth Intent:', req.session?.oauthIntent);
+
+      // Update audit log with request info
+      try {
+        await AuditLog.updateOne(
+          { 
+            userId: req.user._id,
+            action: { $in: ['OAUTH_LOGIN_SUCCESS', 'OAUTH_ACCOUNT_CREATED'] }
+          },
+          {
+            $set: {
+              'metadata.ipAddress': req.ip,
+              'metadata.userAgent': req.get('User-Agent')
+            }
+          },
+          { sort: { createdAt: -1 } }
+        );
+      } catch (auditError) {
+        console.error('Error updating OAuth audit log:', auditError);
+      }
+
+      // Generate JWT tokens for the authenticated user
+      const tokens = generateTokens(req.user._id);
+      
+      // Set HTTP-only cookies
+      setTokenCookies(res, tokens.accessToken, tokens.refreshToken);
+
+      // Update user's refresh tokens and login count
+      req.user.refreshTokens.push({
+        token: tokens.refreshToken,
+        createdAt: new Date(),
+        lastUsed: new Date()
+      });
+      
+      // Keep only last 5 refresh tokens
+      if (req.user.refreshTokens.length > 5) {
+        req.user.refreshTokens = req.user.refreshTokens.slice(-5);
+      }
+
+      req.user.loginCount += 1;
+      req.user.lastLogin = new Date();
+      await req.user.save();
+
+      const oauthIntent = req.session?.oauthIntent || 'signin';
+      console.log('OAuth login successful, redirecting to dashboard');
+      
+      // Clear session intent
+      delete req.session.oauthIntent;
+      
+      // Redirect based on intent
+      if (oauthIntent === 'signup') {
+        res.redirect((process.env.FRONTEND_URL || 'http://localhost:3000') + '/dashboard?oauth=signup_success');
+      } else {
+        res.redirect((process.env.FRONTEND_URL || 'http://localhost:3000') + '/dashboard?oauth=signin_success');
+      }
+
+    } catch (error) {
+      console.error('OAuth callback error:', error);
+      console.error('Error stack:', error.stack);
+      console.error('User object:', req.user);
+      res.redirect((process.env.FRONTEND_URL || 'http://localhost:3000') + '/login?error=oauth_callback_failed');
+    }
+  }
+  );
+} else {
+  // Google OAuth not configured - provide helpful error messages
+  router.get('/google', (req, res) => {
+    console.warn('Google OAuth attempted but not configured');
+    res.status(503).json({
+      error: 'Google OAuth is not configured',
+      message: 'Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables'
+    });
+  });
+
+  router.get('/google/callback', (req, res) => {
+    console.warn('Google OAuth callback attempted but OAuth not configured');
+    res.redirect((process.env.FRONTEND_URL || 'http://localhost:3000') + '/login?error=oauth_not_configured');
+  });
+}
 
 module.exports = router;

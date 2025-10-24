@@ -1,19 +1,42 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useAuth } from '../contexts/AuthContext';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import SocialLoginSection from '../components/auth/SocialLoginSection';
+import toast from 'react-hot-toast';
 
 const RegisterPage = () => {
   const { register: registerUser, error, loading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const { register, handleSubmit, formState: { errors }, watch } = useForm();
+  const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const watchPassword = watch('password');
+
+  // Handle OAuth error messages from URL parameters
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const errorType = urlParams.get('error');
+    const errorMessage = urlParams.get('message');
+    const userEmail = urlParams.get('email');
+
+    if (errorType && errorMessage) {
+      if (errorType === 'account_not_found') {
+        toast.success(`Please create an account${userEmail ? ` for ${userEmail}` : ''} to continue.`);
+        if (userEmail) {
+          setValue('email', userEmail);
+        }
+      } else {
+        toast.error(decodeURIComponent(errorMessage));
+      }
+      // Clean up URL parameters
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [setValue]);
 
   const onSubmit = async (data) => {
     const { confirmPassword, ...registerData } = data;
@@ -70,6 +93,10 @@ const RegisterPage = () => {
                 maxLength: {
                   value: 100,
                   message: 'Name must not exceed 100 characters'
+                },
+                pattern: {
+                  value: /^[a-zA-Z\s\-']+$/,
+                  message: 'Name can only contain letters, spaces, hyphens, and apostrophes'
                 }
               })}
               error={errors.displayName?.message}
@@ -175,7 +202,7 @@ const RegisterPage = () => {
         </form>
 
         {/* Social Login Section */}
-        <SocialLoginSection />
+        <SocialLoginSection mode="signup" />
 
         <div className="text-center">
           <p className="text-sm text-secondary-600 dark:text-secondary-400">

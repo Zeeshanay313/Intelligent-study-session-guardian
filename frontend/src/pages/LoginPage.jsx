@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
@@ -14,6 +14,7 @@ const LoginPage = () => {
   const [passwordValue, setPasswordValue] = useState('');
   const [formKey, setFormKey] = useState(Math.random()); // Force form re-render
   const location = useLocation();
+  const navigate = useNavigate();
   
   // Listen for user state changes (login/logout)
   useEffect(() => {
@@ -65,6 +66,27 @@ const LoginPage = () => {
     // Show success message if provided
     if (location.state?.message) {
       toast.success(location.state.message);
+    }
+
+    // Handle OAuth error messages from URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const errorType = urlParams.get('error');
+    const errorMessage = urlParams.get('message');
+    const userEmail = urlParams.get('email');
+
+    if (errorType && errorMessage) {
+      if (errorType === 'account_exists') {
+        toast.error(`Account already exists${userEmail ? ` for ${userEmail}` : ''}. Please sign in instead.`);
+        if (userEmail) {
+          setEmailValue(userEmail);
+        }
+      } else if (errorType === 'oauth_failed') {
+        toast.error(decodeURIComponent(errorMessage));
+      } else {
+        toast.error(decodeURIComponent(errorMessage));
+      }
+      // Clean up URL parameters
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, [location.pathname, location.key]); // Clear on navigation only
 
@@ -124,6 +146,19 @@ const LoginPage = () => {
 
     const result = await login({ email: emailValue, password: passwordValue });
     
+    // Handle redirect to register if account not found
+    if (result && !result.success && result.redirectToRegister) {
+      toast.success('Redirecting to sign up page...');
+      setTimeout(() => {
+        navigate('/register', { 
+          state: { 
+            email: emailValue,
+            message: 'Please create an account first'
+          }
+        });
+      }, 1500);
+    }
+    
     // Clear password after login attempt
     setPasswordValue('');
   };
@@ -138,7 +173,7 @@ const LoginPage = () => {
             </svg>
           </div>
           <h2 className="mt-4 text-center text-2xl font-bold font-display bg-gradient-to-r from-secondary-900 to-secondary-700 dark:from-secondary-100 dark:to-secondary-300 bg-clip-text text-transparent">
-            Welcome Back
+            Welcome 
           </h2>
           <p className="mt-2 text-center text-sm text-secondary-600 dark:text-secondary-400 font-medium">
             Sign in to access your Study Guardian account
@@ -243,7 +278,7 @@ const LoginPage = () => {
         </form>
 
         {/* Social Login Section */}
-        <SocialLoginSection />
+        <SocialLoginSection mode="signin" />
 
         <div className="text-center">
           <p className="text-sm text-secondary-600 dark:text-secondary-400">
