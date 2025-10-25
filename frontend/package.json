@@ -5,7 +5,10 @@
   "main": "src/index.js",
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build"
+    "build": "react-scripts build",
+    "test": "react-scripts test --transformIgnorePatterns 'node_modules/(?!(axios)/)'",
+    "test:ci": "CI=true react-scripts test --coverage --watchAll=false",
+    "test:coverage": "react-scripts test --coverage --watchAll=false"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
