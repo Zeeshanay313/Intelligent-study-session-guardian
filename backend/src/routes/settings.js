@@ -9,11 +9,11 @@ const { authenticate } = require('../middleware/auth');
 // @access  Private
 router.get('/', authenticate, async (req, res) => {
   try {
-    let settings = await Settings.findOne({ userId: req.user.userId });
+    let settings = await Settings.findOne({ userId: req.user._id });
     
     // If no settings exist, create default settings
     if (!settings) {
-      settings = new Settings({ userId: req.user.userId });
+      settings = new Settings({ userId: req.user._id });
       await settings.save();
     }
 
@@ -64,10 +64,10 @@ router.post('/', [
   try {
     const { timerDefaults, reminderDefaults, goalDefaults, privacy } = req.body;
 
-    let settings = await Settings.findOne({ userId: req.user.userId });
+    let settings = await Settings.findOne({ userId: req.user._id });
 
     if (!settings) {
-      settings = new Settings({ userId: req.user.userId });
+      settings = new Settings({ userId: req.user._id });
     }
 
     // Update settings fields if provided
@@ -108,7 +108,7 @@ router.post('/', [
     // Emit socket event for real-time sync
     const io = req.app.get('io');
     if (io) {
-      io.to(`user:${req.user.userId}`).emit('settings:updated', settings.getWithDefaults());
+      io.to(`user:${req.user._id}`).emit('settings:updated', settings.getWithDefaults());
     }
 
     res.json({
@@ -134,10 +134,10 @@ router.put('/:key', authenticate, async (req, res) => {
     const { key } = req.params;
     const { value } = req.body;
 
-    let settings = await Settings.findOne({ userId: req.user.userId });
+    let settings = await Settings.findOne({ userId: req.user._id });
 
     if (!settings) {
-      settings = new Settings({ userId: req.user.userId });
+      settings = new Settings({ userId: req.user._id });
     }
 
     // Parse nested keys (e.g., "timerDefaults.focusTime")
@@ -158,7 +158,7 @@ router.put('/:key', authenticate, async (req, res) => {
     // Emit socket event
     const io = req.app.get('io');
     if (io) {
-      io.to(`user:${req.user.userId}`).emit('settings:updated', settings.getWithDefaults());
+      io.to(`user:${req.user._id}`).emit('settings:updated', settings.getWithDefaults());
     }
 
     res.json({
@@ -181,15 +181,15 @@ router.put('/:key', authenticate, async (req, res) => {
 // @access  Private
 router.delete('/', authenticate, async (req, res) => {
   try {
-    await Settings.findOneAndDelete({ userId: req.user.userId });
+    await Settings.findOneAndDelete({ userId: req.user._id });
 
-    const newSettings = new Settings({ userId: req.user.userId });
+    const newSettings = new Settings({ userId: req.user._id });
     await newSettings.save();
 
     // Emit socket event
     const io = req.app.get('io');
     if (io) {
-      io.to(`user:${req.user.userId}`).emit('settings:updated', newSettings.getWithDefaults());
+      io.to(`user:${req.user._id}`).emit('settings:updated', newSettings.getWithDefaults());
     }
 
     res.json({

@@ -176,8 +176,18 @@ io.on('connection', (socket) => {
   console.log(`Socket connected: ${socket.id}`);
   
   socket.on('join', (userId) => {
-    socket.join(`user_${userId}`);
-    console.log(`User ${userId} joined socket room`);
+    socket.join(`user:${userId}`);
+    console.log(`User ${userId} joined socket room: user:${userId}`);
+  });
+
+  socket.on('join-user-room', (userId) => {
+    socket.join(`user:${userId}`);
+    console.log(`User ${userId} joined user room: user:${userId}`);
+  });
+
+  socket.on('leave-user-room', (userId) => {
+    socket.leave(`user:${userId}`);
+    console.log(`User ${userId} left user room: user:${userId}`);
   });
   
   socket.on('disconnect', () => {
