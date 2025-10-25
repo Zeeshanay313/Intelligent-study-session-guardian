@@ -2,12 +2,12 @@ const express = require('express');
 const router = express.Router();
 const { body, validationResult } = require('express-validator');
 const Settings = require('../models/Settings');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticate } = require('../middleware/auth');
 
 // @route   GET /api/settings
 // @desc    Get user settings with defaults
 // @access  Private
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', authenticate, async (req, res) => {
   try {
     let settings = await Settings.findOne({ userId: req.user.userId });
     
@@ -35,7 +35,7 @@ router.get('/', authenticateToken, async (req, res) => {
 // @desc    Save all user settings
 // @access  Private
 router.post('/', [
-  authenticateToken,
+  authenticate,
   body('timerDefaults.focusTime').optional().isInt({ min: 1, max: 120 }),
   body('timerDefaults.shortBreak').optional().isInt({ min: 1, max: 30 }),
   body('timerDefaults.longBreak').optional().isInt({ min: 1, max: 60 }),
@@ -129,7 +129,7 @@ router.post('/', [
 // @route   PUT /api/settings/:key
 // @desc    Update individual setting
 // @access  Private
-router.put('/:key', authenticateToken, async (req, res) => {
+router.put('/:key', authenticate, async (req, res) => {
   try {
     const { key } = req.params;
     const { value } = req.body;
@@ -179,7 +179,7 @@ router.put('/:key', authenticateToken, async (req, res) => {
 // @route   DELETE /api/settings
 // @desc    Reset settings to defaults
 // @access  Private
-router.delete('/', authenticateToken, async (req, res) => {
+router.delete('/', authenticate, async (req, res) => {
   try {
     await Settings.findOneAndDelete({ userId: req.user.userId });
 
