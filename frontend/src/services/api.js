@@ -287,6 +287,14 @@ export const notificationAPI = {
   clearHistory: () => api.delete('/notifications/history')
 };
 
+// Settings API
+export const settingsAPI = {
+  getSettings: () => api.get('/settings'),
+  saveSettings: (settings) => api.post('/settings', settings),
+  updateSetting: (key, value) => api.put(`/settings/${key}`, { value }),
+  resetSettings: () => api.delete('/settings')
+};
+
 // Utility functions
 export const clearAuthData = () => {
   localStorage.removeItem('token');

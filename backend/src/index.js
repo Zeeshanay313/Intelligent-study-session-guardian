@@ -21,6 +21,7 @@ const timerRoutes = require('./modules/timer/timerRoutes');
 const reminderRoutes = require('./modules/reminder/reminderRoutes');
 const calendarRoutes = require('./modules/calendar/calendarRoutes');
 const oauthTestRoutes = require('./routes/oauthTest');
+const settingsRoutes = require('./routes/settings');
 const { router: studySessionRoutes, setSocketIO } = require('./routes/studySession');
 
 const app = express();
@@ -138,6 +139,7 @@ app.use('/api/timers', timerRoutes);
 app.use('/api/reminders', reminderRoutes);
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/study-session', studySessionRoutes);
+app.use('/api/settings', settingsRoutes);
 app.use('/api', oauthTestRoutes);
 
 // Root endpoint
