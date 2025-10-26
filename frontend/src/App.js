@@ -8,6 +8,7 @@ import NotificationToast, { useNotifications } from './components/shared/Notific
 import { useSocket } from './hooks/useSocket';
 
 // Lazy load heavy components
+const LandingPage = lazy(() => import('./pages/LandingPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
@@ -108,6 +109,12 @@ function App() {
       <div className="min-h-screen bg-secondary-50 dark:bg-secondary-900">
         <Suspense fallback={<LoadingSpinner message="Loading application..." />}>
           <Routes>
+          {/* Landing Page */}
+          <Route 
+            path="/" 
+            element={<LandingPage />} 
+          />
+          
           {/* Public Routes */}
           <Route 
             path="/login" 
@@ -144,15 +151,14 @@ function App() {
           
           {/* Protected Routes */}
           <Route 
-            path="/" 
+            path="/dashboard" 
             element={
               <ProtectedRoute>
                 <Layout />
               </ProtectedRoute>
             }
           >
-            <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="dashboard" element={<DashboardPage />} />
+            <Route index element={<DashboardPage />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="privacy" element={<PrivacyPage />} />
             {/* Goal Tracker Routes */}
