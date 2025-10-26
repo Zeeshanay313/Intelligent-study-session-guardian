@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { AcademicCapIcon, ClockIcon, BoltIcon, SparklesIcon, ChartBarIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
+import { AcademicCapIcon, ClockIcon, BoltIcon, SparklesIcon, ChartBarIcon, ShieldCheckIcon, BellIcon } from '@heroicons/react/24/outline';
 
 const PublicLanding = () => {
   return (
