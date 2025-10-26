@@ -35,24 +35,30 @@ const FocusTimer = ({ className = '' }) => {
       duration: settings.focusTime * 60,
       label: 'Focus Time',
       color: 'from-blue-500 to-blue-600',
-      bgColor: 'bg-blue-50 dark:bg-blue-900/20',
-      textColor: 'text-blue-700 dark:text-blue-300',
+      neonColor: 'from-neon-blue to-neon-cyan',
+      glowColor: 'rgba(0, 212, 255, 0.4)',
+      bgColor: 'bg-blue-50 dark:bg-blue-900/10',
+      textColor: 'text-blue-700 dark:text-neon-blue',
       icon: ClockIcon
     },
     shortBreak: {
       duration: settings.shortBreak * 60,
       label: 'Short Break',
       color: 'from-green-500 to-green-600',
-      bgColor: 'bg-green-50 dark:bg-green-900/20',
-      textColor: 'text-green-700 dark:text-green-300',
+      neonColor: 'from-neon-green to-emerald-400',
+      glowColor: 'rgba(16, 185, 129, 0.4)',
+      bgColor: 'bg-green-50 dark:bg-green-900/10',
+      textColor: 'text-green-700 dark:text-neon-green',
       icon: CheckCircleIcon
     },
     longBreak: {
       duration: settings.longBreak * 60,
       label: 'Long Break',
       color: 'from-purple-500 to-purple-600',
-      bgColor: 'bg-purple-50 dark:bg-purple-900/20',
-      textColor: 'text-purple-700 dark:text-purple-300',
+      neonColor: 'from-neon-purple to-neon-pink',
+      glowColor: 'rgba(168, 85, 247, 0.4)',
+      bgColor: 'bg-purple-50 dark:bg-purple-900/10',
+      textColor: 'text-purple-700 dark:text-neon-purple',
       icon: ExclamationTriangleIcon
     }
   };
@@ -160,126 +166,181 @@ const FocusTimer = ({ className = '' }) => {
   const config = sessionConfig[currentSession];
 
   return (
-    <div className={`max-w-md mx-auto ${className}`}>
-      <Card className="text-center">
-        <div className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium mb-6 ${config.bgColor} ${config.textColor}`}>
-          <config.icon className="w-4 h-4 mr-2" />
-          {config.label}
+    <div className={`${className}`}>
+      <Card className="relative overflow-hidden">
+        {/* Background gradient glow effect */}
+        <div className={`absolute inset-0 opacity-5 dark:opacity-10 bg-gradient-to-br ${config.neonColor}`} />
+        
+        {/* Session Type Badge */}
+        <div className="relative flex justify-between items-center mb-8">
+          <div className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium backdrop-blur-sm ${config.bgColor} ${config.textColor} border border-current/20`}>
+            <config.icon className="w-4 h-4 mr-2" />
+            {config.label}
+          </div>
+          <button
+            onClick={() => setShowSettings(!showSettings)}
+            className="p-2 rounded-lg hover:bg-secondary-100 dark:hover:bg-secondary-800 transition-colors"
+            aria-label="Settings"
+          >
+            <Cog6ToothIcon className="w-5 h-5 text-secondary-600 dark:text-secondary-400" />
+          </button>
         </div>
 
-        {/* Circular Progress */}
-        <div className="relative w-48 h-48 mx-auto mb-8">
-          <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-            {/* Background circle */}
-            <circle
-              cx="50"
-              cy="50"
-              r="45"
-              stroke="currentColor"
-              strokeWidth="2"
-              fill="none"
-              className="text-secondary-200 dark:text-secondary-700"
-            />
-            {/* Progress circle */}
-            <circle
-              cx="50"
-              cy="50"
-              r="45"
-              stroke="url(#gradient)"
-              strokeWidth="2"
-              fill="none"
-              strokeDasharray={`${2 * Math.PI * 45}`}
-              strokeDashoffset={`${2 * Math.PI * 45 * (1 - getProgress() / 100)}`}
-              className="transition-all duration-300"
-              strokeLinecap="round"
-            />
-            <defs>
-              <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" className="text-blue-500" stopColor="currentColor" />
-                <stop offset="100%" className="text-purple-500" stopColor="currentColor" />
-              </linearGradient>
-            </defs>
-          </svg>
-          
-          {/* Time display */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-center">
-              <div className="text-4xl font-bold text-secondary-900 dark:text-white font-mono">
+        {/* Large Central Countdown */}
+        <div className="relative mb-12">
+          {/* Circular Progress Ring */}
+          <div className="relative w-80 h-80 mx-auto">
+            {/* Glow effect ring */}
+            {isRunning && !isPaused && (
+              <div 
+                className="absolute inset-0 rounded-full animate-pulse-glow"
+                style={{
+                  background: `radial-gradient(circle, ${config.glowColor} 0%, transparent 70%)`,
+                  filter: 'blur(20px)',
+                }}
+              />
+            )}
+            
+            {/* SVG Progress Circle */}
+            <svg className="w-full h-full transform -rotate-90 relative z-10" viewBox="0 0 100 100">
+              {/* Background circle */}
+              <circle
+                cx="50"
+                cy="50"
+                r="42"
+                stroke="currentColor"
+                strokeWidth="3"
+                fill="none"
+                className="text-secondary-200/50 dark:text-secondary-800/50"
+              />
+              {/* Progress circle with gradient */}
+              <circle
+                cx="50"
+                cy="50"
+                r="42"
+                stroke="url(#progressGradient)"
+                strokeWidth="3"
+                fill="none"
+                strokeDasharray={`${2 * Math.PI * 42}`}
+                strokeDashoffset={`${2 * Math.PI * 42 * (1 - getProgress() / 100)}`}
+                className="transition-all duration-500 ease-out drop-shadow-lg"
+                strokeLinecap="round"
+                style={{
+                  filter: `drop-shadow(0 0 8px ${config.glowColor})`,
+                }}
+              />
+              <defs>
+                <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" className={`${config.neonColor.split(' ')[0].replace('from-', 'text-')}`} stopColor="currentColor" />
+                  <stop offset="100%" className={`${config.neonColor.split(' ')[2].replace('to-', 'text-')}`} stopColor="currentColor" />
+                </linearGradient>
+              </defs>
+            </svg>
+            
+            {/* Time Display - Centered */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <div className={`text-7xl font-bold font-mono tracking-tight mb-2 ${config.textColor} transition-all duration-300`}
+                   style={{
+                     textShadow: isRunning && !isPaused ? `0 0 30px ${config.glowColor}, 0 0 60px ${config.glowColor}` : 'none',
+                   }}>
                 {formatTime(timeLeft)}
               </div>
-              <div className="text-sm text-secondary-500 dark:text-secondary-400 mt-1">
-                Session {cycleCount + 1}
+              <div className="text-sm text-secondary-500 dark:text-secondary-400 font-medium">
+                Cycle {cycleCount + 1} • {Math.floor((initialTimeRef.current - timeLeft) / 60)}m elapsed
               </div>
             </div>
           </div>
         </div>
 
-        {/* Controls */}
-        <div className="flex items-center justify-center space-x-4 mb-6">
+        {/* Control Buttons - Modern Design */}
+        <div className="flex items-center justify-center gap-4 mb-8">
           {!isRunning ? (
-            <Button
+            <button
               onClick={handleStart}
-              variant="primary"
-              size="lg"
-              className="w-20"
+              className={`group relative w-24 h-24 rounded-full bg-gradient-to-br ${config.neonColor} hover:scale-105 active:scale-95 transition-all duration-200 shadow-lg hover:shadow-2xl`}
+              style={{
+                boxShadow: `0 10px 40px ${config.glowColor}, 0 0 0 0 ${config.glowColor}`,
+              }}
+              aria-label="Start"
             >
-              <PlayIcon className="w-5 h-5" />
-            </Button>
+              <PlayIcon className="w-10 h-10 text-white mx-auto" />
+              <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-xs font-medium text-secondary-600 dark:text-secondary-400 whitespace-nowrap">
+                Start
+              </span>
+            </button>
           ) : isPaused ? (
-            <Button
-              onClick={handleResume}
-              variant="primary"
-              size="lg"
-              className="w-20"
-            >
-              <PlayIcon className="w-5 h-5" />
-            </Button>
+            <>
+              <button
+                onClick={handleResume}
+                className={`group relative w-20 h-20 rounded-full bg-gradient-to-br ${config.neonColor} hover:scale-105 active:scale-95 transition-all duration-200 shadow-lg`}
+                style={{
+                  boxShadow: `0 8px 30px ${config.glowColor}`,
+                }}
+                aria-label="Resume"
+              >
+                <PlayIcon className="w-8 h-8 text-white mx-auto" />
+                <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-xs font-medium text-secondary-600 dark:text-secondary-400 whitespace-nowrap">
+                  Resume
+                </span>
+              </button>
+              <button
+                onClick={handleStop}
+                className="group relative w-16 h-16 rounded-full bg-secondary-200 dark:bg-secondary-800 hover:bg-secondary-300 dark:hover:bg-secondary-700 hover:scale-105 active:scale-95 transition-all duration-200"
+                aria-label="Stop"
+              >
+                <StopIcon className="w-6 h-6 text-secondary-700 dark:text-secondary-300 mx-auto" />
+                <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-xs font-medium text-secondary-600 dark:text-secondary-400 whitespace-nowrap">
+                  Stop
+                </span>
+              </button>
+            </>
           ) : (
-            <Button
-              onClick={handlePause}
-              variant="outline"
-              size="lg"
-              className="w-20"
-            >
-              <PauseIcon className="w-5 h-5" />
-            </Button>
+            <>
+              <button
+                onClick={handlePause}
+                className="group relative w-20 h-20 rounded-full bg-secondary-200 dark:bg-secondary-800 hover:bg-secondary-300 dark:hover:bg-secondary-700 hover:scale-105 active:scale-95 transition-all duration-200"
+                aria-label="Pause"
+              >
+                <PauseIcon className="w-8 h-8 text-secondary-700 dark:text-secondary-300 mx-auto" />
+                <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-xs font-medium text-secondary-600 dark:text-secondary-400 whitespace-nowrap">
+                  Pause
+                </span>
+              </button>
+              <button
+                onClick={handleStop}
+                className="group relative w-16 h-16 rounded-full bg-secondary-200 dark:bg-secondary-800 hover:bg-secondary-300 dark:hover:bg-secondary-700 hover:scale-105 active:scale-95 transition-all duration-200"
+                aria-label="Stop"
+              >
+                <StopIcon className="w-6 h-6 text-secondary-700 dark:text-secondary-300 mx-auto" />
+                <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-xs font-medium text-secondary-600 dark:text-secondary-400 whitespace-nowrap">
+                  Stop
+                </span>
+              </button>
+            </>
           )}
-          
-          <Button
-            onClick={handleStop}
-            variant="outline"
-            size="lg"
-            disabled={!isRunning && !isPaused}
-            className="w-20"
-          >
-            <StopIcon className="w-5 h-5" />
-          </Button>
         </div>
 
-        {/* Session Info */}
-        <div className="text-center mb-6">
-          <p className="text-secondary-600 dark:text-secondary-400">
-            Next: {sessionConfig[getNextSessionType()].label}
-          </p>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex items-center justify-center space-x-2">
-          <Button
-            onClick={() => setShowSettings(!showSettings)}
-            variant="outline"
-            size="sm"
-          >
-            <Cog6ToothIcon className="w-4 h-4" />
-          </Button>
-          
-          <Button
-            onClick={handleReset}
-            variant="outline"
-            size="sm"
-          >
-            Reset
-          </Button>
+        {/* Session Type Switcher */}
+        <div className="grid grid-cols-3 gap-3 pt-8 border-t border-secondary-200 dark:border-secondary-800">
+          {[
+            { type: 'focus', label: 'Focus', icon: ClockIcon },
+            { type: 'shortBreak', label: 'Short Break', icon: CheckCircleIcon },
+            { type: 'longBreak', label: 'Long Break', icon: ExclamationTriangleIcon }
+          ].map(({ type, label, icon: Icon }) => (
+            <button
+              key={type}
+              onClick={() => !isRunning && setCurrentSession(type)}
+              disabled={isRunning}
+              className={`p-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+                currentSession === type
+                  ? `${sessionConfig[type].bgColor} ${sessionConfig[type].textColor} ring-2 ring-current/20`
+                  : 'text-secondary-600 dark:text-secondary-400 hover:bg-secondary-100 dark:hover:bg-secondary-800'
+              } ${isRunning ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
+            >
+              <Icon className="w-5 h-5 mx-auto mb-1" />
+              <div className="text-xs">{label}</div>
+            </button>
+          ))}
         </div>
 
         {/* Settings Panel */}
