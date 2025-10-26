@@ -119,6 +119,7 @@ module.exports = {
         'slide-down': 'slideDown 0.3s ease-out',
         'pulse-glow': 'pulseGlow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'spin-slow': 'spin 3s linear infinite',
+        'shimmer': 'shimmer 2s linear infinite',
       },
       keyframes: {
         fadeIn: {
@@ -144,6 +145,10 @@ module.exports = {
           '50%': { 
             boxShadow: '0 0 40px rgba(0, 212, 255, 0.6)',
           },
+        },
+        shimmer: {
+          '0%': { backgroundPosition: '-200% 0' },
+          '100%': { backgroundPosition: '200% 0' },
         },
       },
       backgroundImage: {
