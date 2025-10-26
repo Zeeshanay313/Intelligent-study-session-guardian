@@ -9,6 +9,7 @@ import { useSocket } from './hooks/useSocket';
 
 // Lazy load heavy components
 const LandingPage = lazy(() => import('./pages/LandingPage'));
+const PublicLanding = lazy(() => import('./pages/PublicLanding'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
@@ -109,13 +110,15 @@ function App() {
       <div className="min-h-screen bg-secondary-50 dark:bg-secondary-900">
         <Suspense fallback={<LoadingSpinner message="Loading application..." />}>
           <Routes>
-          {/* Landing Page */}
-          <Route 
-            path="/" 
-            element={<LandingPage />} 
-          />
-          
           {/* Public Routes */}
+          <Route
+            path="/"
+            element={
+              <PublicRoute>
+                <PublicLanding />
+              </PublicRoute>
+            }
+          />
           <Route 
             path="/login" 
             element={
@@ -148,8 +151,8 @@ function App() {
               </PublicRoute>
             } 
           />
-          
-          {/* Protected Routes */}
+
+          {/* Protected Routes (authenticated app) */}
           <Route 
             path="/dashboard" 
             element={
@@ -158,7 +161,9 @@ function App() {
               </ProtectedRoute>
             }
           >
-            <Route index element={<DashboardPage />} />
+            {/* Landing/Home page after login */}
+            <Route index element={<LandingPage />} />
+            <Route path="main" element={<DashboardPage />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="privacy" element={<PrivacyPage />} />
             {/* Goal Tracker Routes */}
