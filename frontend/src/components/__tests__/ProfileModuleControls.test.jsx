@@ -60,9 +60,10 @@ describe('ProfileModuleControls', () => {
   it('should render all three tabs', () => {
     render(<ProfileModuleControls />);
     
-    expect(screen.getByText(/Timer/i)).toBeInTheDocument();
-    expect(screen.getByText(/Reminders/i)).toBeInTheDocument();
-    expect(screen.getByText(/Goals/i)).toBeInTheDocument();
+    // Use getByRole to find tab buttons specifically
+    expect(screen.getByRole('button', { name: /Timer/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Reminders/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Goals/i })).toBeInTheDocument();
   });
 
   it('should display timer settings', () => {
