@@ -1,8 +1,8 @@
 const request = require('supertest');
 const mongoose = require('mongoose');
 const { MongoMemoryServer } = require('mongodb-memory-server');
-const app = require('../../../testApp');
-const User = require('../../../models/User');
+const app = require('../../testApp');
+const User = require('../../models/User');
 const bcrypt = require('bcryptjs');
 
 let mongoServer;
@@ -78,10 +78,10 @@ describe('Auth API', () => {
 
   describe('POST /api/auth/login', () => {
     beforeEach(async () => {
-      const hashedPassword = await bcrypt.hash('Test123!@#', 10);
+      // Create user - the pre-save hook will hash the password automatically
       await User.create({
         email: 'login@example.com',
-        password: hashedPassword,
+        password: 'Test123!@#',  // Plain password - will be hashed by pre-save hook
         profile: { displayName: 'Login User' },
         verified: true
       });
@@ -108,7 +108,9 @@ describe('Auth API', () => {
           password: 'WrongPassword'
         });
 
-      expect(response.status).toBe(401);
+      // Returns 400 for security - doesn't reveal if user exists
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBe('Invalid credentials');
     });
 
     it('should reject non-existent user', async () => {
@@ -119,7 +121,9 @@ describe('Auth API', () => {
           password: 'Test123!@#'
         });
 
-      expect(response.status).toBe(404);
+      // Returns 400 for security - doesn't reveal if user exists
+      expect(response.status).toBe(400);
+      expect(response.body.error).toBe('Invalid credentials');
     });
   });
 });

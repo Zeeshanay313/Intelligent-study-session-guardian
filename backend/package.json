@@ -68,11 +68,6 @@
     "coverageDirectory": "coverage",
     "coverageReporters": ["text", "lcov", "html"]
   },
-    "testMatch": [
-      "**/src/**/*.test.js",
-      "**/tests/**/*.test.js"
-    ]
-  },
   "author": "Study Guardian Team",
   "license": "MIT"
 }

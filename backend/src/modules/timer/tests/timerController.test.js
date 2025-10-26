@@ -1,9 +1,10 @@
 const request = require('supertest');
 const mongoose = require('mongoose');
-const app = require('../../../index');
+const jwt = require('jsonwebtoken');
+const app = require('../../../testApp');
 const TimerPreset = require('../TimerPreset');
 const Session = require('../Session');
-const User = require('../../models/User');
+const User = require('../../../models/User');
 
 describe('Timer Controller', () => {
   let authToken;
@@ -26,12 +27,20 @@ describe('Timer Controller', () => {
     // Create test user
     testUser = new User({
       email: 'timer@test.com',
-      displayName: 'Timer Test User'
+      password: '$2a$10$testhashedpassword',
+      profile: {
+        displayName: 'Timer Test User'
+      },
+      verified: true
     });
     await testUser.save();
 
-    // Create auth token (mock JWT)
-    authToken = 'Bearer mock-jwt-token';
+    // Create auth token (real JWT)
+    authToken = jwt.sign(
+      { userId: testUser._id, email: testUser.email },
+      process.env.JWT_SECRET || 'test-secret',
+      { expiresIn: '1h' }
+    );
   });
 
   afterAll(async () => {
@@ -53,7 +62,7 @@ describe('Timer Controller', () => {
 
       const response = await request(app)
         .get('/api/timers')
-        .set('Authorization', authToken)
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(200);
 
       expect(response.body.success).toBe(true);
@@ -74,7 +83,7 @@ describe('Timer Controller', () => {
 
       const response = await request(app)
         .post('/api/timers')
-        .set('Authorization', authToken)
+        .set('Authorization', `Bearer ${authToken}`)
         .send(presetData)
         .expect(201);
 
@@ -94,7 +103,7 @@ describe('Timer Controller', () => {
 
       const response = await request(app)
         .post('/api/timers')
-        .set('Authorization', authToken)
+        .set('Authorization', `Bearer ${authToken}`)
         .send(invalidData)
         .expect(400);
 
@@ -117,7 +126,7 @@ describe('Timer Controller', () => {
 
       const response = await request(app)
         .post('/api/timers/start')
-        .set('Authorization', authToken)
+        .set('Authorization', `Bearer ${authToken}`)
         .send({ presetId: testPreset._id })
         .expect(201);
 
@@ -143,7 +152,7 @@ describe('Timer Controller', () => {
 
       const response = await request(app)
         .post(`/api/timers/${session._id}/stop`)
-        .set('Authorization', authToken)
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(200);
 
       expect(response.body.success).toBe(true);
@@ -156,7 +165,7 @@ describe('Timer Controller', () => {
 
       await request(app)
         .post(`/api/timers/${fakeId}/stop`)
-        .set('Authorization', authToken)
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(404);
     });
   });
@@ -183,7 +192,7 @@ describe('Timer Controller', () => {
 
       const response = await request(app)
         .get('/api/timers/sessions')
-        .set('Authorization', authToken)
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(200);
 
       expect(response.body.success).toBe(true);
