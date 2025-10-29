@@ -150,6 +150,7 @@ export const authAPI = {
   getMe: () => api.get('/auth/me'),
   changePassword: (passwordData) => api.patch('/auth/change-password', passwordData),
   forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
+  verifyResetToken: (token) => api.get(`/auth/verify-reset-token/${token}`),
   resetPassword: (token, password) => api.post('/auth/reset-password', { token, password }),
   
   // Social authentication
