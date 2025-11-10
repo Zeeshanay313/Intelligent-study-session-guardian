@@ -311,6 +311,15 @@ const TimerPage = () => {
 
   return (
     <div className="max-w-4xl mx-auto p-6">
+      {/* WARNING BANNER */}
+      <div className="bg-yellow-500 text-black p-4 rounded-lg text-center font-bold mb-6">
+        ⚠️ OLD TIMER PAGE - For the enhanced timer with all new features, go to{' '}
+        <a href="/focus-timer" className="underline hover:text-white font-bold">
+          /focus-timer
+        </a>
+        {' '}instead!
+      </div>
+      
       {/* Header */}
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
