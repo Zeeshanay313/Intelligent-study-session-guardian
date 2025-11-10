@@ -90,6 +90,14 @@ const TimerPage = () => {
       const response = await api.get('/timers');
       let presetsData = Array.isArray(response.data) ? response.data : [];
       
+      // Convert API presets (minutes) to internal format (seconds)
+      presetsData = presetsData.map(preset => ({
+        ...preset,
+        workDuration: preset.workDuration * 60, // Convert minutes to seconds
+        breakDuration: preset.breakDuration * 60, // Convert minutes to seconds
+        longBreakDuration: preset.longBreakDuration ? preset.longBreakDuration * 60 : 900
+      }));
+      
       // Merge with locally stored presets
       const localPresets = JSON.parse(localStorage.getItem('timerPresets') || '[]');
       if (localPresets.length > 0) {
@@ -385,6 +393,7 @@ const TimerPage = () => {
                   const preset = presets.find(p => p._id === e.target.value);
                   setSelectedPreset(preset);
                   if (preset) {
+                    // Preset.workDuration is already in seconds after loadPresets conversion
                     setTimeRemaining(preset.workDuration);
                   }
                 }}
