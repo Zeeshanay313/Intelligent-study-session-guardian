@@ -6,6 +6,7 @@ const passport = require('passport');
 const helmet = require('helmet');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
+const path = require('path');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 require('dotenv').config();
@@ -119,8 +120,6 @@ app.get('/api/test-dev-bypass', (req, res) => {
 });
 
 // Serve static files for uploads
-const path = require('path');
-
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Debug middleware for API routes
@@ -159,7 +158,7 @@ app.use('*', (req, res) => {
 });
 
 // Global error handler
-app.use((error, req, res, next) => {
+app.use((error, req, res, _next) => {
   console.error('Global error handler:', error);
   res.status(500).json({
     error: 'Internal server error',

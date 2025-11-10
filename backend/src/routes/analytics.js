@@ -49,6 +49,7 @@ router.get('/user-stats', authenticate, async (req, res) => {
       } else if (i === 0) {
         // If no session today, check yesterday
         checkDate.setDate(checkDate.getDate() - 1);
+        // eslint-disable-next-line no-continue
         continue;
       } else {
         break;
@@ -177,7 +178,7 @@ router.get('/weekly-progress', authenticate, async (req, res) => {
 router.get('/recent-sessions', authenticate, async (req, res) => {
   try {
     const userId = req.user._id;
-    const limit = parseInt(req.query.limit) || 5;
+    const limit = parseInt(req.query.limit, 10) || 5;
 
     const recentSessions = await Session.find({ userId })
       .sort({ startTime: -1 })

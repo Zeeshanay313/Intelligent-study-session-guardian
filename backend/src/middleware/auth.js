@@ -1,4 +1,3 @@
-const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { verifyToken } = require('../config/auth');
 
@@ -10,8 +9,6 @@ const authenticate = async (req, res, next) => {
       console.warn('⚠️  DEV BYPASS MODE - This should never happen in production!');
 
       // Create or find test user for development
-      const User = require('../models/User');
-
       let testUser = await User.findOne({ email: 'dev@test.com' });
       if (!testUser) {
         testUser = new User({
@@ -33,9 +30,8 @@ const authenticate = async (req, res, next) => {
     // Check for token in cookies first (preferred method)
     if (req.cookies.accessToken) {
       token = req.cookies.accessToken;
-    }
-    // Fallback to Authorization header
-    else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+    } else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+      // Fallback to Authorization header
       token = req.headers.authorization.slice(7);
     }
 
