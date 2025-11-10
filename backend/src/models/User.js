@@ -433,7 +433,7 @@ userSchema.methods.removeRefreshToken = async function (token) {
       this.refreshTokens = [];
     }
     this.refreshTokens = this.refreshTokens.filter(t => t.token !== token);
-    return await this.save();
+    return this.save();
   }
 };
 

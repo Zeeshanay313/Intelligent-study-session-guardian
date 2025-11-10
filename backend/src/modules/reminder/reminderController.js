@@ -5,6 +5,73 @@ const Reminder = require('./Reminder');
 // Store active cron jobs
 const activeCronJobs = new Map();
 
+// Helper function to execute reminder action
+const executeReminderAction = async (reminder, io = null) => {
+  try {
+    console.log(`Executing reminder: ${reminder.title} for user ${reminder.userId}`);
+
+    // In-app notification via socket.io
+    if (reminder.channels.inApp && io) {
+      io.to(`user_${reminder.userId}`).emit('reminder:due', {
+        id: reminder._id,
+        title: reminder.title,
+        message: reminder.message,
+        datetime: reminder.datetime,
+        type: reminder.type
+      });
+    }
+
+    // Update reminder status
+    if (reminder.type === 'one-off') {
+      reminder.isActive = false;
+      await reminder.save();
+    }
+  } catch (error) {
+    console.error('Error executing reminder:', error);
+  }
+};
+
+// Helper function to schedule a reminder
+const scheduleReminder = async reminder => {
+  try {
+    if (!reminder.isActive) return;
+
+    const reminderId = reminder._id.toString();
+
+    if (reminder.type === 'recurring' && reminder.cronExpression) {
+      // Validate cron expression
+      if (!cron.validate(reminder.cronExpression)) {
+        throw new Error('Invalid cron expression');
+      }
+
+      const task = cron.schedule(reminder.cronExpression, async () => {
+        await executeReminderAction(reminder, executeReminderAction.io);
+      }, {
+        scheduled: true,
+        timezone: 'UTC'
+      });
+
+      activeCronJobs.set(reminderId, task);
+    } else if (reminder.type === 'one-off' && reminder.datetime) {
+      const now = new Date();
+      const reminderTime = new Date(reminder.datetime);
+
+      if (reminderTime > now) {
+        const delay = reminderTime.getTime() - now.getTime();
+
+        const timeout = setTimeout(async () => {
+          await executeReminderAction(reminder, executeReminderAction.io);
+          activeCronJobs.delete(reminderId);
+        }, delay);
+
+        activeCronJobs.set(reminderId, { destroy: () => clearTimeout(timeout) });
+      }
+    }
+  } catch (error) {
+    console.error('Error scheduling reminder:', error);
+  }
+};
+
 // Get all reminders for the authenticated user
 const getReminders = async (req, res) => {
   try {
@@ -144,84 +211,6 @@ const triggerReminder = async (req, res) => {
   } catch (error) {
     console.error('Error triggering reminder:', error);
     res.status(500).json({ success: false, error: 'Failed to trigger reminder' });
-  }
-};
-
-// Helper function to schedule a reminder
-const scheduleReminder = async reminder => {
-  try {
-    if (!reminder.isActive) return;
-
-    const reminderId = reminder._id.toString();
-
-    if (reminder.type === 'recurring' && reminder.cronExpression) {
-      // Validate cron expression
-      if (!cron.validate(reminder.cronExpression)) {
-        throw new Error('Invalid cron expression');
-      }
-
-      const task = cron.schedule(reminder.cronExpression, async () => {
-        await executeReminderAction(reminder, executeReminderAction.io);
-      }, {
-        scheduled: true,
-        timezone: 'UTC'
-      });
-
-      activeCronJobs.set(reminderId, task);
-    } else if (reminder.type === 'one-off' && reminder.datetime) {
-      const now = new Date();
-      const reminderTime = new Date(reminder.datetime);
-
-      if (reminderTime > now) {
-        const delay = reminderTime.getTime() - now.getTime();
-
-        const timeout = setTimeout(async () => {
-          await executeReminderAction(reminder, executeReminderAction.io);
-          activeCronJobs.delete(reminderId);
-        }, delay);
-
-        activeCronJobs.set(reminderId, { destroy: () => clearTimeout(timeout) });
-      }
-    }
-  } catch (error) {
-    console.error('Error scheduling reminder:', error);
-  }
-};
-
-// Helper function to execute reminder action
-const executeReminderAction = async (reminder, io = null) => {
-  try {
-    console.log(`Executing reminder: ${reminder.title} for user ${reminder.userId}`);
-
-    // In-app notification via socket.io
-    if (reminder.channels.inApp && io) {
-      io.to(`user_${reminder.userId}`).emit('reminder:due', {
-        id: reminder._id,
-        title: reminder.title,
-        message: reminder.message,
-        timestamp: new Date()
-      });
-    }
-
-    // Email notification (placeholder)
-    if (reminder.channels.email) {
-      // TODO: Implement email sending
-      // await sendEmail(reminder.userId, reminder.title, reminder.message);
-      console.log(`TODO: Send email notification for reminder ${reminder._id}`);
-    }
-
-    // Push notification (placeholder)
-    if (reminder.channels.push) {
-      // TODO: Implement push notification
-      // await sendPushNotification(reminder.userId, reminder.title, reminder.message);
-      console.log(`TODO: Send push notification for reminder ${reminder._id}`);
-    }
-
-    // Store reminder execution history
-    // TODO: Create ReminderHistory model if needed for audit trail
-    console.log(`Reminder ${reminder._id} executed at ${new Date()}`);
-  } catch (error) {
-    console.error('Error executing reminder action:', error);
   }
 };
 

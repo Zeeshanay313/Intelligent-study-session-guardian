@@ -63,7 +63,7 @@ class ErrorMonitor {
     return 'LOW';
   }
 
-  attemptRecovery(error, context) {
+  attemptRecovery(error, _context) {
     switch (error.name) {
       case 'MongooseError':
         this.recoverDatabaseConnection();
@@ -73,6 +73,9 @@ class ErrorMonitor {
         break;
       case 'ValidationError':
         this.logValidationTips(error);
+        break;
+      default:
+        // No recovery action for unknown errors
         break;
     }
   }
@@ -123,7 +126,7 @@ class ErrorMonitor {
 
   // Express middleware
   middleware() {
-    return (err, req, res, next) => {
+    return (err, req, res, _next) => {
       // Log the error
       this.logError(err, {
         method: req.method,

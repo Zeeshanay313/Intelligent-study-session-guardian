@@ -8,7 +8,7 @@ const {
   generateTokens, setTokenCookies, clearTokenCookies, verifyToken
 } = require('../config/auth');
 const {
-  validateRegistration, validateLogin, validatePasswordReset, validatePasswordChange
+  validateRegistration, validateLogin, validatePasswordChange
 } = require('../middleware/validation');
 const { authLimiter, sensitiveLimiter } = require('../middleware/rateLimiter');
 const { authenticate } = require('../middleware/auth');

@@ -149,7 +149,7 @@ class StudySessionOrchestrator {
   }
 
   // Create Google Calendar event
-  async createCalendarEvent(userId, config, timerSession) {
+  async createCalendarEvent(userId, config, _timerSession) {
     try {
       const sessionData = {
         subject: config.subject || 'Study Session',

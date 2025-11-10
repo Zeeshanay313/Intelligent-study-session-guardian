@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const app = require('../../../index');
 const TimerPreset = require('../TimerPreset');
 const Session = require('../Session');
-const User = require('../../models/User');
+const User = require('../../../models/User');
 
 describe('Timer Controller', () => {
   let authToken;

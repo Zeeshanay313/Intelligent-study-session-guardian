@@ -2,7 +2,7 @@ const request = require('supertest');
 const mongoose = require('mongoose');
 const app = require('../../../index');
 const Reminder = require('../Reminder');
-const User = require('../../models/User');
+const User = require('../../../models/User');
 const { scheduleReminder, executeReminderAction } = require('../reminderController');
 
 describe('Reminder Controller', () => {

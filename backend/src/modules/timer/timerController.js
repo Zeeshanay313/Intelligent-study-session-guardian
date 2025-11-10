@@ -97,7 +97,7 @@ const startSession = async (req, res) => {
       return res.status(400).json({ success: false, errors: errors.array() });
     }
 
-    const { presetId, customDurations } = req.body;
+    const { presetId } = req.body;
 
     // If using a preset, verify ownership
     if (presetId) {

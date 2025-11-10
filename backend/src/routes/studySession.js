@@ -196,8 +196,8 @@ router.post('/quick-start', async (req, res) => {
 
     const sessionConfig = {
       subject: activeGoal ? `Study: ${activeGoal.title}` : 'Quick Focus Session',
-      workDuration: defaultPreset?.workDuration / 60 || 25, // Convert from seconds to minutes
-      breakDuration: defaultPreset?.breakDuration / 60 || 5,
+      workDuration: (defaultPreset?.workDuration || 1500) / 60, // Convert from seconds to minutes
+      breakDuration: (defaultPreset?.breakDuration || 300) / 60,
       presetId: defaultPreset?._id,
       linkedGoalId: activeGoal?._id,
       syncToCalendar: true, // Auto-enable calendar sync for quick start

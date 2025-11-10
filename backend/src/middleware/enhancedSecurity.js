@@ -17,23 +17,37 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
   skipSuccessfulRequests: true,
   // Custom handler for repeated failures
-  handler: (req, res, next) => {
+  handler: (req, res, _next) => {
     const key = `auth_${req.ip}`;
     const currentAttempts = accountLockouts.get(key) || 0;
 
     if (currentAttempts >= 5) {
       // Progressive lockout: 15min -> 1hr -> 24hr
-      const lockoutDuration = currentAttempts >= 10 ? 24 * 60 * 60 * 1000
-        : currentAttempts >= 7 ? 60 * 60 * 1000
-          : 15 * 60 * 1000;
+      let lockoutDuration;
+      if (currentAttempts >= 10) {
+        lockoutDuration = 24 * 60 * 60 * 1000;
+      } else if (currentAttempts >= 7) {
+        lockoutDuration = 60 * 60 * 1000;
+      } else {
+        lockoutDuration = 15 * 60 * 1000;
+      }
 
       accountLockouts.set(key, currentAttempts + 1);
       setTimeout(() => accountLockouts.delete(key), lockoutDuration);
 
+      let lockoutLevel;
+      if (currentAttempts >= 10) {
+        lockoutLevel = 'severe';
+      } else if (currentAttempts >= 7) {
+        lockoutLevel = 'moderate';
+      } else {
+        lockoutLevel = 'standard';
+      }
+
       return res.status(429).json({
         error: 'Account temporarily locked due to repeated failed attempts',
         retryAfter: Math.floor(lockoutDuration / 1000),
-        lockoutLevel: currentAttempts >= 10 ? 'severe' : currentAttempts >= 7 ? 'moderate' : 'standard'
+        lockoutLevel
       });
     }
 
@@ -131,10 +145,19 @@ const validatePasswordSecurity = password => {
     issues.push('Password is too common, please choose a more unique password');
   }
 
+  let strength;
+  if (issues.length === 0) {
+    strength = 'strong';
+  } else if (issues.length <= 2) {
+    strength = 'medium';
+  } else {
+    strength = 'weak';
+  }
+
   return {
     isValid: issues.length === 0,
     issues,
-    strength: issues.length === 0 ? 'strong' : issues.length <= 2 ? 'medium' : 'weak'
+    strength
   };
 };
 

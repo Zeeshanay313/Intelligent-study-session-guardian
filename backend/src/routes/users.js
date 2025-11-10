@@ -3,7 +3,6 @@ const multer = require('multer');
 const fs = require('fs-extra');
 const path = require('path');
 const crypto = require('crypto');
-const archiver = require('archiver');
 const User = require('../models/User');
 const AuditLog = require('../models/AuditLog');
 const Guardian = require('../models/Guardian');
@@ -154,7 +153,6 @@ router.patch('/me/profile', authenticate, validateProfileUpdate, async (req, res
   } catch (error) {
     console.error('Profile update error:', error);
     console.error('Error stack:', error.stack);
-    console.error('Updates object:', updates);
     console.error('Request body:', req.body);
     res.status(500).json({ error: 'Failed to update profile', details: error.message });
   }
@@ -266,7 +264,7 @@ router.post('/me/avatar', authenticate, uploadLimiter, upload.single('avatar'), 
 
     // Update user with new avatar path
     const avatarUrl = `/uploads/avatars/${req.file.filename}`;
-    const user = await User.findByIdAndUpdate(
+    await User.findByIdAndUpdate(
       req.user._id,
       { 'profile.avatar': avatarUrl },
       { new: true }
