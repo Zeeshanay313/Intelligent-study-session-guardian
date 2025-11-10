@@ -101,6 +101,11 @@ const PresetDropdown = ({ selectedPreset, onPresetChange, onDurationChange }) =>
 
   return (
     <div className="preset-dropdown">
+      {/* INDICATOR - YOU SHOULD SEE THIS */}
+      <div className="mb-2 p-2 bg-blue-100 dark:bg-blue-900 border border-blue-500 rounded text-center text-sm font-semibold text-blue-800 dark:text-blue-200">
+        🎨 Custom Presets Feature Active ({presets.length} presets loaded)
+      </div>
+      
       <div className="flex items-center gap-2">
         <select
           value={selectedPreset?._id || ''}
