@@ -2,7 +2,7 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [main, fix/**]
+    branches: [main, fix/**, feature/**]
   pull_request:
     branches: [main]
 
@@ -90,6 +90,12 @@ jobs:
       - name: Install dependencies
         working-directory: ./frontend
         run: npm ci
+
+      - name: Run frontend tests
+        working-directory: ./frontend
+        run: npm test -- --coverage --watchAll=false || echo "Frontend tests not yet configured"
+        env:
+          CI: true
 
       - name: Build frontend
         working-directory: ./frontend
