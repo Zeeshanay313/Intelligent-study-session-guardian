@@ -5,16 +5,10 @@ const { verifyToken } = require('../config/auth');
 // Authentication middleware
 const authenticate = async (req, res, next) => {
   try {
-    console.log('=== AUTH MIDDLEWARE DEBUG ===');
-    console.log('URL:', req.url);
-    console.log('Method:', req.method);
-    console.log('All Headers:', JSON.stringify(req.headers, null, 2));
-    console.log('x-dev-bypass header:', req.headers['x-dev-bypass']);
-    console.log('============================');
-    
-    // Development mode bypass - TODO: Remove in production  
-    if (req.headers['x-dev-bypass'] === 'true') {
-      console.log('✅ Using dev bypass mode');
+    // SECURITY: Dev bypass should only work in development environment
+    if (process.env.NODE_ENV === 'development' && req.headers['x-dev-bypass'] === 'true') {
+      console.warn('⚠️  DEV BYPASS MODE - This should never happen in production!');
+      
       // Create or find test user for development
       const User = require('../models/User');
       
@@ -23,13 +17,11 @@ const authenticate = async (req, res, next) => {
         testUser = new User({
           email: 'dev@test.com',
           name: 'Dev User',
-          password: 'dev123', // This won't be used since we bypass auth
+          password: 'dev123',
           emailVerified: true
         });
         await testUser.save();
         console.log('✅ Created dev test user:', testUser._id);
-      } else {
-        console.log('✅ Found existing dev user:', testUser._id);
       }
       
       req.user = testUser;
