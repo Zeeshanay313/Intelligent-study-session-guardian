@@ -107,10 +107,10 @@ class PushNotificationService {
       return { sent: true, messageId: response, to: user.email };
     } catch (error) {
       console.error('Error sending study session push notification:', error);
-      
+
       // Handle invalid token
-      if (error.code === 'messaging/registration-token-not-registered' || 
-          error.code === 'messaging/invalid-registration-token') {
+      if (error.code === 'messaging/registration-token-not-registered'
+          || error.code === 'messaging/invalid-registration-token') {
         await this.removeUserToken(userId);
         return { sent: false, reason: 'Invalid FCM token - removed from user' };
       }
@@ -160,9 +160,9 @@ class PushNotificationService {
       return { sent: true, messageId: response };
     } catch (error) {
       console.error('Error sending goal achievement push notification:', error);
-      
-      if (error.code === 'messaging/registration-token-not-registered' || 
-          error.code === 'messaging/invalid-registration-token') {
+
+      if (error.code === 'messaging/registration-token-not-registered'
+          || error.code === 'messaging/invalid-registration-token') {
         await this.removeUserToken(userId);
       }
 
@@ -210,9 +210,9 @@ class PushNotificationService {
       return { sent: true, messageId: response };
     } catch (error) {
       console.error('Error sending reminder push notification:', error);
-      
-      if (error.code === 'messaging/registration-token-not-registered' || 
-          error.code === 'messaging/invalid-registration-token') {
+
+      if (error.code === 'messaging/registration-token-not-registered'
+          || error.code === 'messaging/invalid-registration-token') {
         await this.removeUserToken(userId);
       }
 
@@ -224,8 +224,8 @@ class PushNotificationService {
   async sendBreakReminderNotification(userId, sessionData) {
     try {
       const user = await User.findById(userId);
-      if (!user?.integrations?.pushNotifications?.enabled || 
-          !user.privacy?.notifications?.breakReminders) {
+      if (!user?.integrations?.pushNotifications?.enabled
+          || !user.privacy?.notifications?.breakReminders) {
         return { sent: false, reason: 'Break reminders not enabled' };
       }
 
@@ -348,12 +348,12 @@ class PushNotificationService {
       const message = {
         notification: notificationData.notification,
         data: notificationData.data || {},
-        tokens: tokens
+        tokens
       };
 
       const response = await admin.messaging().sendMulticast(message);
-      return { 
-        sent: true, 
+      return {
+        sent: true,
         successCount: response.successCount,
         failureCount: response.failureCount,
         responses: response.responses

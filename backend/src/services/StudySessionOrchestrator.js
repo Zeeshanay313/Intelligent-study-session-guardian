@@ -1,3 +1,4 @@
+const cron = require('node-cron');
 const Session = require('../modules/timer/Session');
 const Reminder = require('../modules/reminder/Reminder');
 const Goal = require('../models/Goal');
@@ -5,7 +6,6 @@ const User = require('../models/User');
 const GoogleCalendarService = require('../modules/calendar/GoogleCalendarService');
 const EmailService = require('./EmailService');
 const PushNotificationService = require('./PushNotificationService');
-const cron = require('node-cron');
 
 class StudySessionOrchestrator {
   constructor(io) {
@@ -27,7 +27,7 @@ class StudySessionOrchestrator {
 
       // 1. Create timer session
       const timerSession = await this.createTimerSession(userId, sessionConfig);
-      
+
       // 2. Update goal progress if linked
       let goalUpdate = null;
       if (sessionConfig.linkedGoalId) {
@@ -120,9 +120,9 @@ class StudySessionOrchestrator {
       // Update progress atomically
       const updatedGoal = await Goal.findByIdAndUpdate(
         goalId,
-        { 
+        {
           $inc: { progressValue: progressIncrement },
-          $set: { 
+          $set: {
             lastProgressUpdate: new Date(),
             isActive: true
           }
@@ -132,9 +132,9 @@ class StudySessionOrchestrator {
 
       // Check if goal is completed
       if (updatedGoal.progressValue >= updatedGoal.targetValue && !updatedGoal.completedAt) {
-        await Goal.findByIdAndUpdate(goalId, { 
+        await Goal.findByIdAndUpdate(goalId, {
           completedAt: new Date(),
-          isActive: false 
+          isActive: false
         });
 
         // Send achievement notifications
@@ -173,9 +173,9 @@ class StudySessionOrchestrator {
     try {
       const workDuration = config.workDuration || 25;
       const breakDuration = config.breakDuration || 5;
-      
+
       const breakTime = new Date(Date.now() + workDuration * 60000);
-      
+
       const breakReminder = new Reminder({
         userId,
         title: 'Break Time!',
@@ -192,10 +192,10 @@ class StudySessionOrchestrator {
       });
 
       await breakReminder.save();
-      
+
       // Schedule the reminder job
       this.scheduleReminderJob(breakReminder);
-      
+
       return [breakReminder];
     } catch (error) {
       console.error('Error scheduling break reminders:', error);
@@ -223,7 +223,6 @@ class StudySessionOrchestrator {
 
       // Send push notification if enabled
       await PushNotificationService.sendStudySessionNotification(userId, notificationData);
-
     } catch (error) {
       console.error('Error sending session start notifications:', error);
     }
@@ -237,7 +236,7 @@ class StudySessionOrchestrator {
 
     const timer = setInterval(() => {
       timeRemaining--;
-      
+
       // Send real-time updates
       this.io.to(`user_${userId}`).emit('timer_tick', {
         sessionId,
@@ -336,7 +335,6 @@ class StudySessionOrchestrator {
 
       // Push notification
       await PushNotificationService.sendGoalAchievementNotification(userId, goal);
-
     } catch (error) {
       console.error('Error sending goal achievement notifications:', error);
     }
@@ -355,7 +353,7 @@ class StudySessionOrchestrator {
         clearInterval(timerInfo.timer);
         sessionData.status = 'paused';
         sessionData.pausedAt = new Date();
-        
+
         this.io.to(`user_${userId}`).emit('session_paused', {
           sessionId: sessionData.sessionId,
           timeRemaining: timerInfo.timeRemaining
@@ -404,7 +402,7 @@ class StudySessionOrchestrator {
 
     const timer = setInterval(() => {
       timeRemaining--;
-      
+
       this.io.to(`user_${userId}`).emit('timer_tick', {
         sessionId,
         timeRemaining,
@@ -429,11 +427,11 @@ class StudySessionOrchestrator {
   scheduleReminderJob(reminder) {
     const scheduleTime = new Date(reminder.datetime);
     const now = new Date();
-    
+
     if (scheduleTime <= now) return;
 
     const delay = scheduleTime.getTime() - now.getTime();
-    
+
     setTimeout(async () => {
       try {
         // Send reminder notifications
@@ -464,7 +462,6 @@ class StudySessionOrchestrator {
       if (reminder.channels.push) {
         await PushNotificationService.sendReminderNotification(userId, reminder);
       }
-
     } catch (error) {
       console.error('Error sending reminder notifications:', error);
     }
@@ -487,14 +484,14 @@ class StudySessionOrchestrator {
   async cleanupExpiredSessions() {
     try {
       const expiredThreshold = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours ago
-      
+
       // Clean up database sessions
       await Session.updateMany(
-        { 
+        {
           status: 'active',
           createdAt: { $lt: expiredThreshold }
         },
-        { 
+        {
           status: 'expired',
           endTime: new Date()
         }

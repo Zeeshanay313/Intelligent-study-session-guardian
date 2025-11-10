@@ -1,6 +1,6 @@
+const mongoose = require('mongoose');
 const Goal = require('../models/Goal');
 const User = require('../models/User');
-const mongoose = require('mongoose');
 
 // Get all goals for a user with optional filtering
 const getGoals = async (req, res) => {
@@ -187,7 +187,7 @@ const createGoal = async (req, res) => {
     res.status(201).json({
       message: 'Goal created successfully',
       goal,
-      privacyNote: !user.privacy.guardianSharing && visibility !== 'private' 
+      privacyNote: !user.privacy.guardianSharing && visibility !== 'private'
         ? 'Visibility was set to private due to privacy settings'
         : null
     });
@@ -322,12 +322,12 @@ const updateProgress = async (req, res) => {
     // Atomic update to prevent race conditions
     const updatedGoal = await Goal.findOneAndUpdate(
       { _id: id, isActive: true },
-      { 
+      {
         $inc: { progressValue: amount },
         $set: { updatedAt: new Date() }
       },
-      { 
-        new: true, 
+      {
+        new: true,
         runValidators: true
       }
     );

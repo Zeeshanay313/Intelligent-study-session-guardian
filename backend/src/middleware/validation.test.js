@@ -103,7 +103,7 @@ describe('Input Validation', () => {
       ];
 
       const objectIdRegex = /^[0-9a-fA-F]{24}$/;
-      
+
       validObjectIds.forEach(id => {
         expect(id).toMatch(objectIdRegex);
       });
@@ -118,7 +118,7 @@ describe('Input Validation', () => {
       ];
 
       const objectIdRegex = /^[0-9a-fA-F]{24}$/;
-      
+
       invalidObjectIds.forEach(id => {
         expect(id).not.toMatch(objectIdRegex);
       });
@@ -128,7 +128,7 @@ describe('Input Validation', () => {
   describe('Number validation', () => {
     it('should validate positive integers', () => {
       const validNumbers = [1, 5, 100, 1000];
-      
+
       validNumbers.forEach(num => {
         expect(num).toBeGreaterThan(0);
         expect(Number.isInteger(num)).toBe(true);
@@ -137,7 +137,7 @@ describe('Input Validation', () => {
 
     it('should reject invalid number inputs', () => {
       const invalidNumbers = [-1, 0, 'abc', NaN, Infinity];
-      
+
       invalidNumbers.forEach(num => {
         const isValid = typeof num === 'number' && num > 0 && Number.isFinite(num);
         expect(isValid).toBe(false);

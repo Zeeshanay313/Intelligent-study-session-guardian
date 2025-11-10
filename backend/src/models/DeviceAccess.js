@@ -97,39 +97,39 @@ deviceAccessSchema.index({ suspicious: 1, blocked: 1 });
 deviceAccessSchema.index({ lastSeen: 1 }, { expireAfterSeconds: 31536000 });
 
 // Virtual for device status
-deviceAccessSchema.virtual('status').get(function() {
+deviceAccessSchema.virtual('status').get(function () {
   if (this.blocked) return 'blocked';
   if (this.suspicious) return 'suspicious';
   if (!this.accessEnabled) return 'disabled';
-  
+
   const daysSinceLastSeen = (Date.now() - this.lastSeen) / (1000 * 60 * 60 * 24);
   if (daysSinceLastSeen > 30) return 'inactive';
   if (daysSinceLastSeen > 7) return 'idle';
-  
+
   return 'active';
 });
 
 // Virtual for is trusted device
-deviceAccessSchema.virtual('isTrusted').get(function() {
+deviceAccessSchema.virtual('isTrusted').get(function () {
   return this.trustScore >= 70 && !this.suspicious && !this.blocked;
 });
 
 // Method to update last seen and increment login count
-deviceAccessSchema.methods.updateActivity = function(ipAddress) {
+deviceAccessSchema.methods.updateActivity = function (ipAddress) {
   this.lastSeen = new Date();
   this.lastIP = ipAddress;
   this.loginCount += 1;
-  
+
   // Increase trust score for regular usage (up to 80)
   if (this.trustScore < 80 && this.loginCount > 5) {
     this.trustScore = Math.min(80, this.trustScore + 1);
   }
-  
+
   return this.save();
 };
 
 // Method to revoke access
-deviceAccessSchema.methods.revokeAccess = function(reason = null) {
+deviceAccessSchema.methods.revokeAccess = function (reason = null) {
   this.accessEnabled = false;
   this.permissions = {
     camera: false,
@@ -137,53 +137,53 @@ deviceAccessSchema.methods.revokeAccess = function(reason = null) {
     notifications: false,
     location: false
   };
-  
+
   if (reason) {
     this.blocked = true;
     this.blockedReason = reason;
     this.blockedAt = new Date();
   }
-  
+
   return this.save();
 };
 
 // Method to enable access
-deviceAccessSchema.methods.enableAccess = function() {
+deviceAccessSchema.methods.enableAccess = function () {
   this.accessEnabled = true;
   this.blocked = false;
   this.blockedReason = null;
   this.blockedAt = null;
   this.suspicious = false;
-  
+
   return this.save();
 };
 
 // Method to update permissions
-deviceAccessSchema.methods.updatePermissions = function(permissions) {
+deviceAccessSchema.methods.updatePermissions = function (permissions) {
   this.permissions = {
     ...this.permissions,
     ...permissions
   };
-  
+
   return this.save();
 };
 
 // Static method to find user devices
-deviceAccessSchema.statics.findUserDevices = function(userId, activeOnly = false) {
+deviceAccessSchema.statics.findUserDevices = function (userId, activeOnly = false) {
   const query = { userId };
   if (activeOnly) {
     query.accessEnabled = true;
     query.blocked = false;
   }
-  
+
   return this.find(query).sort({ lastSeen: -1 });
 };
 
 // Static method to detect suspicious activity
-deviceAccessSchema.statics.detectSuspiciousDevices = function() {
+deviceAccessSchema.statics.detectSuspiciousDevices = function () {
   const suspiciousThreshold = new Date();
   suspiciousThreshold.setHours(suspiciousThreshold.getHours() - 1); // Last hour
-  
+
   return this.find({
     loginCount: { $gt: 20 }, // Too many logins
     lastSeen: { $gte: suspiciousThreshold },
@@ -192,19 +192,19 @@ deviceAccessSchema.statics.detectSuspiciousDevices = function() {
 };
 
 // Method to mark as suspicious
-deviceAccessSchema.methods.markSuspicious = function(reason) {
+deviceAccessSchema.methods.markSuspicious = function (reason) {
   this.suspicious = true;
   this.trustScore = Math.max(0, this.trustScore - 20);
   this.blockedReason = reason;
-  
+
   return this.save();
 };
 
 // Static method for device cleanup
-deviceAccessSchema.statics.cleanupInactiveDevices = function(days = 365) {
+deviceAccessSchema.statics.cleanupInactiveDevices = function (days = 365) {
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - days);
-  
+
   return this.deleteMany({
     lastSeen: { $lt: cutoffDate },
     accessEnabled: false

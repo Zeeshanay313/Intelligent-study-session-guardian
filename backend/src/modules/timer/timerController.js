@@ -1,6 +1,6 @@
+const { validationResult } = require('express-validator');
 const TimerPreset = require('./TimerPreset');
 const Session = require('./Session');
-const { validationResult } = require('express-validator');
 
 // Get all timer presets for the authenticated user
 const getPresets = async (req, res) => {
@@ -21,8 +21,10 @@ const createPreset = async (req, res) => {
       return res.status(400).json({ success: false, errors: errors.array() });
     }
 
-    const { name, workDuration, breakDuration, longBreakDuration, cyclesBeforeLongBreak } = req.body;
-    
+    const {
+      name, workDuration, breakDuration, longBreakDuration, cyclesBeforeLongBreak
+    } = req.body;
+
     const preset = new TimerPreset({
       userId: req.user._id,
       name,
@@ -53,8 +55,10 @@ const updatePreset = async (req, res) => {
       return res.status(404).json({ success: false, error: 'Timer preset not found' });
     }
 
-    const { name, workDuration, breakDuration, longBreakDuration, cyclesBeforeLongBreak } = req.body;
-    
+    const {
+      name, workDuration, breakDuration, longBreakDuration, cyclesBeforeLongBreak
+    } = req.body;
+
     preset.name = name;
     preset.workDuration = workDuration;
     preset.breakDuration = breakDuration;
@@ -94,7 +98,7 @@ const startSession = async (req, res) => {
     }
 
     const { presetId, customDurations } = req.body;
-    
+
     // If using a preset, verify ownership
     if (presetId) {
       const preset = await TimerPreset.findOne({ _id: presetId, userId: req.user._id });
@@ -174,7 +178,7 @@ const stopSession = async (req, res) => {
       // const activityData = await getActivityData(session._id);
       // session.productiveSeconds = activityData.productiveSeconds;
       // session.presencePercent = activityData.presencePercent;
-      
+
       // For now, use placeholder values
       session.productiveSeconds = Math.floor(session.totalDurationSec * 0.8); // 80% productive
       session.presencePercent = 85;
@@ -187,7 +191,7 @@ const stopSession = async (req, res) => {
 
     // Emit socket event
     if (req.io) {
-      req.io.to(`user_${req.user._id}`).emit('timer:stopped', { 
+      req.io.to(`user_${req.user._id}`).emit('timer:stopped', {
         sessionId: session._id,
         summary: {
           totalDuration: session.totalDurationSec,
@@ -218,8 +222,8 @@ const getSessionHistory = async (req, res) => {
 
     const total = await Session.countDocuments({ userId: req.user._id });
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       data: sessions,
       pagination: {
         page: parseInt(page),

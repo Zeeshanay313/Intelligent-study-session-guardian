@@ -14,12 +14,12 @@ describe('Authentication Middleware', () => {
       url: '/test',
       method: 'GET'
     };
-    
+
     mockRes = {
       status: jest.fn().mockReturnThis(),
       json: jest.fn().mockReturnThis()
     };
-    
+
     nextFunction = jest.fn();
   });
 

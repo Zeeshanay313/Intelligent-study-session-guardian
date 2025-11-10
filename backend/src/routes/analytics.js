@@ -1,4 +1,5 @@
 const express = require('express');
+
 const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const Session = require('../modules/timer/Session');
@@ -11,7 +12,7 @@ router.get('/user-stats', authenticate, async (req, res) => {
 
     // Get all sessions
     const allSessions = await Session.find({ userId });
-    
+
     // Calculate total stats
     const totalSessions = allSessions.length;
     const totalMinutes = allSessions.reduce((sum, session) => {
@@ -23,20 +24,20 @@ router.get('/user-stats', authenticate, async (req, res) => {
     }, 0);
 
     // Get active goals count
-    const activeGoalsCount = await Goal.countDocuments({ 
-      userId, 
-      isActive: true 
+    const activeGoalsCount = await Goal.countDocuments({
+      userId,
+      isActive: true
     });
 
     // Calculate streak (consecutive days with sessions)
     const today = new Date();
     let currentStreak = 0;
-    let checkDate = new Date(today);
-    
-    for (let i = 0; i < 365; i++) {  // Check up to a year
+    const checkDate = new Date(today);
+
+    for (let i = 0; i < 365; i++) { // Check up to a year
       const startOfDay = new Date(checkDate.setHours(0, 0, 0, 0));
       const endOfDay = new Date(checkDate.setHours(23, 59, 59, 999));
-      
+
       const hasSessions = await Session.exists({
         userId,
         startTime: { $gte: startOfDay, $lte: endOfDay }
@@ -188,7 +189,7 @@ router.get('/recent-sessions', authenticate, async (req, res) => {
       _id: session._id,
       type: session.type || 'focus',
       duration: session.duration || 25,
-      actualDuration: session.endTime 
+      actualDuration: session.endTime
         ? Math.round((new Date(session.endTime) - new Date(session.startTime)) / 1000 / 60)
         : 0,
       status: session.status,
@@ -213,7 +214,7 @@ router.get('/user-stats', authenticate, async (req, res) => {
     const userId = req.user._id;
 
     // Get all completed sessions
-    const allSessions = await Session.find({ 
+    const allSessions = await Session.find({
       userId,
       status: 'completed'
     }).lean();
@@ -233,7 +234,7 @@ router.get('/user-stats', authenticate, async (req, res) => {
     }, 0);
 
     // Calculate average session duration
-    const avgSessionDuration = allSessions.length > 0 
+    const avgSessionDuration = allSessions.length > 0
       ? Math.round(totalMinutes / allSessions.length)
       : 0;
 
@@ -244,21 +245,21 @@ router.get('/user-stats', authenticate, async (req, res) => {
       const sortedSessions = allSessions
         .map(s => new Date(s.startTime).toISOString().split('T')[0])
         .sort((a, b) => new Date(b) - new Date(a));
-      
+
       const uniqueDays = [...new Set(sortedSessions)];
       const today = new Date().toISOString().split('T')[0];
-      
+
       // Check if there's a session today or yesterday
       const latestDay = uniqueDays[0];
       const daysDiff = Math.floor((new Date(today) - new Date(latestDay)) / (1000 * 60 * 60 * 24));
-      
+
       if (daysDiff <= 1) {
         currentStreak = 1;
         for (let i = 1; i < uniqueDays.length; i++) {
           const prevDay = new Date(uniqueDays[i - 1]);
           const currDay = new Date(uniqueDays[i]);
           const diff = Math.floor((prevDay - currDay) / (1000 * 60 * 60 * 24));
-          
+
           if (diff === 1) {
             currentStreak++;
           } else {

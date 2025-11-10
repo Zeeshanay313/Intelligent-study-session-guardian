@@ -11,13 +11,24 @@
   "rules": {
     "no-console": "off",
     "consistent-return": "off",
-    "no-underscore-dangle": ["error", { "allow": ["_id", "_doc"] }],
-    "max-len": ["error", { "code": 120, "ignoreComments": true }],
+    "no-underscore-dangle": ["error", { "allow": ["_id", "_doc", "_csrf"] }],
+    "max-len": ["warn", { "code": 150, "ignoreComments": true, "ignoreStrings": true, "ignoreTemplateLiterals": true }],
     "comma-dangle": ["error", "never"],
     "arrow-parens": ["error", "as-needed"],
     "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
     "linebreak-style": "off",
     "no-plusplus": "off",
-    "no-await-in-loop": "off"
+    "no-await-in-loop": "off",
+    "class-methods-use-this": "off",
+    "func-names": "off",
+    "no-param-reassign": "off",
+    "global-require": "off",
+    "import/no-extraneous-dependencies": ["error", {"devDependencies": ["**/*.test.js", "**/*.spec.js", "**/setupTests.js"]}],
+    "no-restricted-syntax": ["error", "LabeledStatement", "WithStatement"],
+    "no-use-before-define": ["error", { "functions": false }],
+    "radix": "warn",
+    "import/extensions": "off",
+    "no-script-url": "warn",
+    "no-useless-escape": "warn"
   }
 }

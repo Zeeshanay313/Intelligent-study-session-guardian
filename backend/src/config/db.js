@@ -23,12 +23,12 @@ const connectDB = async (retryCount = 0) => {
     });
 
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
-    
+
     // Set up connection event listeners
-    mongoose.connection.on('error', (err) => {
+    mongoose.connection.on('error', err => {
       console.error('❌ MongoDB connection error:', err);
     });
-    
+
     mongoose.connection.on('disconnected', () => {
       console.log('⚠️  MongoDB disconnected. Attempting to reconnect...');
       setTimeout(() => {
@@ -39,17 +39,16 @@ const connectDB = async (retryCount = 0) => {
     mongoose.connection.on('reconnected', () => {
       console.log('✅ MongoDB reconnected successfully');
     });
-    
+
     // Graceful shutdown
     process.on('SIGINT', async () => {
       await mongoose.connection.close();
       console.log('MongoDB connection closed through app termination');
       process.exit(0);
     });
-    
   } catch (error) {
     console.error(`❌ Database connection failed (attempt ${retryCount + 1}/${maxRetries + 1}):`, error.message);
-    
+
     // Special handling for SSL/TLS errors
     if (error.message.includes('SSL') || error.message.includes('TLS') || error.message.includes('OPENSSL')) {
       console.log('🔄 SSL/TLS error detected. Trying fallback connection without SSL...');
@@ -71,9 +70,9 @@ const connectDB = async (retryCount = 0) => {
         console.error('❌ SSL fallback also failed:', fallbackError.message);
       }
     }
-    
+
     if (retryCount < maxRetries) {
-      console.log(`⏳ Retrying connection in ${retryDelay/1000} seconds...`);
+      console.log(`⏳ Retrying connection in ${retryDelay / 1000} seconds...`);
       setTimeout(() => {
         connectDB(retryCount + 1);
       }, retryDelay);

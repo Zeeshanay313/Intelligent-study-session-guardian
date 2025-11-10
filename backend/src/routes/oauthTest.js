@@ -4,6 +4,7 @@
  */
 
 const express = require('express');
+
 const router = express.Router();
 
 // Test route to check OAuth configuration

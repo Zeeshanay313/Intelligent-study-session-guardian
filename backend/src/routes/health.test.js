@@ -113,7 +113,7 @@ describe('Health Check & System Routes', () => {
       const requests = Array(10).fill(null).map(() => request(app).get('/health'));
 
       const responses = await Promise.all(requests);
-      
+
       responses.forEach(response => {
         expect(response.status).toBe(200);
       });
@@ -123,7 +123,7 @@ describe('Health Check & System Routes', () => {
   describe('JSON Body Parsing', () => {
     it('should parse JSON request bodies', async () => {
       const testData = { test: 'data', number: 123 };
-      
+
       const response = await request(app)
         .post('/api/auth/register')
         .send(testData)

@@ -5,7 +5,7 @@ const { google } = require('googleapis');
 
 // TODO: Set up Google OAuth2 credentials in environment variables
 // GOOGLE_CLIENT_ID=your_client_id_here
-// GOOGLE_CLIENT_SECRET=your_client_secret_here  
+// GOOGLE_CLIENT_SECRET=your_client_secret_here
 // GOOGLE_REDIRECT_URL=http://localhost:5004/api/calendar/callback
 
 class CalendarService {
@@ -15,7 +15,7 @@ class CalendarService {
       process.env.GOOGLE_CLIENT_SECRET,
       process.env.GOOGLE_REDIRECT_URL || 'http://localhost:5004/api/calendar/callback'
     );
-    
+
     this.calendar = google.calendar({ version: 'v3', auth: this.oauth2Client });
   }
 
@@ -106,7 +106,7 @@ class CalendarService {
 
       const response = await this.calendar.events.update({
         calendarId: 'primary',
-        eventId: eventId,
+        eventId,
         resource: event
       });
 
@@ -121,7 +121,7 @@ class CalendarService {
     try {
       await this.calendar.events.delete({
         calendarId: 'primary',
-        eventId: eventId
+        eventId
       });
       return true;
     } catch (error) {
@@ -134,17 +134,17 @@ class CalendarService {
     // TODO: Implement proper cron to RRULE conversion
     // This is a basic placeholder - full implementation would need more sophisticated parsing
     const parts = cronExpression.split(' ');
-    
+
     // Simple daily recurrence example
     if (parts[2] === '*' && parts[3] === '*' && parts[4] === '*') {
       return ['RRULE:FREQ=DAILY'];
     }
-    
+
     // Simple weekly recurrence example
     if (parts[4] !== '*') {
       return ['RRULE:FREQ=WEEKLY'];
     }
-    
+
     // Default to no recurrence for complex patterns
     return [];
   }
@@ -154,27 +154,27 @@ class CalendarService {
     let ics = 'BEGIN:VCALENDAR\r\n';
     ics += 'VERSION:2.0\r\n';
     ics += 'PRODID:-//Study Guardian//Study Reminders//EN\r\n';
-    
+
     reminders.forEach(reminder => {
       ics += 'BEGIN:VEVENT\r\n';
       ics += `UID:${reminder._id}@studyguardian.app\r\n`;
       ics += `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').split('.')[0]}Z\r\n`;
-      
+
       if (reminder.datetime) {
-        const startTime = new Date(reminder.datetime).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+        const startTime = `${new Date(reminder.datetime).toISOString().replace(/[-:]/g, '').split('.')[0]}Z`;
         ics += `DTSTART:${startTime}\r\n`;
-        
-        const endTime = new Date(new Date(reminder.datetime).getTime() + 3600000).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+
+        const endTime = `${new Date(new Date(reminder.datetime).getTime() + 3600000).toISOString().replace(/[-:]/g, '').split('.')[0]}Z`;
         ics += `DTEND:${endTime}\r\n`;
       }
-      
+
       ics += `SUMMARY:${reminder.title}\r\n`;
       if (reminder.message) {
         ics += `DESCRIPTION:${reminder.message}\r\n`;
       }
       ics += 'END:VEVENT\r\n';
     });
-    
+
     ics += 'END:VCALENDAR\r\n';
     return ics;
   }

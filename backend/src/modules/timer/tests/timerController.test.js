@@ -170,7 +170,7 @@ describe('Timer Controller', () => {
         endTime: new Date(Date.now() - 60000),
         totalDurationSec: 60
       });
-      
+
       const session2 = new Session({
         userId: testUser._id,
         startTime: new Date(Date.now() - 180000),

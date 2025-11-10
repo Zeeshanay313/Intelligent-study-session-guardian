@@ -32,7 +32,7 @@ class ErrorMonitor {
     };
 
     this.errorLog.push(errorEntry);
-    
+
     // Keep log size manageable
     if (this.errorLog.length > this.maxLogSize) {
       this.errorLog = this.errorLog.slice(-this.maxLogSize);
@@ -40,10 +40,10 @@ class ErrorMonitor {
 
     // Write to file
     this.writeToFile(errorEntry);
-    
+
     // Auto-recovery attempts
     this.attemptRecovery(error, context);
-    
+
     return errorEntry;
   }
 
@@ -180,15 +180,15 @@ class ErrorMonitor {
 
   getRecommendations(stats) {
     const recommendations = [];
-    
+
     if (stats.bySeverity.HIGH > 0) {
       recommendations.push('Run SYSTEM_HEALTH_CHECK.bat to diagnose issues');
     }
-    
+
     if (stats.byType.ValidationError > 10) {
       recommendations.push('Review validation requirements in PERMANENT_SOLUTIONS_GUIDE.md');
     }
-    
+
     if (stats.byType.MongooseError > 0) {
       recommendations.push('Check MongoDB connection stability');
     }

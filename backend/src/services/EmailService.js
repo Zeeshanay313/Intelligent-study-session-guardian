@@ -33,7 +33,7 @@ class EmailService {
   async getTransporter(userId) {
     try {
       const user = await User.findById(userId);
-      
+
       // Check if user has custom email configuration
       if (user?.integrations?.email?.enabled && user.integrations.email.smtpHost) {
         return nodemailer.createTransporter({

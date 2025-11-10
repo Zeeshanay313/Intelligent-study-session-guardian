@@ -1,6 +1,6 @@
-const Reminder = require('./Reminder');
 const { validationResult } = require('express-validator');
 const cron = require('node-cron');
+const Reminder = require('./Reminder');
 
 // Store active cron jobs
 const activeCronJobs = new Map();
@@ -10,7 +10,7 @@ const getReminders = async (req, res) => {
   try {
     const { type, isActive } = req.query;
     const filter = { userId: req.user._id };
-    
+
     if (type) filter.type = type;
     if (isActive !== undefined) filter.isActive = isActive === 'true';
 
@@ -30,8 +30,10 @@ const createReminder = async (req, res) => {
       return res.status(400).json({ success: false, errors: errors.array() });
     }
 
-    const { title, message, type, cronExpression, datetime, channels, calendarLinked } = req.body;
-    
+    const {
+      title, message, type, cronExpression, datetime, channels, calendarLinked
+    } = req.body;
+
     const reminder = new Reminder({
       userId: req.user._id,
       title,
@@ -73,8 +75,10 @@ const updateReminder = async (req, res) => {
       return res.status(404).json({ success: false, error: 'Reminder not found' });
     }
 
-    const { title, message, type, cronExpression, datetime, channels, isActive, calendarLinked } = req.body;
-    
+    const {
+      title, message, type, cronExpression, datetime, channels, isActive, calendarLinked
+    } = req.body;
+
     // Cancel existing cron job if it exists
     if (activeCronJobs.has(reminder._id.toString())) {
       activeCronJobs.get(reminder._id.toString()).destroy();
@@ -144,7 +148,7 @@ const triggerReminder = async (req, res) => {
 };
 
 // Helper function to schedule a reminder
-const scheduleReminder = async (reminder) => {
+const scheduleReminder = async reminder => {
   try {
     if (!reminder.isActive) return;
 
@@ -167,10 +171,10 @@ const scheduleReminder = async (reminder) => {
     } else if (reminder.type === 'one-off' && reminder.datetime) {
       const now = new Date();
       const reminderTime = new Date(reminder.datetime);
-      
+
       if (reminderTime > now) {
         const delay = reminderTime.getTime() - now.getTime();
-        
+
         const timeout = setTimeout(async () => {
           await executeReminderAction(reminder, executeReminderAction.io);
           activeCronJobs.delete(reminderId);
@@ -216,23 +220,22 @@ const executeReminderAction = async (reminder, io = null) => {
     // Store reminder execution history
     // TODO: Create ReminderHistory model if needed for audit trail
     console.log(`Reminder ${reminder._id} executed at ${new Date()}`);
-
   } catch (error) {
     console.error('Error executing reminder action:', error);
   }
 };
 
 // Initialize all active reminders on server start
-const initializeReminders = async (io) => {
+const initializeReminders = async io => {
   try {
     console.log('Initializing reminder scheduler...');
-    
+
     const activeReminders = await Reminder.find({ isActive: true });
-    
+
     for (const reminder of activeReminders) {
       await scheduleReminder(reminder);
     }
-    
+
     console.log(`Initialized ${activeReminders.length} active reminders`);
 
     // Store io instance for use in reminder execution

@@ -8,10 +8,10 @@ const authenticate = async (req, res, next) => {
     // SECURITY: Dev bypass should only work in development environment
     if (process.env.NODE_ENV === 'development' && req.headers['x-dev-bypass'] === 'true') {
       console.warn('⚠️  DEV BYPASS MODE - This should never happen in production!');
-      
+
       // Create or find test user for development
       const User = require('../models/User');
-      
+
       let testUser = await User.findOne({ email: 'dev@test.com' });
       if (!testUser) {
         testUser = new User({
@@ -23,13 +23,13 @@ const authenticate = async (req, res, next) => {
         await testUser.save();
         console.log('✅ Created dev test user:', testUser._id);
       }
-      
+
       req.user = testUser;
       return next();
     }
-    
+
     let token = null;
-    
+
     // Check for token in cookies first (preferred method)
     if (req.cookies.accessToken) {
       token = req.cookies.accessToken;
@@ -38,28 +38,28 @@ const authenticate = async (req, res, next) => {
     else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
       token = req.headers.authorization.slice(7);
     }
-    
+
     if (!token) {
       return res.status(401).json({ error: 'Access token required' });
     }
-    
+
     const decoded = verifyToken(token);
     const user = await User.findById(decoded.userId).select('-password -refreshTokens');
-    
+
     if (!user || user.deleted) {
       return res.status(401).json({ error: 'User not found or account deleted' });
     }
-    
+
     req.user = user;
     next();
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({ 
+      return res.status(401).json({
         error: 'Token expired',
         code: 'TOKEN_EXPIRED'
       });
     }
-    
+
     return res.status(401).json({ error: 'Invalid token' });
   }
 };
@@ -68,22 +68,22 @@ const authenticate = async (req, res, next) => {
 const optionalAuth = async (req, res, next) => {
   try {
     let token = null;
-    
+
     if (req.cookies.accessToken) {
       token = req.cookies.accessToken;
     } else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
       token = req.headers.authorization.slice(7);
     }
-    
+
     if (token) {
       const decoded = verifyToken(token);
       const user = await User.findById(decoded.userId).select('-password -refreshTokens');
-      
+
       if (user && !user.deleted) {
         req.user = user;
       }
     }
-    
+
     next();
   } catch (error) {
     // Continue without authentication for optional auth
@@ -96,11 +96,11 @@ const requireAdmin = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({ error: 'Authentication required' });
   }
-  
+
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin access required' });
   }
-  
+
   next();
 };
 
@@ -109,9 +109,9 @@ const requireSelfOrAdmin = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({ error: 'Authentication required' });
   }
-  
+
   const targetUserId = req.params.id || req.params.userId;
-  
+
   if (req.user.role === 'admin' || req.user._id.toString() === targetUserId) {
     next();
   } else {
@@ -122,24 +122,24 @@ const requireSelfOrAdmin = (req, res, next) => {
 // Account verification middleware
 const requireVerified = (req, res, next) => {
   if (!req.user.verified) {
-    return res.status(403).json({ 
+    return res.status(403).json({
       error: 'Account verification required',
       code: 'ACCOUNT_NOT_VERIFIED'
     });
   }
-  
+
   next();
 };
 
 // Active account middleware (not soft deleted)
 const requireActive = (req, res, next) => {
   if (req.user.deleted) {
-    return res.status(403).json({ 
+    return res.status(403).json({
       error: 'Account is deactivated',
       code: 'ACCOUNT_DEACTIVATED'
     });
   }
-  
+
   next();
 };
 

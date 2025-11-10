@@ -1,18 +1,18 @@
 const jwt = require('jsonwebtoken');
 
-const generateTokens = (userId) => {
+const generateTokens = userId => {
   const accessToken = jwt.sign(
     { userId },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || '15m' }
   );
-  
+
   const refreshToken = jwt.sign(
     { userId },
     process.env.JWT_REFRESH_SECRET,
     { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d' }
   );
-  
+
   return { accessToken, refreshToken };
 };
 
@@ -33,12 +33,12 @@ const setTokenCookies = (res, accessToken, refreshToken) => {
     // Removed maxAge to make cookies session-only
     // This means users will be logged out when browser closes or server restarts
   };
-  
+
   res.cookie('accessToken', accessToken, cookieOptions);
   res.cookie('refreshToken', refreshToken, cookieOptions);
 };
 
-const clearTokenCookies = (res) => {
+const clearTokenCookies = res => {
   res.clearCookie('accessToken');
   res.clearCookie('refreshToken');
 };

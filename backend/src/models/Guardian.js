@@ -107,7 +107,7 @@ guardianSchema.index({ inviteExpires: 1 });
 guardianSchema.index({ inviteExpires: 1 }, { expireAfterSeconds: 0 });
 
 // Virtual for invitation status
-guardianSchema.virtual('inviteStatus').get(function() {
+guardianSchema.virtual('inviteStatus').get(function () {
   if (this.consentStatus === 'accepted') return 'active';
   if (this.consentStatus === 'declined' || this.consentStatus === 'revoked') return 'inactive';
   if (this.inviteExpires < new Date()) return 'expired';
@@ -115,55 +115,55 @@ guardianSchema.virtual('inviteStatus').get(function() {
 });
 
 // Method to accept invitation
-guardianSchema.methods.acceptInvite = function(guardianUserId) {
+guardianSchema.methods.acceptInvite = function (guardianUserId) {
   this.guardianId = guardianUserId;
   this.consentStatus = 'accepted';
   this.consentGivenAt = new Date();
   this.inviteToken = null; // Clear token after acceptance
-  
+
   return this.save();
 };
 
 // Method to decline invitation
-guardianSchema.methods.declineInvite = function() {
+guardianSchema.methods.declineInvite = function () {
   this.consentStatus = 'declined';
   this.inviteToken = null;
-  
+
   return this.save();
 };
 
 // Method to revoke consent
-guardianSchema.methods.revokeConsent = function() {
+guardianSchema.methods.revokeConsent = function () {
   this.consentStatus = 'revoked';
   this.consentRevokedAt = new Date();
   this.shareFields = [];
   this.accessLevel = 'view';
-  
+
   return this.save();
 };
 
 // Method to update sharing preferences
-guardianSchema.methods.updateSharing = function(shareFields, accessLevel) {
+guardianSchema.methods.updateSharing = function (shareFields, accessLevel) {
   if (this.consentStatus !== 'accepted') {
     throw new Error('Cannot update sharing for non-accepted guardian');
   }
-  
+
   this.shareFields = shareFields;
   this.accessLevel = accessLevel;
-  
+
   return this.save();
 };
 
 // Method to track access
-guardianSchema.methods.trackAccess = function() {
+guardianSchema.methods.trackAccess = function () {
   this.lastAccess = new Date();
   this.accessCount += 1;
-  
+
   return this.save();
 };
 
 // Static method to find active guardians for user
-guardianSchema.statics.findActiveGuardians = function(userId) {
+guardianSchema.statics.findActiveGuardians = function (userId) {
   return this.find({
     userId,
     consentStatus: 'accepted'
@@ -171,7 +171,7 @@ guardianSchema.statics.findActiveGuardians = function(userId) {
 };
 
 // Static method to find pending invites
-guardianSchema.statics.findPendingInvites = function(guardianEmail) {
+guardianSchema.statics.findPendingInvites = function (guardianEmail) {
   return this.find({
     guardianEmail,
     consentStatus: 'pending',
@@ -180,7 +180,7 @@ guardianSchema.statics.findPendingInvites = function(guardianEmail) {
 };
 
 // Static method to cleanup expired invites
-guardianSchema.statics.cleanupExpiredInvites = function() {
+guardianSchema.statics.cleanupExpiredInvites = function () {
   return this.deleteMany({
     consentStatus: 'pending',
     inviteExpires: { $lt: new Date() }
@@ -188,7 +188,7 @@ guardianSchema.statics.cleanupExpiredInvites = function() {
 };
 
 // Static method to get guardian statistics
-guardianSchema.statics.getGuardianStats = function(userId) {
+guardianSchema.statics.getGuardianStats = function (userId) {
   return this.aggregate([
     { $match: { userId: new mongoose.Types.ObjectId(userId) } },
     {
