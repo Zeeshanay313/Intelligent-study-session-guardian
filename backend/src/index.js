@@ -24,6 +24,8 @@ const calendarRoutes = require('./modules/calendar/calendarRoutes');
 const oauthTestRoutes = require('./routes/oauthTest');
 const analyticsRoutes = require('./routes/analytics');
 const { router: studySessionRoutes, setSocketIO } = require('./routes/studySession');
+const presetsRoutes = require('./routes/presets');
+const sessionsRoutes = require('./routes/sessions');
 
 const app = express();
 
@@ -140,6 +142,8 @@ app.use('/api/reminders', reminderRoutes);
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/study-session', studySessionRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/presets', presetsRoutes);
+app.use('/api/sessions', sessionsRoutes);
 app.use('/api', oauthTestRoutes);
 
 // Root endpoint
