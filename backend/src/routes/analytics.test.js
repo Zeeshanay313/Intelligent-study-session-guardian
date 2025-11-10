@@ -1,6 +1,5 @@
 const request = require('supertest');
 const jwt = require('jsonwebtoken');
-const mongoose = require('mongoose');
 const app = require('../index');
 const User = require('../models/User');
 const Session = require('../modules/timer/Session');
@@ -14,7 +13,9 @@ describe('Analytics API', () => {
     // Create test user
     testUser = await User.create({
       email: 'analytics@test.com',
-      displayName: 'Analytics Test User',
+      profile: {
+        displayName: 'Analytics Test User'
+      },
       password: 'hashedpassword123'
     });
 

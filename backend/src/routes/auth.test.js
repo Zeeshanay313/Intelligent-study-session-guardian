@@ -117,7 +117,7 @@ describe('Auth API', () => {
   describe('POST /api/auth/refresh', () => {
     it('should refresh access token with valid refresh token', async () => {
       // First login to get tokens
-      const user = await User.create({
+      await User.create({
         email: 'refresh@test.com',
         password: await bcrypt.hash('Password123!', 10),
         displayName: 'Refresh User'
@@ -130,7 +130,7 @@ describe('Auth API', () => {
           password: 'Password123!'
         });
 
-      const refreshToken = loginResponse.body.refreshToken;
+      const { refreshToken } = loginResponse.body;
 
       const response = await request(app)
         .post('/api/auth/refresh')

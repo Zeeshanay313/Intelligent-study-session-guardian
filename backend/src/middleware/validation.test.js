@@ -1,5 +1,3 @@
-const { body, validationResult } = require('express-validator');
-
 describe('Input Validation', () => {
   describe('Email validation', () => {
     it('should reject invalid email formats', () => {
@@ -68,6 +66,7 @@ describe('Input Validation', () => {
     it('should handle XSS attempts', () => {
       const maliciousInputs = [
         '<script>alert("xss")</script>',
+        // eslint-disable-next-line no-script-url
         'javascript:alert("xss")',
         '<img src=x onerror=alert("xss")>',
         '"><script>alert(String.fromCharCode(88,83,83))</script>'
@@ -212,6 +211,7 @@ describe('Input Validation', () => {
         'https://subdomain.example.co.uk/path'
       ];
 
+      // eslint-disable-next-line max-len, no-useless-escape
       const urlRegex = /^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)$/;
 
       validUrls.forEach(url => {
@@ -221,6 +221,7 @@ describe('Input Validation', () => {
 
     it('should reject dangerous URLs', () => {
       const dangerousUrls = [
+        // eslint-disable-next-line no-script-url
         'javascript:alert("xss")',
         'data:text/html,<script>alert("xss")</script>',
         'file:///etc/passwd'

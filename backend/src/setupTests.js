@@ -5,6 +5,11 @@ let mongoServer;
 
 // Setup before all tests
 beforeAll(async () => {
+  // Close any existing connections first
+  if (mongoose.connection.readyState !== 0) {
+    await mongoose.disconnect();
+  }
+
   // Create in-memory MongoDB instance
   mongoServer = await MongoMemoryServer.create();
   const mongoUri = mongoServer.getUri();
@@ -13,21 +18,25 @@ beforeAll(async () => {
     useNewUrlParser: true,
     useUnifiedTopology: true
   });
-});
+}, 30000); // Increase timeout for MongoDB setup
 
 // Cleanup after each test
 afterEach(async () => {
-  const collections = mongoose.connection.collections;
-  for (const key in collections) {
-    await collections[key].deleteMany({});
+  if (mongoose.connection.readyState === 1) {
+    const collections = Object.values(mongoose.connection.collections);
+    await Promise.all(collections.map(collection => collection.deleteMany({})));
   }
 });
 
 // Cleanup after all tests
 afterAll(async () => {
-  await mongoose.connection.dropDatabase();
-  await mongoose.connection.close();
-  await mongoServer.stop();
+  if (mongoose.connection.readyState === 1) {
+    await mongoose.connection.dropDatabase();
+    await mongoose.disconnect();
+  }
+  if (mongoServer) {
+    await mongoServer.stop();
+  }
 });
 
 // Mock console methods to reduce test noise
