@@ -6,12 +6,16 @@ import {
   PlayIcon
 } from '@heroicons/react/24/outline';
 import FocusTimer from '../components/FocusTimer';
+import FocusTimerDebug from '../components/FocusTimerDebug';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 
 const FocusTimerPage = () => {
   return (
     <div className="min-h-screen bg-secondary-50 dark:bg-secondary-900 py-8">
+      {/* Debug Panel - Remove after testing */}
+      <FocusTimerDebug />
+      
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
