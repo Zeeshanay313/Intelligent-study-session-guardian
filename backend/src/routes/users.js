@@ -486,7 +486,7 @@ router.delete('/me', authenticate, sensitiveLimiter, async (req, res) => {
       res.json({
         message: `Account scheduled for deletion. You have ${process.env.USER_RETENTION_DAYS || 30} days to restore it.`,
         deletionType: 'soft',
-        retentionDays: parseInt(process.env.USER_RETENTION_DAYS) || 30,
+        retentionDays: parseInt(process.env.USER_RETENTION_DAYS, 10) || 30,
         canRestore: true
       });
     }
@@ -517,7 +517,7 @@ router.post('/me/restore', async (req, res) => {
     }
 
     // Check if restoration period has expired
-    const retentionDays = parseInt(process.env.USER_RETENTION_DAYS) || 30;
+    const retentionDays = parseInt(process.env.USER_RETENTION_DAYS, 10) || 30;
     const expirationDate = new Date(user.deletedAt);
     expirationDate.setDate(expirationDate.getDate() + retentionDays);
 
@@ -642,8 +642,8 @@ router.get('/:id/audit-logs', authenticate, requireSelfOrAdmin, validateObjectId
     } = req.query;
 
     const auditLogs = await AuditLog.getUserAuditTrail(id, {
-      page: parseInt(page),
-      limit: parseInt(limit),
+      page: parseInt(page, 10),
+      limit: parseInt(limit, 10),
       action,
       privacyOnly: privacyOnly === 'true',
       startDate,
@@ -665,8 +665,8 @@ router.get('/:id/audit-logs', authenticate, requireSelfOrAdmin, validateObjectId
     res.json({
       auditLogs,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page: parseInt(page, 10),
+        limit: parseInt(limit, 10),
         total,
         pages: Math.ceil(total / limit)
       }

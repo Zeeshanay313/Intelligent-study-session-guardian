@@ -218,7 +218,7 @@ const getSessionHistory = async (req, res) => {
       .populate('presetId', 'name')
       .sort({ startTime: -1 })
       .skip(skip)
-      .limit(parseInt(limit));
+      .limit(parseInt(limit, 10));
 
     const total = await Session.countDocuments({ userId: req.user._id });
 
@@ -226,8 +226,8 @@ const getSessionHistory = async (req, res) => {
       success: true,
       data: sessions,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page: parseInt(page, 10),
+        limit: parseInt(limit, 10),
         total,
         pages: Math.ceil(total / limit)
       }

@@ -135,7 +135,7 @@ const validatePasswordSecurity = password => {
     issues.push('Password must contain numbers');
   }
 
-  if (!/(?=.*[@$!%*?&#^()\-_=+\[\]{}|;:'",.<>~`])/.test(password)) {
+  if (!/(?=.*[@$!%*?&#^()\-_=+[\]{}|;:'",.<>~`])/.test(password)) {
     issues.push('Password must contain special characters');
   }
 

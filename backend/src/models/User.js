@@ -460,7 +460,7 @@ userSchema.statics.findActive = function (filter = {}) {
 
 // Static method for cleanup (hard delete after retention period)
 userSchema.statics.hardDeleteExpired = async function () {
-  const retentionDays = parseInt(process.env.USER_RETENTION_DAYS) || 30;
+  const retentionDays = parseInt(process.env.USER_RETENTION_DAYS, 10) || 30;
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
 
