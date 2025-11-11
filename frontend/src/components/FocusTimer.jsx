@@ -59,10 +59,6 @@ const FocusTimer = ({ className = '' }) => {
   return (
     <div className={`max-w-2xl mx-auto ${className}`}>
       {/* VERIFICATION BANNER - YOU SHOULD SEE THIS! */}
-      <div className="mb-4 p-4 bg-green-500 text-white rounded-lg text-center font-bold text-xl">
-        ✅ ENHANCED FOCUS TIMER LOADED - ALL FEATURES ACTIVE ✅
-      </div>
-      
       <Card className="text-center">
         {/* Header with Preset Selector */}
         <div className="mb-6">
