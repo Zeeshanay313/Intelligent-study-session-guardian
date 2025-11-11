@@ -10,7 +10,7 @@ class EmailService {
   // Initialize default Gmail SMTP transporter
   initializeDefaultTransporter() {
     if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-      this.defaultTransporter = nodemailer.createTransporter({
+      this.defaultTransporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST,
         port: process.env.SMTP_PORT || 587,
         secure: false, // true for 465, false for other ports
@@ -36,7 +36,7 @@ class EmailService {
       
       // Check if user has custom email configuration
       if (user?.integrations?.email?.enabled && user.integrations.email.smtpHost) {
-        return nodemailer.createTransporter({
+        return nodemailer.createTransport({
           host: user.integrations.email.smtpHost,
           port: user.integrations.email.smtpPort || 587,
           secure: false,

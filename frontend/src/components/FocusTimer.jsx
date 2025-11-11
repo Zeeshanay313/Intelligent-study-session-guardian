@@ -163,7 +163,7 @@ const FocusTimer = ({ className = '' }) => {
     setCycleCount(0);
   };
 
-  const config = sessionConfig[currentSession];
+  const config = sessionConfig[currentSession] || sessionConfig.focus;
 
   return (
     <div className={`${className}`}>
@@ -231,8 +231,14 @@ const FocusTimer = ({ className = '' }) => {
               />
               <defs>
                 <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" className={`${config.neonColor.split(' ')[0].replace('from-', 'text-')}`} stopColor="currentColor" />
-                  <stop offset="100%" className={`${config.neonColor.split(' ')[2].replace('to-', 'text-')}`} stopColor="currentColor" />
+                  <stop offset="0%" stopColor={
+                    currentSession === 'focus' ? '#00d4ff' :
+                    currentSession === 'shortBreak' ? '#10b981' : '#a855f7'
+                  } />
+                  <stop offset="100%" stopColor={
+                    currentSession === 'focus' ? '#06b6d4' :
+                    currentSession === 'shortBreak' ? '#059669' : '#ec4899'
+                  } />
                 </linearGradient>
               </defs>
             </svg>
