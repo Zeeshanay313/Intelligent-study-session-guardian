@@ -316,37 +316,62 @@ const TimerPage = () => {
     // Show visual notification
     let notificationData;
     if (currentPhase === 'work') {
-      // Switch to break
-      const isLongBreak = cycle % cyclesBeforeLongBreak === 0;
+      // Determine if it's time for a long break
+      // Long break happens after completing the specified number of work cycles
+      const isLongBreak = cycle >= cyclesBeforeLongBreak;
+      
+      // Switch to appropriate break type
       setCurrentPhase(isLongBreak ? 'longBreak' : 'break');
       setTimeRemaining(isLongBreak ? longBreakDuration : breakDuration);
       setSessionStartTime(new Date());
       
       notificationData = {
         type: 'success',
-        title: isLongBreak ? '🎉 Long Break Time!' : '☕ Break Time!',
-        message: 'Great work! Take a well-deserved break.',
+        title: isLongBreak ? '🎉 Long Break Time!' : '☕ Short Break Time!',
+        message: isLongBreak 
+          ? `You've completed ${cycle} work sessions! Take a long break.`
+          : `Work session ${cycle} completed! Take a short break.`,
         duration: 5000
       };
-      showInfo(isLongBreak ? 'Long break time!' : 'Break time!');
+      showInfo(isLongBreak ? `Long break time! (${Math.floor(longBreakDuration / 60)} minutes)` : `Short break time! (${Math.floor(breakDuration / 60)} minutes)`);
     } else {
-      // Switch back to work
+      // Break ended, switch back to work
+      const wasLongBreak = currentPhase === 'longBreak';
+      
       setCurrentPhase('work');
       setTimeRemaining(workDuration);
-      setCycle(prev => prev + 1);
       setSessionStartTime(new Date());
-      notificationData = {
-        type: 'info',
-        title: '💪 Back to Work!',
-        message: `Starting Cycle #${cycle + 1}. Stay focused!`,
-        duration: 5000
-      };
-      showInfo('Back to work!');
+      
+      // Reset cycle counter after long break, otherwise increment
+      if (wasLongBreak) {
+        setCycle(1);
+        notificationData = {
+          type: 'info',
+          title: '💪 Back to Work!',
+          message: 'Starting fresh cycle after your long break. Stay focused!',
+          duration: 5000
+        };
+        showInfo('Starting Cycle #1 after long break');
+      } else {
+        setCycle(prev => prev + 1);
+        notificationData = {
+          type: 'info',
+          title: '💪 Back to Work!',
+          message: `Starting Cycle #${cycle + 1}. Keep the momentum going!`,
+          duration: 5000
+        };
+        showInfo(`Starting Cycle #${cycle + 1}`);
+      }
     }
 
     // Show popup notification
     setNotification(notificationData);
     setTimeout(() => setNotification(null), notificationData.duration);
+
+    // Request browser notification permission if not granted
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
 
     // Browser notification
     if ('Notification' in window && Notification.permission === 'granted') {
@@ -399,14 +424,28 @@ const TimerPage = () => {
 
   // Quick action handlers
   const handleStudySession = () => {
-    if (!selectedPreset) {
-      // Select first preset if none selected
-      if (presets.length > 0) {
-        setSelectedPreset(presets[0]);
-        setTimeRemaining(presets[0].workDuration);
-      }
+    // If timer is already running, show message
+    if (isRunning) {
+      showInfo('Timer is already running!');
+      return;
     }
-    startTimer(selectedPreset || presets[0]);
+
+    // If no preset is selected, select the first one
+    if (!selectedPreset && presets.length > 0) {
+      const firstPreset = presets[0];
+      setSelectedPreset(firstPreset);
+      setTimeRemaining(firstPreset.workDuration);
+      showSuccess(`Selected preset: ${firstPreset.name}`);
+      
+      // Start timer with the selected preset
+      setTimeout(() => startTimer(firstPreset), 100);
+    } else if (selectedPreset) {
+      // Start with currently selected preset
+      startTimer(selectedPreset);
+    } else {
+      showError('No presets available. Please create one first.');
+      setShowPresetManager(true);
+    }
   };
 
   const handleViewStats = async () => {
@@ -414,21 +453,32 @@ const TimerPage = () => {
       const response = await api.get('/timer/sessions/stats?days=7');
       const stats = response.data;
       
-      showSuccess(`Last 7 days: ${stats.totalSessions} sessions, ${Math.floor(stats.totalWorkTime / 60)} min total`);
-      navigate('/dashboard');
+      const totalHours = Math.floor(stats.totalWorkTime / 3600);
+      const totalMinutes = Math.floor((stats.totalWorkTime % 3600) / 60);
+      
+      showSuccess(
+        `📊 Last 7 days: ${stats.totalSessions} sessions, ${totalHours}h ${totalMinutes}m total work time`,
+        'Stats loaded!'
+      );
+      
+      // Show session history
+      setShowSessionHistory(true);
+      loadSessionHistory();
     } catch (error) {
       console.error('Failed to fetch stats:', error);
+      showInfo('Navigating to dashboard...');
       navigate('/dashboard');
     }
   };
 
   const handlePreferences = () => {
-    setShowPresetManager(true);
+    setShowPresetManager(!showPresetManager);
+    showInfo(showPresetManager ? 'Closing preset manager' : 'Opening preset manager');
   };
 
   const handleCustomTimer = () => {
     setShowPresetManager(true);
-    showInfo('Create a custom preset below');
+    showInfo('Create a custom preset with your preferred durations');
   };
 
   const loadSessionHistory = async () => {
@@ -560,8 +610,37 @@ const TimerPage = () => {
           <div className={`inline-flex items-center px-4 py-2 rounded-full text-white mb-4 ${getPhaseColor()}`}>
             <ClockIcon className="w-5 h-5 mr-2" />
             {getPhaseText()}
-            {currentPhase === 'work' && <span className="ml-2">- Cycle {cycle}</span>}
+            {currentPhase === 'work' && selectedPreset && (
+              <span className="ml-2">
+                - Cycle {cycle}/{selectedPreset.cyclesBeforeLongBreak}
+              </span>
+            )}
+            {currentPhase === 'break' && (
+              <span className="ml-2">- Short Break</span>
+            )}
+            {currentPhase === 'longBreak' && (
+              <span className="ml-2">- Long Break!</span>
+            )}
           </div>
+
+          {/* Cycle Progress Dots */}
+          {selectedPreset && isRunning && currentPhase === 'work' && (
+            <div className="flex justify-center gap-2 mb-4">
+              {Array.from({ length: selectedPreset.cyclesBeforeLongBreak }).map((_, index) => (
+                <div
+                  key={index}
+                  className={`w-3 h-3 rounded-full transition-all ${
+                    index < cycle
+                      ? 'bg-green-500 scale-110'
+                      : index === cycle - 1
+                      ? 'bg-blue-500 animate-pulse'
+                      : 'bg-gray-300 dark:bg-gray-600'
+                  }`}
+                  title={`Cycle ${index + 1}`}
+                />
+              ))}
+            </div>
+          )}
 
           {/* Timer Display */}
           <div className="text-6xl font-mono font-bold text-gray-900 dark:text-white mb-8">
