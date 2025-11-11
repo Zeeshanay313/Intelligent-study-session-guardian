@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../components/shared/NotificationToast';
 import { useSocket } from '../../hooks/useSocket';
+import useLocalReminders from '../../hooks/useLocalReminders';
 import ReminderPopup from '../../components/reminder/ReminderPopup';
 import {
   BellIcon,
@@ -21,12 +22,34 @@ const ReminderPage = () => {
   const navigate = useNavigate();
   const { showSuccess, showError, showInfo } = useNotifications();
   const { socketService } = useSocket();
+  const { 
+    activeReminders: localReminders, 
+    addReminder: addLocalReminder, 
+    removeReminder: removeLocalReminder,
+    checkDueReminders,
+    subscribeToReminderTriggers
+  } = useLocalReminders();
 
   const [reminders, setReminders] = useState([]);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('active'); // active, history
   const [activePopup, setActivePopup] = useState(null); // For showing reminder popup
+  const [useLocalMode, setUseLocalMode] = useState(false); // Fallback to local mode
+
+  // Listen for local reminder triggers
+  useEffect(() => {
+    console.log('📡 Setting up local reminder trigger listener');
+    const unsubscribe = subscribeToReminderTriggers((reminder) => {
+      console.log('🔔 Local reminder triggered, showing popup:', reminder);
+      setActivePopup(reminder);
+    });
+
+    return () => {
+      console.log('🔌 Cleaning up local reminder trigger listener');
+      unsubscribe();
+    };
+  }, [subscribeToReminderTriggers]);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -118,11 +141,20 @@ const ReminderPage = () => {
         endpoint = '/reminder/history/all';
       }
 
-      const response = await api.get(endpoint);
-      setReminders(Array.isArray(response.data) ? response.data : response.data.reminders || []);
+      try {
+        const response = await api.get(endpoint);
+        setReminders(Array.isArray(response.data) ? response.data : response.data.reminders || []);
+        setUseLocalMode(false);
+      } catch (serverError) {
+        console.log('Server unavailable, showing local reminders');
+        // Fall back to local reminders when server is offline
+        setReminders(localReminders);
+        setUseLocalMode(true);
+      }
     } catch (error) {
       console.error('Error loading reminders:', error);
-      showError('Failed to load reminders');
+      setReminders(localReminders); // Show local as fallback
+      setUseLocalMode(true);
     } finally {
       setLoading(false);
     }
@@ -142,9 +174,29 @@ const ReminderPage = () => {
         return;
       }
 
-      await api.post('/reminder', submitData);
+      // Try server first, fallback to local storage
+      try {
+        await api.post('/reminder', submitData);
+        showSuccess('Reminder created successfully!');
+      } catch (serverError) {
+        console.log('Server unavailable, using local storage for reminder');
+        
+        // Use local reminder system as fallback
+        addLocalReminder({
+          title: submitData.title,
+          message: submitData.message,
+          customMessage: submitData.customMessage,
+          datetime: submitData.datetime,
+          type: submitData.type,
+          recurring: submitData.recurring,
+          sound: submitData.sound,
+          channels: submitData.channels
+        });
+        
+        setUseLocalMode(true);
+        showSuccess('Reminder created locally! (Server offline)');
+      }
       
-      showSuccess('Reminder created successfully!');
       setShowCreateForm(false);
       resetForm();
       loadReminders();
@@ -158,8 +210,31 @@ const ReminderPage = () => {
 
   const handleSnooze = async (reminderId, duration) => {
     try {
-      await api.post(`/reminder/${reminderId}/snooze`, { duration });
-      showInfo(`Reminder snoozed for ${duration} minutes`);
+      // Close popup
+      setActivePopup(null);
+      
+      // Try server first
+      try {
+        await api.post(`/reminder/${reminderId}/snooze`, { duration });
+        showInfo(`Reminder snoozed for ${duration} minutes`);
+      } catch (serverError) {
+        // Handle local reminder snooze
+        console.log('Snoozing local reminder');
+        const updatedReminders = localReminders.map(r => {
+          if (r.id === reminderId) {
+            const snoozeUntil = new Date(Date.now() + duration * 60000);
+            return {
+              ...r,
+              datetime: snoozeUntil.toISOString(),
+              status: 'active'
+            };
+          }
+          return r;
+        });
+        localStorage.setItem('localReminders', JSON.stringify(updatedReminders));
+        showInfo(`Reminder snoozed for ${duration} minutes (local)`);
+      }
+      
       loadReminders();
     } catch (error) {
       console.error('Error snoozing reminder:', error);
@@ -169,8 +244,20 @@ const ReminderPage = () => {
 
   const handleDismiss = async (reminderId) => {
     try {
-      await api.post(`/reminder/${reminderId}/dismiss`);
-      showSuccess('Reminder dismissed');
+      // Close popup
+      setActivePopup(null);
+      
+      // Try server first
+      try {
+        await api.post(`/reminder/${reminderId}/dismiss`);
+        showSuccess('Reminder dismissed');
+      } catch (serverError) {
+        // Handle local reminder dismiss
+        console.log('Dismissing local reminder');
+        removeLocalReminder(reminderId);
+        showSuccess('Reminder dismissed (local)');
+      }
+      
       loadReminders();
     } catch (error) {
       console.error('Error dismissing reminder:', error);
@@ -180,8 +267,20 @@ const ReminderPage = () => {
 
   const handleComplete = async (reminderId) => {
     try {
-      await api.post(`/reminder/${reminderId}/complete`);
-      showSuccess('Reminder completed!');
+      // Close popup
+      setActivePopup(null);
+      
+      // Try server first
+      try {
+        await api.post(`/reminder/${reminderId}/complete`);
+        showSuccess('Reminder completed!');
+      } catch (serverError) {
+        // Handle local reminder complete
+        console.log('Completing local reminder');
+        removeLocalReminder(reminderId);
+        showSuccess('Reminder completed (local)');
+      }
+      
       loadReminders();
     } catch (error) {
       console.error('Error completing reminder:', error);
@@ -293,6 +392,39 @@ const ReminderPage = () => {
           </p>
         </div>
         <div className="flex space-x-2">
+          {useLocalMode && (
+            <div className="flex items-center px-3 py-2 bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200 rounded-lg text-sm">
+              🔄 Local Mode (Server Offline)
+            </div>
+          )}
+          <button
+            onClick={() => {
+              // Quick test: Create a reminder for 30 seconds from now
+              const testTime = new Date(Date.now() + 30000);
+              const testReminder = addLocalReminder({
+                title: '⚡ Test Reminder',
+                message: 'This is a quick test reminder set for 30 seconds!',
+                customMessage: 'Testing the reminder system - this should trigger in 30 seconds',
+                datetime: testTime.toISOString(),
+                type: 'one-off',
+                sound: true,
+                channels: { inApp: true, browser: true }
+              });
+              showSuccess(`Test reminder set for ${testTime.toLocaleTimeString()}. Wait 30 seconds!`);
+            }}
+            className="flex items-center px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors text-sm"
+            title="Create a test reminder that triggers in 30 seconds"
+          >
+            ⚡ Quick Test (30s)
+          </button>
+          <button
+            onClick={checkDueReminders}
+            className="flex items-center px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm"
+            title="Check for due reminders now"
+          >
+            <BellIcon className="w-4 h-4 mr-1" />
+            Check Now
+          </button>
           <button
             onClick={() => {
               console.log('🧪 Testing reminder popup...');

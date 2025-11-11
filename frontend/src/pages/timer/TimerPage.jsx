@@ -178,8 +178,6 @@ const TimerPage = () => {
   };
 
   const startTimer = async (preset = null) => {
-    console.log('startTimer called with preset:', preset);
-    
     const currentPreset = preset || selectedPreset;
     if (!currentPreset) {
       showError('Please select a preset first');
@@ -187,21 +185,26 @@ const TimerPage = () => {
     }
 
     try {
+      let sessionId = 'local-session-' + Date.now(); // Default fallback
+      
       // Try to make API call if preset is not default
       if (currentPreset._id !== 'default') {
         const requestData = { presetId: currentPreset._id };
-        console.log('Making timer start API call with:', requestData);
         const response = await api.post('/timers/start', requestData);
         
-        if (response.data.success) {
-          setCurrentSession(response.data.sessionId);
+        // Handle backend response structure: { success: true, data: { sessionId: ... } }
+        if (response.data?.success && response.data?.data?.sessionId) {
+          sessionId = response.data.data.sessionId;
+        } else if (response.data?.sessionId) {
+          sessionId = response.data.sessionId;
+        } else if (response.data?.id) {
+          sessionId = response.data.id;
+        } else if (response.data?._id) {
+          sessionId = response.data._id;
         }
-      } else {
-        // For default preset, create a mock session ID
-        setCurrentSession('local-session-' + Date.now());
       }
       
-      // Set timer state regardless of API success
+      setCurrentSession(sessionId);
       setSelectedPreset(currentPreset);
       setIsRunning(true);
       setIsPaused(false);
@@ -214,7 +217,8 @@ const TimerPage = () => {
     } catch (error) {
       console.error('Error starting timer:', error);
       // Still start the timer locally even if API fails
-      setCurrentSession('local-session-' + Date.now());
+      const fallbackSessionId = 'local-session-' + Date.now();
+      setCurrentSession(fallbackSessionId);
       setSelectedPreset(currentPreset);
       setIsRunning(true);
       setIsPaused(false);
@@ -228,7 +232,6 @@ const TimerPage = () => {
   };
 
   const pauseTimer = async () => {
-    console.log('pauseTimer called, currentSession:', currentSession);
     if (!currentSession) {
       showError('No active session to pause');
       return;
@@ -250,13 +253,11 @@ const TimerPage = () => {
   };
 
   const resumeTimer = () => {
-    console.log('resumeTimer called');
     setIsPaused(false);
     showInfo('Timer resumed');
   };
 
   const stopTimer = async () => {
-    console.log('stopTimer called, currentSession:', currentSession);
     if (!currentSession) {
       showError('No active session to stop');
       return;
@@ -440,9 +441,6 @@ const TimerPage = () => {
 
   // Quick action handlers
   const handleStudySession = () => {
-    console.log('📚 Study Session button clicked');
-    console.log('Current state - isRunning:', isRunning, 'selectedPreset:', selectedPreset, 'presets:', presets.length);
-
     // If timer is already running, show message
     if (isRunning) {
       showInfo('Timer is already running!');
@@ -452,7 +450,6 @@ const TimerPage = () => {
     // If no preset is selected, select the first one
     if (!selectedPreset && presets.length > 0) {
       const firstPreset = presets[0];
-      console.log('Auto-selecting first preset:', firstPreset.name);
       setSelectedPreset(firstPreset);
       setTimeRemaining(firstPreset.workDuration);
       showSuccess(`Selected preset: ${firstPreset.name}`);
@@ -461,7 +458,6 @@ const TimerPage = () => {
       setTimeout(() => startTimer(firstPreset), 100);
     } else if (selectedPreset) {
       // Start with currently selected preset
-      console.log('Starting with selected preset:', selectedPreset.name);
       startTimer(selectedPreset);
     } else {
       showError('No presets available. Please create one first.');
@@ -470,8 +466,12 @@ const TimerPage = () => {
   };
 
   const handleViewStats = async () => {
-    console.log('📊 View Stats button clicked');
     try {
+      // Show session history instead of navigating away
+      setShowSessionHistory(true);
+      await loadSessionHistory();
+      
+      // Also fetch and show stats summary
       const response = await api.get('/timer/sessions/stats?days=7');
       const stats = response.data;
 
@@ -479,28 +479,24 @@ const TimerPage = () => {
       const totalMinutes = Math.floor((stats.totalWorkTime % 3600) / 60);
 
       showSuccess(
-        `📊 Last 7 days: ${stats.totalSessions} sessions, ${totalHours}h ${totalMinutes}m total work time`,
-        'Stats loaded!'
+        `📊 Last 7 days: ${stats.totalSessions} sessions, ${totalHours}h ${totalMinutes}m total work time`
       );
-
-      // Show session history
-      setShowSessionHistory(true);
-      loadSessionHistory();
     } catch (error) {
       console.error('Failed to fetch stats:', error);
-      showInfo('Navigating to dashboard...');
+      // Navigate to dashboard as fallback
+      showInfo('Opening dashboard...');
       navigate('/dashboard');
     }
   };
 
   const handlePreferences = () => {
-    console.log('⚙️ Preferences button clicked');
+    // Toggle preset manager for timer preferences
     setShowPresetManager(!showPresetManager);
     showInfo(showPresetManager ? 'Closing preset manager' : 'Opening preset manager');
   };
 
   const handleCustomTimer = () => {
-    console.log('🔶 Custom Timer button clicked');
+    // Open preset manager to create custom timer
     setShowPresetManager(true);
     showInfo('Create a custom preset with your preferred durations');
   };
@@ -690,12 +686,21 @@ const TimerPage = () => {
             isRunning={isRunning}
             isPaused={isPaused}
             onStart={() => {
-              console.log('Start button clicked, selectedPreset:', selectedPreset);
+              console.log('▶️ Start button clicked, selectedPreset:', selectedPreset);
               startTimer(selectedPreset);
             }}
-            onPause={pauseTimer}
-            onResume={resumeTimer}
-            onStop={stopTimer}
+            onPause={() => {
+              console.log('⏸️ Pause button clicked');
+              pauseTimer();
+            }}
+            onResume={() => {
+              console.log('▶️ Resume button clicked');
+              resumeTimer();
+            }}
+            onStop={() => {
+              console.log('⏹️ Stop button clicked');
+              stopTimer();
+            }}
             disabled={!selectedPreset && !currentSession}
           />
 
