@@ -8,6 +8,8 @@ const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
+const path = require('path');
+
 require('dotenv').config();
 
 // Initialize Passport configuration
@@ -44,7 +46,7 @@ app.use(cors({
   origin: ['http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'x-dev-bypass'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'x-dev-bypass']
 }));
 
 // Handle preflight requests
@@ -52,7 +54,7 @@ app.options('*', cors());
 
 // Security middleware with relaxed settings for development
 app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
   contentSecurityPolicy: false // Disable for development
 }));
 
@@ -102,8 +104,8 @@ app.use((req, res, next) => {
 app.get('/health', (req, res) => {
   console.log('🏥 Health check called');
   console.log('🏥 Headers:', JSON.stringify(req.headers, null, 2));
-  res.json({ 
-    status: 'OK', 
+  res.json({
+    status: 'OK',
     timestamp: new Date().toISOString(),
     database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
     devBypass: req.headers['x-dev-bypass'] || 'not set'
@@ -122,14 +124,13 @@ app.get('/api/test-dev-bypass', (req, res) => {
 });
 
 // Serve static files for uploads
-const path = require('path');
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Debug middleware for API routes
 app.use('/api', (req, res, next) => {
   console.log(`🔍 API Request: ${req.method} ${req.url}`);
-  console.log(`🔍 Headers:`, JSON.stringify(req.headers, null, 2));
-  console.log(`🔍 x-dev-bypass:`, req.headers['x-dev-bypass']);
+  console.log('🔍 Headers:', JSON.stringify(req.headers, null, 2));
+  console.log('🔍 x-dev-bypass:', req.headers['x-dev-bypass']);
   next();
 });
 
@@ -150,7 +151,7 @@ app.use('/api', oauthTestRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
-  res.json({ 
+  res.json({
     message: 'Intelligent Study Session Guardian API',
     version: '1.0.0',
     status: 'running'
@@ -164,9 +165,9 @@ app.use('*', (req, res) => {
 });
 
 // Global error handler
-app.use((error, req, res, next) => {
+app.use((error, req, res, _next) => {
   console.error('Global error handler:', error);
-  res.status(500).json({ 
+  res.status(500).json({
     error: 'Internal server error',
     details: process.env.NODE_ENV === 'development' ? error.message : undefined
   });
@@ -178,24 +179,24 @@ const PORT = process.env.PORT || 5004;
 setSocketIO(io);
 
 // Socket.IO connection handling
-io.on('connection', (socket) => {
+io.on('connection', socket => {
   console.log(`Socket connected: ${socket.id}`);
-  
-  socket.on('join', (userId) => {
+
+  socket.on('join', userId => {
     socket.join(`user:${userId}`);
     console.log(`User ${userId} joined socket room: user:${userId}`);
   });
 
-  socket.on('join-user-room', (userId) => {
+  socket.on('join-user-room', userId => {
     socket.join(`user:${userId}`);
     console.log(`User ${userId} joined user room: user:${userId}`);
   });
 
-  socket.on('leave-user-room', (userId) => {
+  socket.on('leave-user-room', userId => {
     socket.leave(`user:${userId}`);
     console.log(`User ${userId} left user room: user:${userId}`);
   });
-  
+
   socket.on('disconnect', () => {
     console.log(`Socket disconnected: ${socket.id}`);
   });
@@ -222,7 +223,7 @@ const connectDB = async () => {
     return conn;
   } catch (error) {
     console.error('❌ MongoDB connection error:', error.message);
-    
+
     // Try fallback without SSL
     try {
       console.log('🔄 Trying fallback connection without SSL...');
@@ -244,7 +245,7 @@ const connectDB = async () => {
 const startServer = async () => {
   try {
     console.log('🚀 Starting Intelligent Study Session Guardian API...');
-    
+
     // Connect to database FIRST before starting server
     try {
       await connectDB();
@@ -253,7 +254,7 @@ const startServer = async () => {
       console.error('❌ Database connection failed:', error.message);
       console.error('📝 Note: Starting server anyway, but database features will not work');
     }
-    
+
     // Now start server after database connection attempt
     const httpServer = server.listen(PORT, '0.0.0.0', async () => {
       console.log('✅ SERVER RUNNING SUCCESSFULLY!');
@@ -261,8 +262,8 @@ const startServer = async () => {
       console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`🔗 Health check: http://localhost:${PORT}/health`);
       console.log(`🔗 API base: http://localhost:${PORT}/api`);
-      console.log(`🔌 Socket.IO enabled for real-time updates`);
-      
+      console.log('🔌 Socket.IO enabled for real-time updates');
+
       // Initialize reminder scheduler after server is running
       try {
         const { initializeReminders } = require('./modules/reminder/reminderController');
@@ -271,7 +272,7 @@ const startServer = async () => {
       } catch (error) {
         console.error('❌ Failed to initialize reminder scheduler:', error.message);
       }
-      
+
       // Initialize recurring reminder scheduler
       try {
         const RecurringReminderScheduler = require('./services/RecurringReminderScheduler');
@@ -280,12 +281,12 @@ const startServer = async () => {
       } catch (error) {
         console.error('❌ Failed to initialize recurring reminder scheduler:', error.message);
       }
-      
+
       console.log('===============================================');
     });
 
     // Handle server errors
-    httpServer.on('error', (error) => {
+    httpServer.on('error', error => {
       if (error.code === 'EADDRINUSE') {
         console.error(`❌ Port ${PORT} is already in use. Trying alternative port...`);
         const alternativePort = PORT + 1;
@@ -298,12 +299,12 @@ const startServer = async () => {
     });
 
     // Graceful shutdown handlers
-    const gracefulShutdown = (signal) => {
+    const gracefulShutdown = signal => {
       console.log(`\n${signal} received, shutting down gracefully...`);
-      
+
       httpServer.close(async () => {
         console.log('✅ HTTP server closed');
-        
+
         try {
           if (mongoose.connection.readyState === 1) {
             await mongoose.connection.close();
@@ -312,7 +313,7 @@ const startServer = async () => {
         } catch (error) {
           console.error('❌ Error closing MongoDB connection:', error.message);
         }
-        
+
         console.log('👋 Process terminated');
         process.exit(0);
       });
@@ -323,7 +324,7 @@ const startServer = async () => {
     process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
     // Handle uncaught exceptions
-    process.on('uncaughtException', (error) => {
+    process.on('uncaughtException', error => {
       console.error('❌ Uncaught Exception:', error);
       gracefulShutdown('UNCAUGHT_EXCEPTION');
     });
@@ -334,7 +335,6 @@ const startServer = async () => {
     });
 
     return httpServer;
-    
   } catch (error) {
     console.error('❌ Failed to start server:', error);
     process.exit(1);
