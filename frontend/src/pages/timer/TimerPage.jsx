@@ -228,8 +228,12 @@ const TimerPage = () => {
   };
 
   const pauseTimer = async () => {
-    if (!currentSession) return;
-    
+    console.log('pauseTimer called, currentSession:', currentSession);
+    if (!currentSession) {
+      showError('No active session to pause');
+      return;
+    }
+
     try {
       // Only make API call if not a local session
       if (!currentSession.startsWith('local-session-')) {
@@ -246,13 +250,18 @@ const TimerPage = () => {
   };
 
   const resumeTimer = () => {
+    console.log('resumeTimer called');
     setIsPaused(false);
     showInfo('Timer resumed');
   };
 
   const stopTimer = async () => {
-    if (!currentSession) return;
-    
+    console.log('stopTimer called, currentSession:', currentSession);
+    if (!currentSession) {
+      showError('No active session to stop');
+      return;
+    }
+
     try {
       // Only make API call if not a local session
       if (!currentSession.startsWith('local-session-')) {
@@ -266,7 +275,7 @@ const TimerPage = () => {
       } else {
         showSuccess('Timer stopped');
       }
-      
+
       // Reset timer state
       setCurrentSession(null);
       setIsRunning(false);
@@ -431,6 +440,9 @@ const TimerPage = () => {
 
   // Quick action handlers
   const handleStudySession = () => {
+    console.log('📚 Study Session button clicked');
+    console.log('Current state - isRunning:', isRunning, 'selectedPreset:', selectedPreset, 'presets:', presets.length);
+
     // If timer is already running, show message
     if (isRunning) {
       showInfo('Timer is already running!');
@@ -440,14 +452,16 @@ const TimerPage = () => {
     // If no preset is selected, select the first one
     if (!selectedPreset && presets.length > 0) {
       const firstPreset = presets[0];
+      console.log('Auto-selecting first preset:', firstPreset.name);
       setSelectedPreset(firstPreset);
       setTimeRemaining(firstPreset.workDuration);
       showSuccess(`Selected preset: ${firstPreset.name}`);
-      
+
       // Start timer with the selected preset
       setTimeout(() => startTimer(firstPreset), 100);
     } else if (selectedPreset) {
       // Start with currently selected preset
+      console.log('Starting with selected preset:', selectedPreset.name);
       startTimer(selectedPreset);
     } else {
       showError('No presets available. Please create one first.');
@@ -456,18 +470,19 @@ const TimerPage = () => {
   };
 
   const handleViewStats = async () => {
+    console.log('📊 View Stats button clicked');
     try {
       const response = await api.get('/timer/sessions/stats?days=7');
       const stats = response.data;
-      
+
       const totalHours = Math.floor(stats.totalWorkTime / 3600);
       const totalMinutes = Math.floor((stats.totalWorkTime % 3600) / 60);
-      
+
       showSuccess(
         `📊 Last 7 days: ${stats.totalSessions} sessions, ${totalHours}h ${totalMinutes}m total work time`,
         'Stats loaded!'
       );
-      
+
       // Show session history
       setShowSessionHistory(true);
       loadSessionHistory();
@@ -479,11 +494,13 @@ const TimerPage = () => {
   };
 
   const handlePreferences = () => {
+    console.log('⚙️ Preferences button clicked');
     setShowPresetManager(!showPresetManager);
     showInfo(showPresetManager ? 'Closing preset manager' : 'Opening preset manager');
   };
 
   const handleCustomTimer = () => {
+    console.log('🔶 Custom Timer button clicked');
     setShowPresetManager(true);
     showInfo('Create a custom preset with your preferred durations');
   };

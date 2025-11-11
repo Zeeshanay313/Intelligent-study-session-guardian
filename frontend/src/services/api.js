@@ -64,16 +64,16 @@ api.interceptors.response.use(
   },
   async (error) => {
     const originalRequest = error.config;
-    
-    // Network/connection errors
+
+    // Network/connection errors - don't redirect, just reject
     if (!error.response) {
       console.error('🌐 Network error - backend unreachable:', error.message);
-      return Promise.reject(new Error('Backend server is not running. Please start the backend server on port 5004.'));
+      return Promise.reject(error);
     }
-    
+
     const { status } = error.response;
     console.log(`❌ ${status} ${originalRequest.method?.toUpperCase()} ${originalRequest.url}`);
-    
+
     // Handle 401 Unauthorized
     if (status === 401) {
       // Don't retry auth endpoints
@@ -81,19 +81,25 @@ api.interceptors.response.use(
         console.log('🔐 Auth endpoint failed');
         return Promise.reject(error);
       }
-      
-      // Don't retry if already attempted
-      if (originalRequest._retry) {
-        console.log('🔄 Refresh already attempted, clearing tokens');
-        clearTokensAndRedirect();
+
+      // Special handling for timer endpoints - don't redirect on 401
+      if (originalRequest.url?.includes('/timer') || originalRequest.url?.includes('/sessions')) {
+        console.log('⏱️ Timer endpoint failed - continuing without redirect');
         return Promise.reject(error);
       }
-      
+
+      // Don't retry if already attempted
+      if (originalRequest._retry) {
+        console.log('🔄 Refresh already attempted, but NOT redirecting');
+        // Don't redirect automatically - let the component handle it
+        return Promise.reject(error);
+      }
+
       // Attempt token refresh
       const refreshToken = localStorage.getItem('refreshToken');
       if (refreshToken) {
         originalRequest._retry = true;
-        
+
         try {
           console.log('🔄 Attempting token refresh...');
           const refreshResponse = await axios.post(`${BASE_URL}/api/auth/refresh`, {}, {
@@ -109,21 +115,23 @@ api.interceptors.response.use(
           }
         } catch (refreshError) {
           console.error('❌ Token refresh failed:', refreshError.message);
+          // Don't redirect immediately - let the user continue working
+          return Promise.reject(error);
         }
       }
-      
-      // Clear tokens and redirect
-      clearTokensAndRedirect();
+
+      // Don't automatically redirect - just reject the request
+      console.log('⚠️ Authentication failed, but NOT redirecting automatically');
       return Promise.reject(error);
     }
-    
+
     // Handle other errors
     if (status >= 500) {
       console.error('🔥 Server error:', error.response.data?.message || error.message);
     } else if (status === 404) {
       console.warn('🔍 Endpoint not found:', originalRequest.url);
     }
-    
+
     return Promise.reject(error);
   }
 );
