@@ -27,6 +27,8 @@ const TimerPage = () => {
   const [currentPhase, setCurrentPhase] = useState('work'); // 'work', 'break', 'longBreak'
   const [cycle, setCycle] = useState(1);
   const [showPresetManager, setShowPresetManager] = useState(false);
+  const [notification, setNotification] = useState(null);
+  const [soundEnabled, setSoundEnabled] = useState(true);
 
   // Load presets on component mount
   useEffect(() => {
@@ -267,19 +269,90 @@ const TimerPage = () => {
 
     const { cyclesBeforeLongBreak, breakDuration, longBreakDuration, workDuration } = selectedPreset;
 
+    // Play notification sound
+    if (soundEnabled) {
+      playNotificationSound(currentPhase);
+    }
+
+    // Show visual notification
+    let notificationData;
     if (currentPhase === 'work') {
       // Switch to break
       const isLongBreak = cycle % cyclesBeforeLongBreak === 0;
       setCurrentPhase(isLongBreak ? 'longBreak' : 'break');
       setTimeRemaining(isLongBreak ? longBreakDuration : breakDuration);
       
+      notificationData = {
+        type: 'success',
+        title: isLongBreak ? '🎉 Long Break Time!' : '☕ Break Time!',
+        message: 'Great work! Take a well-deserved break.',
+        duration: 5000
+      };
       showInfo(isLongBreak ? 'Long break time!' : 'Break time!');
     } else {
       // Switch back to work
       setCurrentPhase('work');
       setTimeRemaining(workDuration);
       setCycle(prev => prev + 1);
+      notificationData = {
+        type: 'info',
+        title: '💪 Back to Work!',
+        message: `Starting Cycle #${cycle + 1}. Stay focused!`,
+        duration: 5000
+      };
       showInfo('Back to work!');
+    }
+
+    // Show popup notification
+    setNotification(notificationData);
+    setTimeout(() => setNotification(null), notificationData.duration);
+
+    // Browser notification
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification(notificationData.title, {
+        body: notificationData.message,
+        icon: '/favicon.ico',
+        requireInteraction: true
+      });
+    }
+  };
+
+  // Audio notification system
+  const playNotificationSound = (phase) => {
+    try {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      
+      // Different tones for different phases
+      const frequencies = {
+        work: [523.25, 659.25, 783.99], // Energetic tones
+        break: [392.00, 493.88, 587.33], // Relaxing tones
+        longBreak: [261.63, 329.63, 392.00] // Restful tones
+      };
+      
+      const notes = frequencies[phase] || frequencies.work;
+      
+      // Play sequence
+      notes.forEach((freq, index) => {
+        setTimeout(() => {
+          const osc = audioContext.createOscillator();
+          const gain = audioContext.createGain();
+          
+          osc.connect(gain);
+          gain.connect(audioContext.destination);
+          
+          osc.frequency.setValueAtTime(freq, audioContext.currentTime);
+          osc.type = 'sine';
+          
+          gain.gain.setValueAtTime(0, audioContext.currentTime);
+          gain.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.1);
+          gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.8);
+          
+          osc.start(audioContext.currentTime);
+          osc.stop(audioContext.currentTime + 0.8);
+        }, index * 200);
+      });
+    } catch (error) {
+      console.log('Audio notification failed:', error);
     }
   };
 
@@ -311,6 +384,33 @@ const TimerPage = () => {
 
   return (
     <div className="max-w-4xl mx-auto p-6">
+      {/* Visual Notification Popup */}
+      {notification && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="max-w-md w-full p-6 rounded-2xl shadow-2xl transform animate-slide-up bg-gradient-to-br from-blue-500 to-purple-600 text-white relative overflow-hidden">
+            <div className="absolute inset-0 opacity-20">
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"></div>
+            </div>
+            
+            <div className="relative z-10 text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-white/20 flex items-center justify-center">
+                <ClockIcon className="w-8 h-8" />
+              </div>
+              
+              <h3 className="text-2xl font-bold mb-2">{notification.title}</h3>
+              <p className="text-lg opacity-90 mb-6">{notification.message}</p>
+              
+              <button
+                onClick={() => setNotification(null)}
+                className="px-6 py-2 bg-white hover:bg-gray-100 text-gray-900 rounded-lg font-medium transition-colors"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
