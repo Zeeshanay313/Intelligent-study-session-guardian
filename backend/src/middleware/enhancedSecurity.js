@@ -17,26 +17,40 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
   skipSuccessfulRequests: true,
   // Custom handler for repeated failures
-  handler: (req, res, next) => {
+  handler: (req, res, _next) => {
     const key = `auth_${req.ip}`;
     const currentAttempts = accountLockouts.get(key) || 0;
-    
+
     if (currentAttempts >= 5) {
       // Progressive lockout: 15min -> 1hr -> 24hr
-      const lockoutDuration = currentAttempts >= 10 ? 24 * 60 * 60 * 1000 : 
-                              currentAttempts >= 7 ? 60 * 60 * 1000 : 
-                              15 * 60 * 1000;
-      
+      let lockoutDuration;
+      if (currentAttempts >= 10) {
+        lockoutDuration = 24 * 60 * 60 * 1000;
+      } else if (currentAttempts >= 7) {
+        lockoutDuration = 60 * 60 * 1000;
+      } else {
+        lockoutDuration = 15 * 60 * 1000;
+      }
+
       accountLockouts.set(key, currentAttempts + 1);
       setTimeout(() => accountLockouts.delete(key), lockoutDuration);
-      
+
+      let lockoutLevel;
+      if (currentAttempts >= 10) {
+        lockoutLevel = 'severe';
+      } else if (currentAttempts >= 7) {
+        lockoutLevel = 'moderate';
+      } else {
+        lockoutLevel = 'standard';
+      }
+
       return res.status(429).json({
         error: 'Account temporarily locked due to repeated failed attempts',
         retryAfter: Math.floor(lockoutDuration / 1000),
-        lockoutLevel: currentAttempts >= 10 ? 'severe' : currentAttempts >= 7 ? 'moderate' : 'standard'
+        lockoutLevel
       });
     }
-    
+
     accountLockouts.set(key, currentAttempts + 1);
     res.status(429).json({
       error: 'Too many authentication attempts, please try again later.',
@@ -52,17 +66,17 @@ const csrfProtection = (req, res, next) => {
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
     return next();
   }
-  
+
   const token = req.headers['x-csrf-token'] || req.body._csrf;
   const sessionToken = req.session?.csrfToken;
-  
+
   if (!token || !sessionToken || token !== sessionToken) {
     return res.status(403).json({
       error: 'Invalid CSRF token',
       code: 'CSRF_INVALID'
     });
   }
-  
+
   next();
 };
 
@@ -91,9 +105,9 @@ const cspPolicy = {
 };
 
 // Input Sanitization
-const sanitizeInput = (input) => {
+const sanitizeInput = input => {
   if (typeof input !== 'string') return input;
-  
+
   return input
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Remove script tags
     .replace(/javascript:/gi, '') // Remove javascript: protocols
@@ -102,39 +116,48 @@ const sanitizeInput = (input) => {
 };
 
 // Password Security Validation
-const validatePasswordSecurity = (password) => {
+const validatePasswordSecurity = password => {
   const issues = [];
-  
+
   if (password.length < 12) {
     issues.push('Password should be at least 12 characters long');
   }
-  
+
   if (!/(?=.*[a-z])/.test(password)) {
     issues.push('Password must contain lowercase letters');
   }
-  
+
   if (!/(?=.*[A-Z])/.test(password)) {
     issues.push('Password must contain uppercase letters');
   }
-  
+
   if (!/(?=.*\d)/.test(password)) {
     issues.push('Password must contain numbers');
   }
-  
-  if (!/(?=.*[@$!%*?&#^()\-_=+\[\]{}|;:'",.<>~`])/.test(password)) {
+
+  if (!/(?=.*[@$!%*?&#^()\-_=+[\]{}|;:'",.<>~`])/.test(password)) {
     issues.push('Password must contain special characters');
   }
-  
+
   // Check against common passwords
   const commonPasswords = ['password123', '123456789', 'qwerty123', 'admin123'];
   if (commonPasswords.includes(password.toLowerCase())) {
     issues.push('Password is too common, please choose a more unique password');
   }
-  
+
+  let strength;
+  if (issues.length === 0) {
+    strength = 'strong';
+  } else if (issues.length <= 2) {
+    strength = 'medium';
+  } else {
+    strength = 'weak';
+  }
+
   return {
     isValid: issues.length === 0,
     issues,
-    strength: issues.length === 0 ? 'strong' : issues.length <= 2 ? 'medium' : 'weak'
+    strength
   };
 };
 

@@ -62,32 +62,30 @@ const exportLimiter = rateLimit({
 });
 
 // Dynamic rate limiting based on user role
-const createDynamicLimiter = (options = {}) => {
-  return (req, res, next) => {
-    const isAdmin = req.user && req.user.role === 'admin';
-    const isPremium = req.user && req.user.plan === 'premium';
-    
-    let maxRequests = options.default || 100;
-    
-    if (isAdmin) {
-      maxRequests = options.admin || maxRequests * 5;
-    } else if (isPremium) {
-      maxRequests = options.premium || maxRequests * 2;
-    }
-    
-    const limiter = rateLimit({
-      windowMs: options.windowMs || 15 * 60 * 1000,
-      max: maxRequests,
-      message: {
-        error: 'Rate limit exceeded for your user tier.',
-        retryAfter: Math.floor(options.windowMs / 1000) || 900
-      },
-      standardHeaders: true,
-      legacyHeaders: false
-    });
-    
-    limiter(req, res, next);
-  };
+const createDynamicLimiter = (options = {}) => (req, res, next) => {
+  const isAdmin = req.user && req.user.role === 'admin';
+  const isPremium = req.user && req.user.plan === 'premium';
+
+  let maxRequests = options.default || 100;
+
+  if (isAdmin) {
+    maxRequests = options.admin || maxRequests * 5;
+  } else if (isPremium) {
+    maxRequests = options.premium || maxRequests * 2;
+  }
+
+  const limiter = rateLimit({
+    windowMs: options.windowMs || 15 * 60 * 1000,
+    max: maxRequests,
+    message: {
+      error: 'Rate limit exceeded for your user tier.',
+      retryAfter: Math.floor(options.windowMs / 1000) || 900
+    },
+    standardHeaders: true,
+    legacyHeaders: false
+  });
+
+  limiter(req, res, next);
 };
 
 module.exports = {

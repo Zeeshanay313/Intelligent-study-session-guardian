@@ -32,7 +32,7 @@ class ErrorMonitor {
     };
 
     this.errorLog.push(errorEntry);
-    
+
     // Keep log size manageable
     if (this.errorLog.length > this.maxLogSize) {
       this.errorLog = this.errorLog.slice(-this.maxLogSize);
@@ -40,10 +40,10 @@ class ErrorMonitor {
 
     // Write to file
     this.writeToFile(errorEntry);
-    
+
     // Auto-recovery attempts
     this.attemptRecovery(error, context);
-    
+
     return errorEntry;
   }
 
@@ -63,7 +63,7 @@ class ErrorMonitor {
     return 'LOW';
   }
 
-  attemptRecovery(error, context) {
+  attemptRecovery(error, _context) {
     switch (error.name) {
       case 'MongooseError':
         this.recoverDatabaseConnection();
@@ -73,6 +73,9 @@ class ErrorMonitor {
         break;
       case 'ValidationError':
         this.logValidationTips(error);
+        break;
+      default:
+        // No recovery action for unknown errors
         break;
     }
   }
@@ -123,7 +126,7 @@ class ErrorMonitor {
 
   // Express middleware
   middleware() {
-    return (err, req, res, next) => {
+    return (err, req, res, _next) => {
       // Log the error
       this.logError(err, {
         method: req.method,
@@ -180,15 +183,15 @@ class ErrorMonitor {
 
   getRecommendations(stats) {
     const recommendations = [];
-    
+
     if (stats.bySeverity.HIGH > 0) {
       recommendations.push('Run SYSTEM_HEALTH_CHECK.bat to diagnose issues');
     }
-    
+
     if (stats.byType.ValidationError > 10) {
       recommendations.push('Review validation requirements in PERMANENT_SOLUTIONS_GUIDE.md');
     }
-    
+
     if (stats.byType.MongooseError > 0) {
       recommendations.push('Check MongoDB connection stability');
     }

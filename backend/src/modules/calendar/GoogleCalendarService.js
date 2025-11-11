@@ -63,7 +63,7 @@ class GoogleCalendarService {
       }
 
       const { accessToken, refreshToken, expiryDate } = user.integrations.googleCalendar;
-      
+
       this.oauth2Client.setCredentials({
         access_token: accessToken,
         refresh_token: refreshToken,
@@ -91,7 +91,7 @@ class GoogleCalendarService {
       });
 
       const { credentials } = await this.oauth2Client.refreshAccessToken();
-      
+
       await User.findByIdAndUpdate(userId, {
         'integrations.googleCalendar.accessToken': credentials.access_token,
         'integrations.googleCalendar.expiryDate': credentials.expiry_date,

@@ -8,8 +8,8 @@ const router = express.Router();
 router.get('/auth', authenticate, async (req, res) => {
   try {
     const authUrl = GoogleCalendarService.getAuthUrl(req.user._id);
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       authUrl,
       message: 'Redirect user to this URL to authorize Google Calendar access'
     });
@@ -34,13 +34,12 @@ router.get('/callback', async (req, res) => {
 
     // Exchange code for tokens
     const tokens = await GoogleCalendarService.getTokensFromCode(code);
-    
+
     // Store tokens for user
     await GoogleCalendarService.storeUserTokens(userId, tokens);
 
     // Redirect back to frontend with success
     res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/settings?calendar_connected=true`);
-    
   } catch (error) {
     console.error('Calendar OAuth callback error:', error);
     res.redirect(`${process.env.FRONTEND_URL}/settings?calendar_error=connection_failed`);
@@ -52,7 +51,7 @@ router.get('/status', authenticate, async (req, res) => {
   try {
     const User = require('../../models/User');
     const user = await User.findById(req.user._id);
-    
+
     const connected = user?.integrations?.googleCalendar?.connected || false;
     const lastSync = user?.integrations?.googleCalendar?.lastSync;
 
@@ -82,7 +81,7 @@ router.delete('/disconnect', authenticate, async (req, res) => {
 router.post('/sync-test', authenticate, async (req, res) => {
   try {
     const { title, startTime, duration = 25 } = req.body;
-    
+
     const sessionData = {
       subject: title || 'Test Study Session',
       startTime: startTime || new Date().toISOString(),
@@ -93,9 +92,9 @@ router.post('/sync-test', authenticate, async (req, res) => {
     };
 
     const event = await GoogleCalendarService.createStudySessionEvent(req.user._id, sessionData);
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       event,
       message: 'Test study session created in Google Calendar'
     });

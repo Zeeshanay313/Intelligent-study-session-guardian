@@ -18,7 +18,7 @@ const validateReminder = [
     .if(body('type').equals('recurring'))
     .notEmpty()
     .withMessage('Cron expression is required for recurring reminders')
-    .custom((value) => {
+    .custom(value => {
       if (!cron.validate(value)) {
         throw new Error('Invalid cron expression');
       }
@@ -30,7 +30,7 @@ const validateReminder = [
     .withMessage('Datetime is required for one-off reminders')
     .isISO8601()
     .withMessage('Invalid datetime format')
-    .custom((value) => {
+    .custom(value => {
       const reminderTime = new Date(value);
       const now = new Date();
       if (reminderTime <= now) {

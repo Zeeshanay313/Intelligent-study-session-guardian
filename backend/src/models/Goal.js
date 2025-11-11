@@ -61,7 +61,7 @@ const goalSchema = new mongoose.Schema({
     type: Date,
     required: true,
     validate: {
-      validator: function(endDate) {
+      validator(endDate) {
         return endDate > this.startDate;
       },
       message: 'End date must be after start date'
@@ -87,32 +87,32 @@ const goalSchema = new mongoose.Schema({
 });
 
 // Virtual for progress percentage
-goalSchema.virtual('progressPercentage').get(function() {
+goalSchema.virtual('progressPercentage').get(function () {
   if (!this.targetValue || this.targetValue === 0) return 0;
   return Math.min(Math.round((this.progressValue / this.targetValue) * 100), 100);
 });
 
 // Virtual for completion status
-goalSchema.virtual('isCompleted').get(function() {
+goalSchema.virtual('isCompleted').get(function () {
   return this.progressValue >= this.targetValue;
 });
 
 // Virtual for days remaining
-goalSchema.virtual('daysRemaining').get(function() {
+goalSchema.virtual('daysRemaining').get(function () {
   const now = new Date();
   const timeDiff = this.endDate.getTime() - now.getTime();
   return Math.ceil(timeDiff / (1000 * 3600 * 24));
 });
 
 // Virtual for milestone completion percentage
-goalSchema.virtual('milestoneProgress').get(function() {
+goalSchema.virtual('milestoneProgress').get(function () {
   if (!this.milestones || this.milestones.length === 0) return 100;
   const completedMilestones = this.milestones.filter(m => m.done).length;
   return Math.round((completedMilestones / this.milestones.length) * 100);
 });
 
 // Pre-save middleware to handle completion
-goalSchema.pre('save', function(next) {
+goalSchema.pre('save', function (next) {
   if (this.progressValue >= this.targetValue && !this.completedAt) {
     this.completedAt = new Date();
   } else if (this.progressValue < this.targetValue) {
@@ -122,13 +122,13 @@ goalSchema.pre('save', function(next) {
 });
 
 // Static method to find user goals with filtering
-goalSchema.statics.findUserGoals = function(userId, filters = {}) {
+goalSchema.statics.findUserGoals = function (userId, filters = {}) {
   const query = { userId, isActive: true };
-  
+
   if (filters.targetType) {
     query.targetType = filters.targetType;
   }
-  
+
   if (filters.completed !== undefined) {
     if (filters.completed) {
       query.completedAt = { $ne: null };
@@ -136,19 +136,19 @@ goalSchema.statics.findUserGoals = function(userId, filters = {}) {
       query.completedAt = null;
     }
   }
-  
+
   if (filters.startDate && filters.endDate) {
     query.$and = [
       { startDate: { $lte: new Date(filters.endDate) } },
       { endDate: { $gte: new Date(filters.startDate) } }
     ];
   }
-  
+
   return this.find(query).sort({ createdAt: -1 });
 };
 
 // Instance method to update progress atomically
-goalSchema.methods.updateProgress = function(amount) {
+goalSchema.methods.updateProgress = function (amount) {
   return this.constructor.findOneAndUpdate(
     { _id: this._id },
     { $inc: { progressValue: amount } },
@@ -157,7 +157,7 @@ goalSchema.methods.updateProgress = function(amount) {
 };
 
 // Instance method to toggle milestone
-goalSchema.methods.toggleMilestone = function(milestoneId) {
+goalSchema.methods.toggleMilestone = function (milestoneId) {
   const milestone = this.milestones.id(milestoneId);
   if (milestone) {
     milestone.done = !milestone.done;

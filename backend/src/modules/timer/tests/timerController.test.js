@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const app = require('../../../index');
 const TimerPreset = require('../TimerPreset');
 const Session = require('../Session');
-const User = require('../../models/User');
+const User = require('../../../models/User');
 
 describe('Timer Controller', () => {
   let authToken;
@@ -170,7 +170,7 @@ describe('Timer Controller', () => {
         endTime: new Date(Date.now() - 60000),
         totalDurationSec: 60
       });
-      
+
       const session2 = new Session({
         userId: testUser._id,
         startTime: new Date(Date.now() - 180000),

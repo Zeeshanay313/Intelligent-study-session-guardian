@@ -14,16 +14,16 @@ router.post('/register', authenticate, validateDeviceRegistration, async (req, r
       deviceInfo = {},
       fingerprint = {}
     } = req.body;
-    
+
     const userId = req.user._id;
-    
+
     // Check if device already exists for user
     let device = await DeviceAccess.findOne({ userId, deviceId });
-    
+
     if (device) {
       // Update existing device activity
       await device.updateActivity(req.ip);
-      
+
       res.json({
         message: 'Device activity updated',
         device: {
@@ -52,9 +52,9 @@ router.post('/register', authenticate, validateDeviceRegistration, async (req, r
         registeredIP: req.ip,
         lastIP: req.ip
       });
-      
+
       await device.save();
-      
+
       // Log device registration
       await AuditLog.logPrivacyAction(
         userId,
@@ -70,7 +70,7 @@ router.post('/register', authenticate, validateDeviceRegistration, async (req, r
           deviceId
         }
       );
-      
+
       res.status(201).json({
         message: 'Device registered successfully',
         device: {
@@ -84,7 +84,6 @@ router.post('/register', authenticate, validateDeviceRegistration, async (req, r
         }
       });
     }
-    
   } catch (error) {
     console.error('Device registration error:', error);
     res.status(500).json({ error: 'Failed to register device' });
@@ -95,12 +94,12 @@ router.post('/register', authenticate, validateDeviceRegistration, async (req, r
 router.get('/my-devices', authenticate, async (req, res) => {
   try {
     const { activeOnly = false } = req.query;
-    
+
     const devices = await DeviceAccess.findUserDevices(
       req.user._id,
       activeOnly === 'true'
     );
-    
+
     // Add computed fields
     const devicesWithStatus = devices.map(device => ({
       id: device._id,
@@ -119,12 +118,11 @@ router.get('/my-devices', authenticate, async (req, res) => {
       blockedReason: device.blockedReason,
       createdAt: device.createdAt
     }));
-    
+
     res.json({
       devices: devicesWithStatus,
       total: devicesWithStatus.length
     });
-    
   } catch (error) {
     console.error('Get devices error:', error);
     res.status(500).json({ error: 'Failed to get devices' });
@@ -136,22 +134,22 @@ router.patch('/:id/access', authenticate, validateObjectId('id'), validateDevice
   try {
     const { id } = req.params;
     const { accessEnabled, permissions } = req.body;
-    
+
     // Find device and verify ownership
     const device = await DeviceAccess.findOne({
       _id: id,
       userId: req.user._id
     });
-    
+
     if (!device) {
       return res.status(404).json({ error: 'Device not found' });
     }
-    
+
     const originalState = {
       accessEnabled: device.accessEnabled,
       permissions: { ...device.permissions }
     };
-    
+
     // Update access settings
     if (accessEnabled !== undefined) {
       if (accessEnabled) {
@@ -160,12 +158,12 @@ router.patch('/:id/access', authenticate, validateObjectId('id'), validateDevice
         await device.revokeAccess('User disabled access');
       }
     }
-    
+
     // Update permissions
     if (permissions) {
       await device.updatePermissions(permissions);
     }
-    
+
     // Log device access changes
     await AuditLog.logPrivacyAction(
       req.user._id,
@@ -189,7 +187,7 @@ router.patch('/:id/access', authenticate, validateObjectId('id'), validateDevice
         deviceId: device.deviceId
       }
     );
-    
+
     res.json({
       message: 'Device access updated successfully',
       device: {
@@ -201,7 +199,6 @@ router.patch('/:id/access', authenticate, validateObjectId('id'), validateDevice
         trustScore: device.trustScore
       }
     });
-    
   } catch (error) {
     console.error('Device access update error:', error);
     res.status(500).json({ error: 'Failed to update device access' });
@@ -213,20 +210,20 @@ router.post('/:id/revoke', authenticate, validateObjectId('id'), async (req, res
   try {
     const { id } = req.params;
     const { reason = 'Access revoked by user' } = req.body;
-    
+
     // Find device and verify ownership
     const device = await DeviceAccess.findOne({
       _id: id,
       userId: req.user._id
     });
-    
+
     if (!device) {
       return res.status(404).json({ error: 'Device not found' });
     }
-    
+
     // Revoke access
     await device.revokeAccess(reason);
-    
+
     // Log device revocation
     await AuditLog.logPrivacyAction(
       req.user._id,
@@ -241,7 +238,7 @@ router.post('/:id/revoke', authenticate, validateObjectId('id'), async (req, res
         deviceId: device.deviceId
       }
     );
-    
+
     res.json({
       message: 'Device access revoked successfully',
       device: {
@@ -252,7 +249,6 @@ router.post('/:id/revoke', authenticate, validateObjectId('id'), async (req, res
         blockedReason: device.blockedReason
       }
     });
-    
   } catch (error) {
     console.error('Device revocation error:', error);
     res.status(500).json({ error: 'Failed to revoke device access' });
@@ -263,26 +259,26 @@ router.post('/:id/revoke', authenticate, validateObjectId('id'), async (req, res
 router.delete('/:id', authenticate, validateObjectId('id'), async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     // Find device and verify ownership
     const device = await DeviceAccess.findOne({
       _id: id,
       userId: req.user._id
     });
-    
+
     if (!device) {
       return res.status(404).json({ error: 'Device not found' });
     }
-    
+
     // Store device info for logging
     const deviceInfo = {
       deviceId: device.deviceId,
       deviceInfo: device.deviceInfo
     };
-    
+
     // Delete device
     await DeviceAccess.findByIdAndDelete(id);
-    
+
     // Log device removal
     await AuditLog.logPrivacyAction(
       req.user._id,
@@ -294,11 +290,10 @@ router.delete('/:id', authenticate, validateObjectId('id'), async (req, res) => 
         deviceId: device.deviceId
       }
     );
-    
+
     res.json({
       message: 'Device removed successfully'
     });
-    
   } catch (error) {
     console.error('Device removal error:', error);
     res.status(500).json({ error: 'Failed to remove device' });
@@ -309,17 +304,17 @@ router.delete('/:id', authenticate, validateObjectId('id'), async (req, res) => 
 router.get('/:id', authenticate, validateObjectId('id'), async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     // Find device and verify ownership
     const device = await DeviceAccess.findOne({
       _id: id,
       userId: req.user._id
     });
-    
+
     if (!device) {
       return res.status(404).json({ error: 'Device not found' });
     }
-    
+
     res.json({
       device: {
         id: device._id,
@@ -343,7 +338,6 @@ router.get('/:id', authenticate, validateObjectId('id'), async (req, res) => {
         updatedAt: device.updatedAt
       }
     });
-    
   } catch (error) {
     console.error('Get device details error:', error);
     res.status(500).json({ error: 'Failed to get device details' });
@@ -355,7 +349,7 @@ router.post('/:id/flag-suspicious', authenticate, validateObjectId('id'), async 
   try {
     const { id } = req.params;
     const { reason = 'Flagged as suspicious' } = req.body;
-    
+
     // Only allow admin or device owner
     const device = await DeviceAccess.findOne({
       _id: id,
@@ -364,14 +358,14 @@ router.post('/:id/flag-suspicious', authenticate, validateObjectId('id'), async 
         ...(req.user.role === 'admin' ? [{}] : [])
       ]
     });
-    
+
     if (!device) {
       return res.status(404).json({ error: 'Device not found' });
     }
-    
+
     // Mark as suspicious
     await device.markSuspicious(reason);
-    
+
     // Log suspicious activity
     await AuditLog.logPrivacyAction(
       device.userId,
@@ -387,7 +381,7 @@ router.post('/:id/flag-suspicious', authenticate, validateObjectId('id'), async 
         deviceId: device.deviceId
       }
     );
-    
+
     res.json({
       message: 'Device flagged as suspicious',
       device: {
@@ -397,7 +391,6 @@ router.post('/:id/flag-suspicious', authenticate, validateObjectId('id'), async 
         blockedReason: device.blockedReason
       }
     });
-    
   } catch (error) {
     console.error('Flag suspicious device error:', error);
     res.status(500).json({ error: 'Failed to flag device as suspicious' });

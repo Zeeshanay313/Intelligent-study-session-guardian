@@ -4,8 +4,12 @@ const mongoose = require('mongoose');
 const passport = require('passport');
 const User = require('../models/User');
 const AuditLog = require('../models/AuditLog');
-const { generateTokens, setTokenCookies, clearTokenCookies, verifyToken } = require('../config/auth');
-const { validateRegistration, validateLogin, validatePasswordReset, validatePasswordChange } = require('../middleware/validation');
+const {
+  generateTokens, setTokenCookies, clearTokenCookies, verifyToken
+} = require('../config/auth');
+const {
+  validateRegistration, validateLogin, validatePasswordChange
+} = require('../middleware/validation');
 const { authLimiter, sensitiveLimiter } = require('../middleware/rateLimiter');
 const { authenticate } = require('../middleware/auth');
 
@@ -16,18 +20,18 @@ router.post('/register', authLimiter, validateRegistration, async (req, res) => 
   try {
     console.log('=== REGISTRATION ATTEMPT ===');
     console.log('Request body:', JSON.stringify(req.body, null, 2));
-    
+
     const { email, password, displayName } = req.body;
-    
+
     // Validate required fields
     if (!email || !password || !displayName) {
       console.log('Missing required fields:', { email: !!email, password: !!password, displayName: !!displayName });
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Missing required fields',
         details: 'Email, password, and display name are required'
       });
     }
-    
+
     // Check if user already exists
     console.log('Checking if user exists:', email);
     let existingUser;
@@ -37,12 +41,12 @@ router.post('/register', authLimiter, validateRegistration, async (req, res) => 
       console.error('Database error checking existing user:', dbError);
       return res.status(500).json({ error: 'Database connection error' });
     }
-    
+
     if (existingUser) {
       console.log('User already exists:', email);
       return res.status(400).json({ error: 'User already exists with this email' });
     }
-    
+
     // Create new user with all required fields
     console.log('Creating new user...');
     const userData = {
@@ -76,9 +80,9 @@ router.post('/register', authLimiter, validateRegistration, async (req, res) => 
       refreshTokens: [],
       loginCount: 0
     };
-    
+
     const user = new User(userData);
-    
+
     try {
       await user.save();
       console.log('User saved successfully:', user._id);
@@ -87,12 +91,12 @@ router.post('/register', authLimiter, validateRegistration, async (req, res) => 
       if (saveError.code === 11000) {
         return res.status(400).json({ error: 'User already exists with this email' });
       }
-      return res.status(500).json({ 
+      return res.status(500).json({
         error: 'Failed to create user account',
         details: process.env.NODE_ENV === 'development' ? saveError.message : undefined
       });
     }
-    
+
     // Generate verification token
     try {
       user.verificationToken = crypto.randomBytes(32).toString('hex');
@@ -102,14 +106,14 @@ router.post('/register', authLimiter, validateRegistration, async (req, res) => 
       console.error('Error generating verification token:', tokenError);
       // Continue - this is not critical
     }
-    
+
     // Log account creation (non-blocking)
     try {
       await AuditLog.logPrivacyAction(
         user._id,
         'ACCOUNT_CREATED',
         { email, displayName },
-        { 
+        {
           ipAddress: req.ip,
           userAgent: req.get('User-Agent')
         }
@@ -119,7 +123,7 @@ router.post('/register', authLimiter, validateRegistration, async (req, res) => 
       console.error('Error creating audit log:', auditError);
       // Continue - this is not critical
     }
-    
+
     // REGISTRATION COMPLETE - NO AUTO-LOGIN
     // User account created successfully, now they need to login manually
     console.log('=== REGISTRATION SUCCESSFUL - REDIRECTING TO LOGIN ===');
@@ -132,13 +136,12 @@ router.post('/register', authLimiter, validateRegistration, async (req, res) => 
         displayName: user.profile.displayName
       }
     });
-    
   } catch (error) {
     console.error('=== REGISTRATION FAILED ===');
     console.error('Unexpected error:', error);
     console.error('Stack trace:', error.stack);
-    
-    res.status(500).json({ 
+
+    res.status(500).json({
       error: 'Registration failed due to server error',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
@@ -149,19 +152,19 @@ router.post('/register', authLimiter, validateRegistration, async (req, res) => 
 router.post('/login', authLimiter, validateLogin, async (req, res) => {
   try {
     const { email, password, deviceId } = req.body;
-    
+
     // Find user - must exist and not be deleted
     const user = await User.findOne({ email: email.toLowerCase(), deleted: false });
     if (!user) {
       // Don't log audit entry for non-existent users to avoid userId validation error
       console.log(`Login attempt for non-existent user: ${email} from IP: ${req.ip}`);
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Invalid credentials',
         message: 'No account found with this email. Please create an account first.',
         suggestion: 'register'
       });
     }
-    
+
     // Check password
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
@@ -169,21 +172,21 @@ router.post('/login', authLimiter, validateLogin, async (req, res) => {
         user._id,
         'LOGIN_FAILED',
         { reason: 'Invalid password' },
-        { 
+        {
           ipAddress: req.ip,
           userAgent: req.get('User-Agent'),
           deviceId
         }
       );
-      
+
       return res.status(400).json({ error: 'Invalid credentials' });
     }
-    
+
     // Update login statistics
     console.log(`Updating login stats for user: ${user.email}`);
     user.lastLogin = new Date();
     user.loginCount += 1;
-    
+
     try {
       await user.save();
       console.log(`Login stats saved for user: ${user.email}`);
@@ -191,11 +194,11 @@ router.post('/login', authLimiter, validateLogin, async (req, res) => {
       console.error('Error saving login stats:', saveError);
       throw saveError;
     }
-    
+
     // Generate tokens
     console.log(`Generating tokens for user: ${user.email}`);
     const { accessToken, refreshToken } = generateTokens(user._id);
-    
+
     // Add refresh token to user
     console.log(`Adding refresh token for user: ${user.email}`);
     try {
@@ -205,11 +208,11 @@ router.post('/login', authLimiter, validateLogin, async (req, res) => {
       console.error('Error adding refresh token:', tokenError);
       throw tokenError;
     }
-    
+
     // Set HTTP-only cookies
     console.log(`Setting cookies for user: ${user.email}`);
     setTokenCookies(res, accessToken, refreshToken);
-    
+
     // Log successful login
     console.log(`Logging successful login for user: ${user.email}`);
     try {
@@ -217,7 +220,7 @@ router.post('/login', authLimiter, validateLogin, async (req, res) => {
         user._id,
         'LOGIN_SUCCESS',
         { deviceId },
-        { 
+        {
           ipAddress: req.ip,
           userAgent: req.get('User-Agent'),
           deviceId
@@ -228,7 +231,7 @@ router.post('/login', authLimiter, validateLogin, async (req, res) => {
       console.error('Error creating audit log:', auditError);
       // Don't throw - audit log failure shouldn't break login
     }
-    
+
     res.json({
       message: 'Login successful',
       user: {
@@ -241,7 +244,6 @@ router.post('/login', authLimiter, validateLogin, async (req, res) => {
         privacy: user.privacy
       }
     });
-    
   } catch (error) {
     console.error('Login error details:', {
       message: error.message,
@@ -249,19 +251,19 @@ router.post('/login', authLimiter, validateLogin, async (req, res) => {
       email: req.body.email,
       timestamp: new Date().toISOString()
     });
-    
+
     // Check for specific error types
     if (error.name === 'ValidationError') {
       return res.status(400).json({ error: 'Validation failed', details: error.message });
     }
-    
+
     if (error.name === 'MongoError' || error.name === 'MongoServerError') {
       return res.status(500).json({ error: 'Database error occurred' });
     }
-    
-    res.status(500).json({ 
-      error: 'Login failed', 
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined 
+
+    res.status(500).json({
+      error: 'Login failed',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
@@ -269,8 +271,8 @@ router.post('/login', authLimiter, validateLogin, async (req, res) => {
 // Logout user
 router.post('/logout', authenticate, async (req, res) => {
   try {
-    const refreshToken = req.cookies.refreshToken;
-    
+    const { refreshToken } = req.cookies;
+
     if (refreshToken && req.user) {
       try {
         // Remove refresh token from user
@@ -280,23 +282,22 @@ router.post('/logout', authenticate, async (req, res) => {
         // Continue with logout even if token removal fails
       }
     }
-    
+
     // Clear cookies
     clearTokenCookies(res);
-    
+
     // Log logout
     await AuditLog.logPrivacyAction(
       req.user._id,
       'LOGOUT',
       {},
-      { 
+      {
         ipAddress: req.ip,
         userAgent: req.get('User-Agent')
       }
     );
-    
+
     res.json({ message: 'Logout successful' });
-    
   } catch (error) {
     console.error('Logout error:', error);
     res.status(500).json({ error: 'Logout failed' });
@@ -307,47 +308,47 @@ router.post('/logout', authenticate, async (req, res) => {
 router.post('/refresh', async (req, res) => {
   try {
     const { refreshToken } = req.cookies;
-    
+
     if (!refreshToken) {
       return res.status(401).json({ error: 'Refresh token not provided' });
     }
-    
+
     // Verify refresh token
     const decoded = verifyToken(refreshToken, process.env.JWT_REFRESH_SECRET);
-    
+
     // Find user and check if refresh token exists
     const user = await User.findById(decoded.userId);
     if (!user || user.deleted) {
       return res.status(401).json({ error: 'User not found' });
     }
-    
+
     const tokenExists = user.refreshTokens.some(t => t.token === refreshToken);
     if (!tokenExists) {
       return res.status(401).json({ error: 'Invalid refresh token' });
     }
-    
+
     // Generate new tokens
     const { accessToken, refreshToken: newRefreshToken } = generateTokens(user._id);
-    
+
     // Replace old refresh token with new one
     await user.removeRefreshToken(refreshToken);
     await user.addRefreshToken(newRefreshToken);
-    
+
     // Set new cookies
     setTokenCookies(res, accessToken, newRefreshToken);
-    
+
     // Log token refresh
     await AuditLog.logPrivacyAction(
       user._id,
       'TOKEN_REFRESHED',
       {},
-      { 
+      {
         ipAddress: req.ip,
         userAgent: req.get('User-Agent')
       }
     );
-    
-    res.json({ 
+
+    res.json({
       message: 'Token refreshed successfully',
       user: {
         id: user._id,
@@ -359,7 +360,6 @@ router.post('/refresh', async (req, res) => {
         privacy: user.privacy
       }
     });
-    
   } catch (error) {
     console.error('Token refresh error:', error);
     res.status(401).json({ error: 'Token refresh failed' });
@@ -370,40 +370,39 @@ router.post('/refresh', async (req, res) => {
 router.patch('/change-password', authenticate, sensitiveLimiter, validatePasswordChange, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    
+
     // Verify current password
     const isCurrentPasswordValid = await req.user.comparePassword(currentPassword);
     if (!isCurrentPasswordValid) {
       return res.status(400).json({ error: 'Current password is incorrect' });
     }
-    
+
     // Update password
     req.user.password = newPassword;
     await req.user.save();
-    
+
     // Clear all refresh tokens (force re-login on all devices)
     req.user.refreshTokens = [];
     await req.user.save();
-    
+
     // Clear current session cookies
     clearTokenCookies(res);
-    
+
     // Log password change
     await AuditLog.logPrivacyAction(
       req.user._id,
       'PASSWORD_CHANGED',
       {},
-      { 
+      {
         ipAddress: req.ip,
         userAgent: req.get('User-Agent')
       }
     );
-    
-    res.json({ 
+
+    res.json({
       message: 'Password changed successfully. Please log in again.',
       requireLogin: true
     });
-    
   } catch (error) {
     console.error('Password change error:', error);
     res.status(500).json({ error: 'Password change failed' });
@@ -436,7 +435,7 @@ router.get('/me', authenticate, async (req, res) => {
 router.post('/forgot-password', authLimiter, async (req, res) => {
   try {
     const { email } = req.body;
-    
+
     if (!email) {
       return res.status(400).json({
         success: false,
@@ -449,11 +448,11 @@ router.post('/forgot-password', authLimiter, async (req, res) => {
     // Check if MongoDB is available
     if (mongoose.connection.readyState !== 1) {
       console.log('⚠️ MongoDB not connected - using development mode');
-      
+
       // Development mode fallback - simulate user check
       const knownEmails = ['testuser@example.com', 'admin@example.com', 'user@test.com'];
       const isKnownUser = knownEmails.includes(email.toLowerCase());
-      
+
       if (!isKnownUser) {
         console.log('Password reset attempted for unregistered email:', email);
         return res.status(404).json({
@@ -483,7 +482,7 @@ router.post('/forgot-password', authLimiter, async (req, res) => {
 
     // Find user by email (when MongoDB is connected)
     const user = await User.findOne({ email: email.toLowerCase() });
-    
+
     // Check if user exists and provide helpful message for unregistered emails
     if (!user) {
       console.log('Password reset attempted for unregistered email:', email);
@@ -503,7 +502,7 @@ router.post('/forgot-password', authLimiter, async (req, res) => {
       token: resetToken,
       expiresAt: resetTokenExpiry
     };
-    
+
     try {
       await user.save();
       console.log('✅ Reset token saved to user');
@@ -529,7 +528,7 @@ router.post('/forgot-password', authLimiter, async (req, res) => {
         user._id,
         'PASSWORD_RESET_REQUESTED',
         { email },
-        { 
+        {
           ipAddress: req.ip,
           userAgent: req.get('User-Agent')
         }
@@ -546,14 +545,13 @@ router.post('/forgot-password', authLimiter, async (req, res) => {
       // In development, include the reset link for testing
       ...(process.env.NODE_ENV === 'development' && { resetUrl, token: resetToken })
     });
-
   } catch (error) {
     console.error('❌ Forgot password error:', {
       message: error.message,
       stack: error.stack,
       email: req.body.email
     });
-    
+
     res.status(500).json({
       success: false,
       error: 'Failed to process password reset request',
@@ -566,7 +564,7 @@ router.post('/forgot-password', authLimiter, async (req, res) => {
 router.post('/reset-password', authLimiter, async (req, res) => {
   try {
     const { token, password } = req.body;
-    
+
     if (!token || !password) {
       return res.status(400).json({
         success: false,
@@ -604,11 +602,11 @@ router.post('/reset-password', authLimiter, async (req, res) => {
       await AuditLog.logPrivacyAction(
         user._id,
         'PASSWORD_RESET_SAME_PASSWORD',
-        { 
+        {
           email: user.email,
           reason: 'User attempted to reset password with same password'
         },
-        { 
+        {
           ipAddress: req.ip,
           userAgent: req.get('User-Agent')
         }
@@ -634,7 +632,7 @@ router.post('/reset-password', authLimiter, async (req, res) => {
       user._id,
       'PASSWORD_RESET_COMPLETED',
       { email: user.email },
-      { 
+      {
         ipAddress: req.ip,
         userAgent: req.get('User-Agent')
       }
@@ -644,7 +642,6 @@ router.post('/reset-password', authLimiter, async (req, res) => {
       success: true,
       message: 'Password reset successful. You can now login with your new password.'
     });
-
   } catch (error) {
     console.error('Reset password error:', error);
     res.status(500).json({
@@ -676,7 +673,6 @@ router.get('/verify-reset-token/:token', async (req, res) => {
       message: 'Valid reset token',
       email: user.email // Return email for display
     });
-
   } catch (error) {
     console.error('Verify reset token error:', error);
     res.status(500).json({
@@ -690,141 +686,143 @@ router.get('/verify-reset-token/:token', async (req, res) => {
 // Check if Google OAuth is configured
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   // Initiate Google OAuth for SIGN IN (existing users only)
-  router.get('/google/signin', 
+  router.get(
+    '/google/signin',
     (req, res, next) => {
       // Store the intent in session
       req.session.oauthIntent = 'signin';
       next();
     },
-    passport.authenticate('google', { 
-      scope: ['profile', 'email'] 
+    passport.authenticate('google', {
+      scope: ['profile', 'email']
     })
   );
 
   // Initiate Google OAuth for SIGN UP (new account creation)
-  router.get('/google/signup', 
+  router.get(
+    '/google/signup',
     (req, res, next) => {
       // Store the intent in session
       req.session.oauthIntent = 'signup';
       next();
     },
-    passport.authenticate('google', { 
-      scope: ['profile', 'email'] 
+    passport.authenticate('google', {
+      scope: ['profile', 'email']
     })
   );
 
   // Legacy route for backward compatibility (defaults to signin behavior)
-  router.get('/google', 
+  router.get(
+    '/google',
     (req, res, next) => {
       // Default to signin behavior for legacy route
       req.session.oauthIntent = 'signin';
       next();
     },
-    passport.authenticate('google', { 
-      scope: ['profile', 'email'] 
+    passport.authenticate('google', {
+      scope: ['profile', 'email']
     })
   );
 
   // Google OAuth callback route
-  router.get('/google/callback', 
-    passport.authenticate('google', { 
-      failureRedirect: false  // Handle failures manually
+  router.get(
+    '/google/callback',
+    passport.authenticate('google', {
+      failureRedirect: false // Handle failures manually
     }),
-  async (req, res) => {
-    try {
+    async (req, res) => {
+      try {
       // Check for authentication failures
-      if (!req.user) {
-        const errorInfo = req.authInfo || {};
-        console.log('OAuth authentication failed:', errorInfo);
-        
-        if (errorInfo.message === 'account_not_found') {
+        if (!req.user) {
+          const errorInfo = req.authInfo || {};
+          console.log('OAuth authentication failed:', errorInfo);
+
+          if (errorInfo.message === 'account_not_found') {
           // User tried to sign in but account doesn't exist
-          return res.redirect(
-            (process.env.FRONTEND_URL || 'http://localhost:3000') + 
-            `/register?error=account_not_found&email=${encodeURIComponent(errorInfo.email || '')}&message=${encodeURIComponent('Please create an account first')}`
-          );
-        } else if (errorInfo.message === 'account_exists') {
+            return res.redirect(
+              `${process.env.FRONTEND_URL || 'http://localhost:3000'
+              }/register?error=account_not_found&email=${encodeURIComponent(errorInfo.email || '')}&message=${encodeURIComponent('Please create an account first')}`
+            );
+          } if (errorInfo.message === 'account_exists') {
           // User tried to sign up but account already exists
-          return res.redirect(
-            (process.env.FRONTEND_URL || 'http://localhost:3000') + 
-            `/login?error=account_exists&email=${encodeURIComponent(errorInfo.email || '')}&message=${encodeURIComponent('Account already exists. Please sign in instead.')}`
-          );
-        } else {
+            return res.redirect(
+              `${process.env.FRONTEND_URL || 'http://localhost:3000'
+              }/login?error=account_exists&email=${encodeURIComponent(errorInfo.email || '')}&message=${encodeURIComponent('Account already exists. Please sign in instead.')}`
+            );
+          }
           // Generic OAuth failure
           return res.redirect(
-            (process.env.FRONTEND_URL || 'http://localhost:3000') + 
-            '/login?error=oauth_failed&message=' + encodeURIComponent('Google authentication failed. Please try again.')
+            `${process.env.FRONTEND_URL || 'http://localhost:3000'
+            }/login?error=oauth_failed&message=${encodeURIComponent('Google authentication failed. Please try again.')}`
           );
         }
+
+        console.log('=== GOOGLE OAUTH CALLBACK SUCCESS ===');
+        console.log('Authenticated user ID:', req.user._id);
+        console.log('User email:', req.user.email);
+        console.log('User display name:', req.user.profile?.displayName);
+        console.log('OAuth Intent:', req.session?.oauthIntent);
+
+        // Update audit log with request info
+        try {
+          await AuditLog.updateOne(
+            {
+              userId: req.user._id,
+              action: { $in: ['OAUTH_LOGIN_SUCCESS', 'OAUTH_ACCOUNT_CREATED'] }
+            },
+            {
+              $set: {
+                'metadata.ipAddress': req.ip,
+                'metadata.userAgent': req.get('User-Agent')
+              }
+            },
+            { sort: { createdAt: -1 } }
+          );
+        } catch (auditError) {
+          console.error('Error updating OAuth audit log:', auditError);
+        }
+
+        // Generate JWT tokens for the authenticated user
+        const tokens = generateTokens(req.user._id);
+
+        // Set HTTP-only cookies
+        setTokenCookies(res, tokens.accessToken, tokens.refreshToken);
+
+        // Update user's refresh tokens and login count
+        req.user.refreshTokens.push({
+          token: tokens.refreshToken,
+          createdAt: new Date(),
+          lastUsed: new Date()
+        });
+
+        // Keep only last 5 refresh tokens
+        if (req.user.refreshTokens.length > 5) {
+          req.user.refreshTokens = req.user.refreshTokens.slice(-5);
+        }
+
+        req.user.loginCount += 1;
+        req.user.lastLogin = new Date();
+        await req.user.save();
+
+        const oauthIntent = req.session?.oauthIntent || 'signin';
+        console.log('OAuth login successful, redirecting to dashboard');
+
+        // Clear session intent
+        delete req.session.oauthIntent;
+
+        // Redirect based on intent
+        if (oauthIntent === 'signup') {
+          res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard?oauth=signup_success`);
+        } else {
+          res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard?oauth=signin_success`);
+        }
+      } catch (error) {
+        console.error('OAuth callback error:', error);
+        console.error('Error stack:', error.stack);
+        console.error('User object:', req.user);
+        res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=oauth_callback_failed`);
       }
-
-      console.log('=== GOOGLE OAUTH CALLBACK SUCCESS ===');
-      console.log('Authenticated user ID:', req.user._id);
-      console.log('User email:', req.user.email);
-      console.log('User display name:', req.user.profile?.displayName);
-      console.log('OAuth Intent:', req.session?.oauthIntent);
-
-      // Update audit log with request info
-      try {
-        await AuditLog.updateOne(
-          { 
-            userId: req.user._id,
-            action: { $in: ['OAUTH_LOGIN_SUCCESS', 'OAUTH_ACCOUNT_CREATED'] }
-          },
-          {
-            $set: {
-              'metadata.ipAddress': req.ip,
-              'metadata.userAgent': req.get('User-Agent')
-            }
-          },
-          { sort: { createdAt: -1 } }
-        );
-      } catch (auditError) {
-        console.error('Error updating OAuth audit log:', auditError);
-      }
-
-      // Generate JWT tokens for the authenticated user
-      const tokens = generateTokens(req.user._id);
-      
-      // Set HTTP-only cookies
-      setTokenCookies(res, tokens.accessToken, tokens.refreshToken);
-
-      // Update user's refresh tokens and login count
-      req.user.refreshTokens.push({
-        token: tokens.refreshToken,
-        createdAt: new Date(),
-        lastUsed: new Date()
-      });
-      
-      // Keep only last 5 refresh tokens
-      if (req.user.refreshTokens.length > 5) {
-        req.user.refreshTokens = req.user.refreshTokens.slice(-5);
-      }
-
-      req.user.loginCount += 1;
-      req.user.lastLogin = new Date();
-      await req.user.save();
-
-      const oauthIntent = req.session?.oauthIntent || 'signin';
-      console.log('OAuth login successful, redirecting to dashboard');
-      
-      // Clear session intent
-      delete req.session.oauthIntent;
-      
-      // Redirect based on intent
-      if (oauthIntent === 'signup') {
-        res.redirect((process.env.FRONTEND_URL || 'http://localhost:3000') + '/dashboard?oauth=signup_success');
-      } else {
-        res.redirect((process.env.FRONTEND_URL || 'http://localhost:3000') + '/dashboard?oauth=signin_success');
-      }
-
-    } catch (error) {
-      console.error('OAuth callback error:', error);
-      console.error('Error stack:', error.stack);
-      console.error('User object:', req.user);
-      res.redirect((process.env.FRONTEND_URL || 'http://localhost:3000') + '/login?error=oauth_callback_failed');
     }
-  }
   );
 } else {
   // Google OAuth not configured - provide helpful error messages
@@ -838,7 +836,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
 
   router.get('/google/callback', (req, res) => {
     console.warn('Google OAuth callback attempted but OAuth not configured');
-    res.redirect((process.env.FRONTEND_URL || 'http://localhost:3000') + '/login?error=oauth_not_configured');
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=oauth_not_configured`);
   });
 }
 

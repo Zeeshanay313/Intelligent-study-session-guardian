@@ -12,13 +12,13 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: function() {
+    required() {
       // Password is required only if no OAuth provider is connected
-      return !this.oauth || 
-             (!this.oauth.google?.id && 
-              !this.oauth.github?.id && 
-              !this.oauth.facebook?.id && 
-              !this.oauth.twitter?.id);
+      return !this.oauth
+             || (!this.oauth.google?.id
+              && !this.oauth.github?.id
+              && !this.oauth.facebook?.id
+              && !this.oauth.twitter?.id);
     },
     minlength: 8
   },
@@ -87,7 +87,7 @@ const userSchema = new mongoose.Schema({
     },
     guardianSharing: {
       type: Boolean,
-      default: false // Opt-in for guardian sharing  
+      default: false // Opt-in for guardian sharing
     },
     shareFields: [{
       type: String,
@@ -284,7 +284,7 @@ const userSchema = new mongoose.Schema({
 }, {
   timestamps: true,
   toJSON: {
-    transform: function(doc, ret) {
+    transform(doc, ret) {
       delete ret.password;
       delete ret.refreshTokens;
       delete ret.verificationToken;
@@ -302,12 +302,12 @@ userSchema.index({ createdAt: -1 });
 userSchema.index({ 'privacy.cameraConsent': 1 });
 
 // Virtual for full name
-userSchema.virtual('name').get(function() {
+userSchema.virtual('name').get(function () {
   return this.profile.displayName;
 });
 
 // Post-find middleware to ensure refreshTokens array exists
-userSchema.post(['find', 'findOne', 'findOneAndUpdate'], function(docs) {
+userSchema.post(['find', 'findOne', 'findOneAndUpdate'], docs => {
   if (docs) {
     // Handle single document
     if (!Array.isArray(docs)) {
@@ -326,14 +326,14 @@ userSchema.post(['find', 'findOne', 'findOneAndUpdate'], function(docs) {
 });
 
 // Pre-save middleware to hash password and initialize arrays
-userSchema.pre('save', async function(next) {
+userSchema.pre('save', async function (next) {
   // Ensure refreshTokens array exists
   if (!this.refreshTokens) {
     this.refreshTokens = [];
   }
-  
+
   if (!this.isModified('password')) return next();
-  
+
   try {
     const salt = await bcrypt.genSalt(12);
     this.password = await bcrypt.hash(this.password, salt);
@@ -344,27 +344,27 @@ userSchema.pre('save', async function(next) {
 });
 
 // Method to compare password
-userSchema.methods.comparePassword = async function(candidatePassword) {
+userSchema.methods.comparePassword = async function (candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
 };
 
 // Method to add refresh token
-userSchema.methods.addRefreshToken = async function(token) {
+userSchema.methods.addRefreshToken = async function (token) {
   console.log(`Adding refresh token for user ID: ${this._id}`);
-  
+
   try {
     // Ensure refreshTokens array exists
     if (!this.refreshTokens) {
       console.log('Initializing refreshTokens array');
       this.refreshTokens = [];
     }
-    
+
     // Use atomic operation to avoid version conflicts
     console.log('Attempting atomic update for refresh token');
     const result = await this.constructor.findByIdAndUpdate(
       this._id,
-      { 
-        $push: { 
+      {
+        $push: {
           refreshTokens: {
             $each: [{ token }],
             $slice: -5 // Keep only last 5 tokens
@@ -373,33 +373,33 @@ userSchema.methods.addRefreshToken = async function(token) {
       },
       { new: true, runValidators: false } // Skip validation for performance
     );
-    
+
     if (!result) {
       console.error('Atomic update returned null - user may not exist');
       throw new Error('Failed to update user with refresh token');
     }
-    
+
     // Update the current instance with the new data
     this.refreshTokens = result.refreshTokens;
     console.log(`Successfully added refresh token. Total tokens: ${this.refreshTokens.length}`);
-    
+
     return result;
   } catch (error) {
     console.error('Error in atomic refresh token update:', error);
     console.log('Falling back to traditional method');
-    
+
     try {
       // Fallback to traditional method
       if (!this.refreshTokens) {
         this.refreshTokens = [];
       }
-      
+
       this.refreshTokens.push({ token });
       // Keep only last 5 refresh tokens
       if (this.refreshTokens.length > 5) {
         this.refreshTokens = this.refreshTokens.slice(-5);
       }
-      
+
       const saved = await this.save();
       console.log('Fallback method successful');
       return saved;
@@ -411,20 +411,20 @@ userSchema.methods.addRefreshToken = async function(token) {
 };
 
 // Method to remove refresh token
-userSchema.methods.removeRefreshToken = async function(token) {
+userSchema.methods.removeRefreshToken = async function (token) {
   try {
     // Use atomic operation to avoid version conflicts
     const result = await this.constructor.findByIdAndUpdate(
       this._id,
-      { $pull: { refreshTokens: { token: token } } },
+      { $pull: { refreshTokens: { token } } },
       { new: true }
     );
-    
+
     // Update the current instance with the new data
     if (result) {
       this.refreshTokens = result.refreshTokens;
     }
-    
+
     return result;
   } catch (error) {
     console.error('Error removing refresh token:', error);
@@ -433,12 +433,12 @@ userSchema.methods.removeRefreshToken = async function(token) {
       this.refreshTokens = [];
     }
     this.refreshTokens = this.refreshTokens.filter(t => t.token !== token);
-    return await this.save();
+    return this.save();
   }
 };
 
 // Method to soft delete
-userSchema.methods.softDelete = function() {
+userSchema.methods.softDelete = function () {
   this.deleted = true;
   this.deletedAt = new Date();
   this.deleteRequestedAt = new Date();
@@ -446,7 +446,7 @@ userSchema.methods.softDelete = function() {
 };
 
 // Method to restore from soft delete
-userSchema.methods.restore = function() {
+userSchema.methods.restore = function () {
   this.deleted = false;
   this.deletedAt = null;
   this.deleteRequestedAt = null;
@@ -454,16 +454,16 @@ userSchema.methods.restore = function() {
 };
 
 // Static method to find non-deleted users
-userSchema.statics.findActive = function(filter = {}) {
+userSchema.statics.findActive = function (filter = {}) {
   return this.find({ ...filter, deleted: false });
 };
 
 // Static method for cleanup (hard delete after retention period)
-userSchema.statics.hardDeleteExpired = async function() {
-  const retentionDays = parseInt(process.env.USER_RETENTION_DAYS) || 30;
+userSchema.statics.hardDeleteExpired = async function () {
+  const retentionDays = parseInt(process.env.USER_RETENTION_DAYS, 10) || 30;
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
-  
+
   return this.deleteMany({
     deleted: true,
     deletedAt: { $lt: cutoffDate }

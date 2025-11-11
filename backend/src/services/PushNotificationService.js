@@ -14,27 +14,46 @@ class PushNotificationService {
       if (admin.apps.length === 0) {
         // Initialize with service account (production) or default credentials (development)
         if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-          const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-          admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount),
-            projectId: process.env.FIREBASE_PROJECT_ID
-          });
+          try {
+            const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+
+            // Validate that it has the required fields
+            if (!serviceAccount.private_key || !serviceAccount.client_email) {
+              throw new Error('Invalid Firebase service account configuration');
+            }
+
+            admin.initializeApp({
+              credential: admin.credential.cert(serviceAccount),
+              projectId: process.env.FIREBASE_PROJECT_ID
+            });
+            this.initialized = true;
+            console.log('✅ Firebase Push Notification Service initialized');
+          } catch (parseError) {
+            console.log('⚠️ Invalid Firebase service account - push notifications disabled');
+            console.log('   Error:', parseError.message);
+          }
         } else if (process.env.FIREBASE_PROJECT_ID) {
           // Development mode with default credentials
-          admin.initializeApp({
-            projectId: process.env.FIREBASE_PROJECT_ID
-          });
+          try {
+            admin.initializeApp({
+              projectId: process.env.FIREBASE_PROJECT_ID
+            });
+            this.initialized = true;
+            console.log('✅ Firebase Push Notification Service initialized (dev mode)');
+          } catch (initError) {
+            console.log('⚠️ Firebase dev mode failed - push notifications disabled');
+          }
         } else {
           console.log('⚠️ Firebase not configured - push notifications will be simulated');
-          return;
         }
+      } else {
+        this.initialized = true;
+        console.log('✅ Firebase already initialized');
       }
-
-      this.initialized = true;
-      console.log('✅ Firebase Push Notification Service initialized');
     } catch (error) {
-      console.error('Firebase initialization error:', error);
+      console.error('Firebase initialization error:', error.message);
       console.log('📱 Push notifications will fall back to in-app only');
+      this.initialized = false;
     }
   }
 
@@ -107,10 +126,10 @@ class PushNotificationService {
       return { sent: true, messageId: response, to: user.email };
     } catch (error) {
       console.error('Error sending study session push notification:', error);
-      
+
       // Handle invalid token
-      if (error.code === 'messaging/registration-token-not-registered' || 
-          error.code === 'messaging/invalid-registration-token') {
+      if (error.code === 'messaging/registration-token-not-registered'
+          || error.code === 'messaging/invalid-registration-token') {
         await this.removeUserToken(userId);
         return { sent: false, reason: 'Invalid FCM token - removed from user' };
       }
@@ -160,9 +179,9 @@ class PushNotificationService {
       return { sent: true, messageId: response };
     } catch (error) {
       console.error('Error sending goal achievement push notification:', error);
-      
-      if (error.code === 'messaging/registration-token-not-registered' || 
-          error.code === 'messaging/invalid-registration-token') {
+
+      if (error.code === 'messaging/registration-token-not-registered'
+          || error.code === 'messaging/invalid-registration-token') {
         await this.removeUserToken(userId);
       }
 
@@ -210,9 +229,9 @@ class PushNotificationService {
       return { sent: true, messageId: response };
     } catch (error) {
       console.error('Error sending reminder push notification:', error);
-      
-      if (error.code === 'messaging/registration-token-not-registered' || 
-          error.code === 'messaging/invalid-registration-token') {
+
+      if (error.code === 'messaging/registration-token-not-registered'
+          || error.code === 'messaging/invalid-registration-token') {
         await this.removeUserToken(userId);
       }
 
@@ -224,8 +243,8 @@ class PushNotificationService {
   async sendBreakReminderNotification(userId, sessionData) {
     try {
       const user = await User.findById(userId);
-      if (!user?.integrations?.pushNotifications?.enabled || 
-          !user.privacy?.notifications?.breakReminders) {
+      if (!user?.integrations?.pushNotifications?.enabled
+          || !user.privacy?.notifications?.breakReminders) {
         return { sent: false, reason: 'Break reminders not enabled' };
       }
 
@@ -348,12 +367,12 @@ class PushNotificationService {
       const message = {
         notification: notificationData.notification,
         data: notificationData.data || {},
-        tokens: tokens
+        tokens
       };
 
       const response = await admin.messaging().sendMulticast(message);
-      return { 
-        sent: true, 
+      return {
+        sent: true,
         successCount: response.successCount,
         failureCount: response.failureCount,
         responses: response.responses

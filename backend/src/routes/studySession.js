@@ -1,7 +1,7 @@
 const express = require('express');
+const { body, validationResult } = require('express-validator');
 const StudySessionOrchestrator = require('../services/StudySessionOrchestrator');
 const { authenticate } = require('../middleware/auth');
-const { body, validationResult } = require('express-validator');
 
 const router = express.Router();
 
@@ -9,7 +9,7 @@ const router = express.Router();
 let orchestrator = null;
 
 // Set socket.io instance
-const setSocketIO = (io) => {
+const setSocketIO = io => {
   orchestrator = new StudySessionOrchestrator(io);
 };
 
@@ -24,21 +24,21 @@ const validateIntegratedSession = [
   body('timezone').optional().isString()
 ];
 
-// Start integrated study session  
+// Start integrated study session
 router.post('/start', validateIntegratedSession, async (req, res) => {
   try {
     // Add fake user for development
     req.user = { _id: '507f1f77bcf86cd799439011' };
-    
+
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ success: false, errors: errors.array() });
     }
 
     if (!orchestrator) {
-      return res.status(500).json({ 
-        success: false, 
-        error: 'Study session orchestrator not initialized' 
+      return res.status(500).json({
+        success: false,
+        error: 'Study session orchestrator not initialized'
       });
     }
 
@@ -55,11 +55,10 @@ router.post('/start', validateIntegratedSession, async (req, res) => {
 
     const result = await orchestrator.startIntegratedSession(req.user._id, sessionConfig);
     res.json(result);
-
   } catch (error) {
     console.error('Error starting integrated session:', error);
-    res.status(500).json({ 
-      success: false, 
+    res.status(500).json({
+      success: false,
       error: error.message || 'Failed to start integrated study session'
     });
   }
@@ -69,19 +68,18 @@ router.post('/start', validateIntegratedSession, async (req, res) => {
 router.post('/pause', authenticate, async (req, res) => {
   try {
     if (!orchestrator) {
-      return res.status(500).json({ 
-        success: false, 
-        error: 'Study session orchestrator not initialized' 
+      return res.status(500).json({
+        success: false,
+        error: 'Study session orchestrator not initialized'
       });
     }
 
     const result = await orchestrator.pauseSession(req.user._id);
     res.json(result);
-
   } catch (error) {
     console.error('Error pausing session:', error);
-    res.status(500).json({ 
-      success: false, 
+    res.status(500).json({
+      success: false,
       error: error.message || 'Failed to pause session'
     });
   }
@@ -91,19 +89,18 @@ router.post('/pause', authenticate, async (req, res) => {
 router.post('/resume', authenticate, async (req, res) => {
   try {
     if (!orchestrator) {
-      return res.status(500).json({ 
-        success: false, 
-        error: 'Study session orchestrator not initialized' 
+      return res.status(500).json({
+        success: false,
+        error: 'Study session orchestrator not initialized'
       });
     }
 
     const result = await orchestrator.resumeSession(req.user._id);
     res.json(result);
-
   } catch (error) {
     console.error('Error resuming session:', error);
-    res.status(500).json({ 
-      success: false, 
+    res.status(500).json({
+      success: false,
       error: error.message || 'Failed to resume session'
     });
   }
@@ -113,19 +110,18 @@ router.post('/resume', authenticate, async (req, res) => {
 router.post('/stop', authenticate, async (req, res) => {
   try {
     if (!orchestrator) {
-      return res.status(500).json({ 
-        success: false, 
-        error: 'Study session orchestrator not initialized' 
+      return res.status(500).json({
+        success: false,
+        error: 'Study session orchestrator not initialized'
       });
     }
 
     await orchestrator.completeSession(req.user._id, req.body.sessionId);
     res.json({ success: true, message: 'Session stopped successfully' });
-
   } catch (error) {
     console.error('Error stopping session:', error);
-    res.status(500).json({ 
-      success: false, 
+    res.status(500).json({
+      success: false,
       error: error.message || 'Failed to stop session'
     });
   }
@@ -135,24 +131,24 @@ router.post('/stop', authenticate, async (req, res) => {
 router.get('/current', authenticate, async (req, res) => {
   try {
     if (!orchestrator) {
-      return res.status(500).json({ 
-        success: false, 
-        error: 'Study session orchestrator not initialized' 
+      return res.status(500).json({
+        success: false,
+        error: 'Study session orchestrator not initialized'
       });
     }
 
     const activeSession = orchestrator.getActiveSession(req.user._id);
-    
+
     if (!activeSession) {
-      return res.json({ 
-        success: true, 
-        activeSession: null, 
-        message: 'No active session' 
+      return res.json({
+        success: true,
+        activeSession: null,
+        message: 'No active session'
       });
     }
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       activeSession: {
         sessionId: activeSession.sessionId,
         status: activeSession.status,
@@ -161,11 +157,10 @@ router.get('/current', authenticate, async (req, res) => {
         pausedAt: activeSession.pausedAt
       }
     });
-
   } catch (error) {
     console.error('Error getting current session:', error);
-    res.status(500).json({ 
-      success: false, 
+    res.status(500).json({
+      success: false,
       error: error.message || 'Failed to get current session'
     });
   }
@@ -176,11 +171,11 @@ router.post('/quick-start', async (req, res) => {
   try {
     // Add fake user for development
     req.user = { _id: '507f1f77bcf86cd799439011' };
-    
+
     if (!orchestrator) {
-      return res.status(500).json({ 
-        success: false, 
-        error: 'Study session orchestrator not initialized' 
+      return res.status(500).json({
+        success: false,
+        error: 'Study session orchestrator not initialized'
       });
     }
 
@@ -201,8 +196,8 @@ router.post('/quick-start', async (req, res) => {
 
     const sessionConfig = {
       subject: activeGoal ? `Study: ${activeGoal.title}` : 'Quick Focus Session',
-      workDuration: defaultPreset?.workDuration / 60 || 25, // Convert from seconds to minutes
-      breakDuration: defaultPreset?.breakDuration / 60 || 5,
+      workDuration: (defaultPreset?.workDuration || 1500) / 60, // Convert from seconds to minutes
+      breakDuration: (defaultPreset?.breakDuration || 300) / 60,
       presetId: defaultPreset?._id,
       linkedGoalId: activeGoal?._id,
       syncToCalendar: true, // Auto-enable calendar sync for quick start
@@ -214,11 +209,10 @@ router.post('/quick-start', async (req, res) => {
       ...result,
       message: 'Quick study session started with smart defaults'
     });
-
   } catch (error) {
     console.error('Error starting quick session:', error);
-    res.status(500).json({ 
-      success: false, 
+    res.status(500).json({
+      success: false,
       error: error.message || 'Failed to start quick study session'
     });
   }

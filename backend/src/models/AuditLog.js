@@ -12,7 +12,7 @@ const auditLogSchema = new mongoose.Schema({
     required: true,
     enum: [
       'ACCOUNT_CREATED',
-      'ACCOUNT_DELETED', 
+      'ACCOUNT_DELETED',
       'ACCOUNT_RESTORED',
       'PROFILE_UPDATED',
       'PRIVACY_UPDATED',
@@ -78,26 +78,26 @@ auditLogSchema.index({ timestamp: -1 }); // For cleanup operations
 auditLogSchema.index({ timestamp: 1 }, { expireAfterSeconds: 63072000 }); // 2 years
 
 // Static method to log privacy-related actions
-auditLogSchema.statics.logPrivacyAction = function(userId, action, details = {}, metadata = {}) {
+auditLogSchema.statics.logPrivacyAction = function (userId, action, details = {}, metadata = {}) {
   const privacyActions = {
-    'PRIVACY_UPDATED': 'high',
-    'CAMERA_CONSENT_CHANGED': 'high', 
-    'GUARDIAN_SHARING_CHANGED': 'high',
-    'GUARDIAN_INVITED': 'medium',
-    'DATA_EXPORTED': 'medium',
-    'ACCOUNT_DELETED': 'high'
+    PRIVACY_UPDATED: 'high',
+    CAMERA_CONSENT_CHANGED: 'high',
+    GUARDIAN_SHARING_CHANGED: 'high',
+    GUARDIAN_INVITED: 'medium',
+    DATA_EXPORTED: 'medium',
+    ACCOUNT_DELETED: 'high'
   };
-  
+
   const dataCategories = {
-    'PRIVACY_UPDATED': ['consent', 'preferences'],
-    'CAMERA_CONSENT_CHANGED': ['consent', 'biometric'],
-    'GUARDIAN_SHARING_CHANGED': ['consent', 'access'],
-    'GUARDIAN_INVITED': ['access'],
-    'DATA_EXPORTED': ['profile', 'preferences', 'consent'],
-    'PROFILE_UPDATED': ['profile'],
-    'AVATAR_UPDATED': ['profile']
+    PRIVACY_UPDATED: ['consent', 'preferences'],
+    CAMERA_CONSENT_CHANGED: ['consent', 'biometric'],
+    GUARDIAN_SHARING_CHANGED: ['consent', 'access'],
+    GUARDIAN_INVITED: ['access'],
+    DATA_EXPORTED: ['profile', 'preferences', 'consent'],
+    PROFILE_UPDATED: ['profile'],
+    AVATAR_UPDATED: ['profile']
   };
-  
+
   return this.create({
     userId,
     action,
@@ -109,7 +109,7 @@ auditLogSchema.statics.logPrivacyAction = function(userId, action, details = {},
 };
 
 // Static method to get user audit trail with pagination
-auditLogSchema.statics.getUserAuditTrail = function(userId, options = {}) {
+auditLogSchema.statics.getUserAuditTrail = function (userId, options = {}) {
   const {
     page = 1,
     limit = 50,
@@ -118,9 +118,9 @@ auditLogSchema.statics.getUserAuditTrail = function(userId, options = {}) {
     startDate = null,
     endDate = null
   } = options;
-  
+
   const query = { userId };
-  
+
   if (action) query.action = action;
   if (privacyOnly) query.privacyImpact = { $in: ['medium', 'high'] };
   if (startDate || endDate) {
@@ -128,7 +128,7 @@ auditLogSchema.statics.getUserAuditTrail = function(userId, options = {}) {
     if (startDate) query.timestamp.$gte = new Date(startDate);
     if (endDate) query.timestamp.$lte = new Date(endDate);
   }
-  
+
   return this.find(query)
     .sort({ timestamp: -1 })
     .limit(limit * 1)
@@ -138,7 +138,7 @@ auditLogSchema.statics.getUserAuditTrail = function(userId, options = {}) {
 };
 
 // Static method for compliance reporting
-auditLogSchema.statics.getPrivacyReport = function(userId, startDate, endDate) {
+auditLogSchema.statics.getPrivacyReport = function (userId, startDate, endDate) {
   return this.aggregate([
     {
       $match: {
