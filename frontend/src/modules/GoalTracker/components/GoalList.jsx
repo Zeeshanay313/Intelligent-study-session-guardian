@@ -72,11 +72,31 @@ const GoalList = ({ onCreateGoal, onSelectGoal }) => {
   };
 
   const getProgressColor = (percentage) => {
-    if (percentage >= 100) return 'bg-green-500';
-    if (percentage >= 75) return 'bg-blue-500';
-    if (percentage >= 50) return 'bg-yellow-500';
-    if (percentage >= 25) return 'bg-orange-500';
-    return 'bg-red-500';
+    if (percentage >= 100) return { 
+      bg: 'bg-gradient-to-r from-neon-green to-emerald-500',
+      text: 'text-neon-green',
+      glow: 'rgba(16, 185, 129, 0.4)'
+    };
+    if (percentage >= 75) return { 
+      bg: 'bg-gradient-to-r from-neon-blue to-neon-cyan',
+      text: 'text-neon-blue',
+      glow: 'rgba(0, 212, 255, 0.4)'
+    };
+    if (percentage >= 50) return { 
+      bg: 'bg-gradient-to-r from-yellow-400 to-orange-400',
+      text: 'text-yellow-500',
+      glow: 'rgba(251, 191, 36, 0.4)'
+    };
+    if (percentage >= 25) return { 
+      bg: 'bg-gradient-to-r from-orange-400 to-red-400',
+      text: 'text-orange-500',
+      glow: 'rgba(251, 146, 60, 0.4)'
+    };
+    return { 
+      bg: 'bg-gradient-to-r from-red-400 to-pink-400',
+      text: 'text-red-500',
+      glow: 'rgba(239, 68, 68, 0.4)'
+    };
   };
 
   const getDaysRemaining = (endDate) => {
@@ -376,37 +396,64 @@ const GoalList = ({ onCreateGoal, onSelectGoal }) => {
                     </p>
                   )}
 
-                  {/* Progress */}
+                  {/* Progress - Enhanced with Animation */}
                   <div className="mb-4">
-                    <div className="flex justify-between text-sm font-medium text-gray-900 dark:text-white mb-1">
+                    <div className="flex justify-between text-sm font-medium text-gray-900 dark:text-white mb-2">
                       <span>Progress</span>
-                      <span>{goal.progressValue} / {goal.targetValue}</span>
-                    </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                      <div
-                        className={`h-2 rounded-full transition-all duration-300 ${getProgressColor(progressPercentage)}`}
-                        style={{ width: `${Math.min(progressPercentage, 100)}%` }}
-                      ></div>
-                    </div>
-                    <div className="text-right mt-1">
-                      <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                        {progressPercentage}%
+                      <span className={progressPercentage >= 100 ? 'text-neon-green' : ''}>
+                        {goal.progressValue} / {goal.targetValue}
                       </span>
                     </div>
+                    {/* Animated Progress Bar with Glow */}
+                    <div className="relative w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
+                      <div
+                        className={`h-3 rounded-full transition-all duration-500 ease-out ${getProgressColor(progressPercentage).bg}`}
+                        style={{ 
+                          width: `${Math.min(progressPercentage, 100)}%`,
+                          boxShadow: progressPercentage > 0 ? `0 0 10px ${getProgressColor(progressPercentage).glow}, inset 0 1px 0 rgba(255,255,255,0.2)` : 'none'
+                        }}
+                      >
+                        {/* Shimmer effect */}
+                        {progressPercentage > 0 && progressPercentage < 100 && (
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" 
+                               style={{ backgroundSize: '200% 100%' }} />
+                        )}
+                      </div>
+                      {/* Percentage label inside bar */}
+                      {progressPercentage >= 15 && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <span className="text-xs font-bold text-white drop-shadow-md">
+                            {progressPercentage}%
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    {progressPercentage < 15 && (
+                      <div className="text-right mt-1">
+                        <span className={`text-sm font-bold ${getProgressColor(progressPercentage).text}`}>
+                          {progressPercentage}%
+                        </span>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Milestones */}
+                  {/* Milestones - Enhanced */}
                   {totalMilestones > 0 && (
                     <div className="mb-4">
-                      <div className="flex justify-between text-sm font-medium text-gray-900 dark:text-white mb-1">
+                      <div className="flex justify-between text-sm font-medium text-gray-900 dark:text-white mb-2">
                         <span>Milestones</span>
-                        <span>{completedMilestones} / {totalMilestones}</span>
+                        <span className={completedMilestones === totalMilestones ? 'text-neon-purple' : ''}>
+                          {completedMilestones} / {totalMilestones}
+                        </span>
                       </div>
-                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1">
+                      <div className="relative w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
                         <div
-                          className="bg-blue-500 h-1 rounded-full transition-all duration-300"
-                          style={{ width: `${totalMilestones > 0 ? (completedMilestones / totalMilestones) * 100 : 0}%` }}
-                        ></div>
+                          className="bg-gradient-to-r from-neon-purple to-neon-pink h-2 rounded-full transition-all duration-500 ease-out"
+                          style={{ 
+                            width: `${totalMilestones > 0 ? (completedMilestones / totalMilestones) * 100 : 0}%`,
+                            boxShadow: completedMilestones > 0 ? '0 0 8px rgba(168, 85, 247, 0.4)' : 'none'
+                          }}
+                        />
                       </div>
                     </div>
                   )}

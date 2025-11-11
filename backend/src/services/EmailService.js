@@ -36,7 +36,7 @@ class EmailService {
 
       // Check if user has custom email configuration
       if (user?.integrations?.email?.enabled && user.integrations.email.smtpHost) {
-        return nodemailer.createTransporter({
+        return nodemailer.createTransport({
           host: user.integrations.email.smtpHost,
           port: user.integrations.email.smtpPort || 587,
           secure: false,

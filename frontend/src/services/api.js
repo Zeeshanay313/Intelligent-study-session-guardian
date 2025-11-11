@@ -150,6 +150,7 @@ export const authAPI = {
   getMe: () => api.get('/auth/me'),
   changePassword: (passwordData) => api.patch('/auth/change-password', passwordData),
   forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
+  verifyResetToken: (token) => api.get(`/auth/verify-reset-token/${token}`),
   resetPassword: (token, password) => api.post('/auth/reset-password', { token, password }),
   
   // Social authentication
@@ -285,6 +286,14 @@ export const notificationAPI = {
   getHistory: (params = {}) => api.get('/notifications/history', { params }),
   markAsRead: (notificationIds) => api.patch('/notifications/mark-read', { ids: notificationIds }),
   clearHistory: () => api.delete('/notifications/history')
+};
+
+// Settings API
+export const settingsAPI = {
+  getSettings: () => api.get('/settings'),
+  saveSettings: (settings) => api.post('/settings', settings),
+  updateSetting: (key, value) => api.put(`/settings/${key}`, { value }),
+  resetSettings: () => api.delete('/settings')
 };
 
 // Utility functions

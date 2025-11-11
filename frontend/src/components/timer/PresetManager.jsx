@@ -12,20 +12,26 @@ const PresetManager = ({ presets, onPresetsChange, onClose }) => {
   const [editingPreset, setEditingPreset] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
+    subject: '',
     workDuration: 1500, // 25 minutes
     breakDuration: 300, // 5 minutes
     longBreakDuration: 900, // 15 minutes
-    cyclesBeforeLongBreak: 4
+    cyclesBeforeLongBreak: 4,
+    color: '#3B82F6',
+    icon: '📚'
   });
   const [isLoading, setIsLoading] = useState(false);
 
   const resetForm = () => {
     setFormData({
       name: '',
+      subject: '',
       workDuration: 1500,
       breakDuration: 300,
       longBreakDuration: 900,
-      cyclesBeforeLongBreak: 4
+      cyclesBeforeLongBreak: 4,
+      color: '#3B82F6',
+      icon: '📚'
     });
     setEditingPreset(null);
     setShowForm(false);
@@ -34,10 +40,13 @@ const PresetManager = ({ presets, onPresetsChange, onClose }) => {
   const handleEdit = (preset) => {
     setFormData({
       name: preset.name,
+      subject: preset.subject || '',
       workDuration: preset.workDuration,
       breakDuration: preset.breakDuration,
       longBreakDuration: preset.longBreakDuration,
-      cyclesBeforeLongBreak: preset.cyclesBeforeLongBreak
+      cyclesBeforeLongBreak: preset.cyclesBeforeLongBreak,
+      color: preset.color || '#3B82F6',
+      icon: preset.icon || '📚'
     });
     setEditingPreset(preset);
     setShowForm(true);
@@ -51,11 +60,11 @@ const PresetManager = ({ presets, onPresetsChange, onClose }) => {
       let savedPreset;
       if (editingPreset) {
         // Update existing preset
-        const response = await api.put(`/timers/${editingPreset._id}`, formData);
+        const response = await api.patch(`/timer/presets/${editingPreset._id}`, formData);
         savedPreset = response.data;
       } else {
         // Create new preset
-        const response = await api.post('/timers', formData);
+        const response = await api.post('/timer/presets', formData);
         savedPreset = response.data;
       }
       
@@ -116,7 +125,13 @@ const PresetManager = ({ presets, onPresetsChange, onClose }) => {
     if (!confirm('Are you sure you want to delete this preset?')) return;
 
     try {
-      await api.delete(`/timers/${presetId}`);
+      await api.delete(`/timer/presets/${presetId}`);
+      
+      // Also remove from localStorage
+      const localPresets = JSON.parse(localStorage.getItem('timerPresets') || '[]');
+      const updatedPresets = localPresets.filter(p => p._id !== presetId);
+      localStorage.setItem('timerPresets', JSON.stringify(updatedPresets));
+      
       await onPresetsChange();
     } catch (error) {
       console.error('Error deleting preset:', error);
@@ -213,6 +228,54 @@ const PresetManager = ({ presets, onPresetsChange, onClose }) => {
               placeholder="e.g., Default Pomodoro"
               required
             />
+          </div>
+
+          <div>
+            <label htmlFor="preset-subject" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Subject
+            </label>
+            <input
+              id="preset-subject"
+              name="presetSubject"
+              type="text"
+              value={formData.subject}
+              onChange={(e) => setFormData(prev => ({ ...prev, subject: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              placeholder="e.g., Mathematics, Science, Reading"
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="preset-icon" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Icon
+              </label>
+              <input
+                id="preset-icon"
+                name="presetIcon"
+                type="text"
+                value={formData.icon}
+                onChange={(e) => setFormData(prev => ({ ...prev, icon: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                placeholder="📚"
+                maxLength="2"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="preset-color" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Color
+              </label>
+              <input
+                id="preset-color"
+                name="presetColor"
+                type="color"
+                value={formData.color}
+                onChange={(e) => setFormData(prev => ({ ...prev, color: e.target.value }))}
+                className="w-full h-10 px-1 py-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600"
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
