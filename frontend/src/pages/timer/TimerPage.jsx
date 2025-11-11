@@ -84,7 +84,12 @@ const TimerPage = () => {
       interval = setInterval(() => {
         setTimeRemaining(prev => {
           if (prev <= 1) {
-            handlePhaseComplete();
+            // Call handlePhaseComplete on next tick to avoid state update conflicts
+            setTimeout(() => {
+              if (selectedPreset) {
+                handlePhaseComplete();
+              }
+            }, 0);
             return 0;
           }
           return prev - 1;
@@ -95,7 +100,7 @@ const TimerPage = () => {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isRunning, isPaused]);
+  }, [isRunning, isPaused, timeRemaining, selectedPreset]);
 
   const loadPresets = async () => {
     try {
@@ -287,25 +292,29 @@ const TimerPage = () => {
 
     const { cyclesBeforeLongBreak, breakDuration, longBreakDuration, workDuration } = selectedPreset;
 
-    // Log completed work session to backend
+    // Log completed work session to backend (don't let errors interrupt the timer)
     if (currentPhase === 'work' && sessionStartTime) {
-      try {
-        await api.post('/timer/sessions', {
-          subject: selectedPreset.subject || 'General',
-          sessionType: 'work',
-          duration: workDuration,
-          actualDuration: workDuration,
-          startTime: sessionStartTime,
-          endTime: new Date(),
-          completed: true,
-          cycle: cycle,
-          presetId: selectedPreset._id !== 'default' ? selectedPreset._id : null,
-          notes: ''
-        });
-        console.log('Work session logged successfully');
-      } catch (error) {
-        console.error('Failed to log session:', error);
-      }
+      // Use try-catch with silent failure to prevent disrupting timer flow
+      setTimeout(async () => {
+        try {
+          await api.post('/timer/sessions', {
+            subject: selectedPreset.subject || 'General',
+            sessionType: 'work',
+            duration: workDuration,
+            actualDuration: workDuration,
+            startTime: sessionStartTime,
+            endTime: new Date(),
+            completed: true,
+            cycle: cycle,
+            presetId: selectedPreset._id !== 'default' ? selectedPreset._id : null,
+            notes: ''
+          });
+          console.log('✅ Work session logged successfully');
+        } catch (error) {
+          console.warn('⚠️ Failed to log session (continuing anyway):', error.message);
+          // Don't show error to user - session logging is optional
+        }
+      }, 100);
     }
 
     // Play notification sound
@@ -313,7 +322,7 @@ const TimerPage = () => {
       playNotificationSound(currentPhase);
     }
 
-    // Show visual notification
+    // Prepare notification data
     let notificationData;
     if (currentPhase === 'work') {
       // Determine if it's time for a long break
@@ -329,11 +338,10 @@ const TimerPage = () => {
         type: 'success',
         title: isLongBreak ? '🎉 Long Break Time!' : '☕ Short Break Time!',
         message: isLongBreak 
-          ? `You've completed ${cycle} work sessions! Take a long break.`
-          : `Work session ${cycle} completed! Take a short break.`,
+          ? `You've completed ${cycle} work sessions! Take a ${Math.floor(longBreakDuration / 60)} minute long break.`
+          : `Work session ${cycle} completed! Take a ${Math.floor(breakDuration / 60)} minute short break.`,
         duration: 5000
       };
-      showInfo(isLongBreak ? `Long break time! (${Math.floor(longBreakDuration / 60)} minutes)` : `Short break time! (${Math.floor(breakDuration / 60)} minutes)`);
     } else {
       // Break ended, switch back to work
       const wasLongBreak = currentPhase === 'longBreak';
@@ -348,10 +356,9 @@ const TimerPage = () => {
         notificationData = {
           type: 'info',
           title: '💪 Back to Work!',
-          message: 'Starting fresh cycle after your long break. Stay focused!',
+          message: 'Starting fresh Cycle #1 after your long break. Stay focused!',
           duration: 5000
         };
-        showInfo('Starting Cycle #1 after long break');
       } else {
         setCycle(prev => prev + 1);
         notificationData = {
@@ -360,11 +367,10 @@ const TimerPage = () => {
           message: `Starting Cycle #${cycle + 1}. Keep the momentum going!`,
           duration: 5000
         };
-        showInfo(`Starting Cycle #${cycle + 1}`);
       }
     }
 
-    // Show popup notification
+    // Show ONLY popup notification (no toast notification to avoid duplicates)
     setNotification(notificationData);
     setTimeout(() => setNotification(null), notificationData.duration);
 
@@ -373,12 +379,13 @@ const TimerPage = () => {
       Notification.requestPermission();
     }
 
-    // Browser notification
+    // Browser notification - only show if popup is not visible
     if ('Notification' in window && Notification.permission === 'granted') {
       new Notification(notificationData.title, {
         body: notificationData.message,
         icon: '/favicon.ico',
-        requireInteraction: true
+        tag: 'timer-phase-change', // Prevents duplicate notifications
+        requireInteraction: false // Auto-dismiss after a few seconds
       });
     }
   };
