@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import TimerControls from '../../components/timer/TimerControls';
 import PresetManager from '../../components/timer/PresetManager';
 import { useNotifications } from '../../components/shared/NotificationToast';
@@ -8,13 +9,18 @@ import {
   PlayIcon, 
   PauseIcon, 
   StopIcon,
-  AdjustmentsHorizontalIcon 
+  AdjustmentsHorizontalIcon,
+  ChartBarIcon,
+  Cog6ToothIcon,
+  PlusCircleIcon,
+  BookOpenIcon
 } from '@heroicons/react/24/outline';
 import { useSocket } from '../../hooks/useSocket';
 import api from '../../services/api';
 
 const TimerPage = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { socketService } = useSocket();
   const { showSuccess, showInfo, showError } = useNotifications();
   
@@ -29,6 +35,10 @@ const TimerPage = () => {
   const [showPresetManager, setShowPresetManager] = useState(false);
   const [notification, setNotification] = useState(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [showSessionHistory, setShowSessionHistory] = useState(false);
+  const [sessionHistory, setSessionHistory] = useState([]);
+  const [breakSuggestion, setBreakSuggestion] = useState(null);
+  const [sessionStartTime, setSessionStartTime] = useState(null);
 
   // Load presets on component mount
   useEffect(() => {
@@ -89,7 +99,7 @@ const TimerPage = () => {
 
   const loadPresets = async () => {
     try {
-      const response = await api.get('/timers');
+      const response = await api.get('/timer/presets');
       let presetsData = Array.isArray(response.data) ? response.data : [];
       
       // Merge with locally stored presets
@@ -110,10 +120,13 @@ const TimerPage = () => {
         const defaultPreset = {
           _id: 'default',
           name: 'Pomodoro (25/5)',
+          subject: 'General',
           workDuration: 1500, // 25 minutes
           breakDuration: 300, // 5 minutes
           longBreakDuration: 900, // 15 minutes
-          cyclesBeforeLongBreak: 4
+          cyclesBeforeLongBreak: 4,
+          color: '#3B82F6',
+          icon: '📚'
         };
         presetsData.push(defaultPreset);
       }
@@ -139,10 +152,13 @@ const TimerPage = () => {
         const defaultPreset = {
           _id: 'default',
           name: 'Pomodoro (25/5)',
+          subject: 'General',
           workDuration: 1500, // 25 minutes
           breakDuration: 300, // 5 minutes
           longBreakDuration: 900, // 15 minutes
-          cyclesBeforeLongBreak: 4
+          cyclesBeforeLongBreak: 4,
+          color: '#3B82F6',
+          icon: '📚'
         };
         presetsData.push(defaultPreset);
       }
@@ -187,6 +203,7 @@ const TimerPage = () => {
       setCycle(1);
       setCurrentPhase('work');
       setTimeRemaining(currentPreset.workDuration);
+      setSessionStartTime(new Date());
       
       showSuccess('Timer started!');
     } catch (error) {
@@ -199,6 +216,7 @@ const TimerPage = () => {
       setCycle(1);
       setCurrentPhase('work');
       setTimeRemaining(currentPreset.workDuration);
+      setSessionStartTime(new Date());
       
       showSuccess('Timer started (offline mode)');
     }
@@ -264,10 +282,31 @@ const TimerPage = () => {
     }
   };
 
-  const handlePhaseComplete = () => {
+  const handlePhaseComplete = async () => {
     if (!selectedPreset) return;
 
     const { cyclesBeforeLongBreak, breakDuration, longBreakDuration, workDuration } = selectedPreset;
+
+    // Log completed work session to backend
+    if (currentPhase === 'work' && sessionStartTime) {
+      try {
+        await api.post('/timer/sessions', {
+          subject: selectedPreset.subject || 'General',
+          sessionType: 'work',
+          duration: workDuration,
+          actualDuration: workDuration,
+          startTime: sessionStartTime,
+          endTime: new Date(),
+          completed: true,
+          cycle: cycle,
+          presetId: selectedPreset._id !== 'default' ? selectedPreset._id : null,
+          notes: ''
+        });
+        console.log('Work session logged successfully');
+      } catch (error) {
+        console.error('Failed to log session:', error);
+      }
+    }
 
     // Play notification sound
     if (soundEnabled) {
@@ -281,6 +320,7 @@ const TimerPage = () => {
       const isLongBreak = cycle % cyclesBeforeLongBreak === 0;
       setCurrentPhase(isLongBreak ? 'longBreak' : 'break');
       setTimeRemaining(isLongBreak ? longBreakDuration : breakDuration);
+      setSessionStartTime(new Date());
       
       notificationData = {
         type: 'success',
@@ -294,6 +334,7 @@ const TimerPage = () => {
       setCurrentPhase('work');
       setTimeRemaining(workDuration);
       setCycle(prev => prev + 1);
+      setSessionStartTime(new Date());
       notificationData = {
         type: 'info',
         title: '💪 Back to Work!',
@@ -353,6 +394,61 @@ const TimerPage = () => {
       });
     } catch (error) {
       console.log('Audio notification failed:', error);
+    }
+  };
+
+  // Quick action handlers
+  const handleStudySession = () => {
+    if (!selectedPreset) {
+      // Select first preset if none selected
+      if (presets.length > 0) {
+        setSelectedPreset(presets[0]);
+        setTimeRemaining(presets[0].workDuration);
+      }
+    }
+    startTimer(selectedPreset || presets[0]);
+  };
+
+  const handleViewStats = async () => {
+    try {
+      const response = await api.get('/timer/sessions/stats?days=7');
+      const stats = response.data;
+      
+      showSuccess(`Last 7 days: ${stats.totalSessions} sessions, ${Math.floor(stats.totalWorkTime / 60)} min total`);
+      navigate('/dashboard');
+    } catch (error) {
+      console.error('Failed to fetch stats:', error);
+      navigate('/dashboard');
+    }
+  };
+
+  const handlePreferences = () => {
+    setShowPresetManager(true);
+  };
+
+  const handleCustomTimer = () => {
+    setShowPresetManager(true);
+    showInfo('Create a custom preset below');
+  };
+
+  const loadSessionHistory = async () => {
+    try {
+      const response = await api.get('/timer/sessions?limit=20');
+      setSessionHistory(response.data);
+      setShowSessionHistory(true);
+    } catch (error) {
+      console.error('Failed to load session history:', error);
+      showError('Could not load session history');
+    }
+  };
+
+  const loadBreakSuggestion = async () => {
+    try {
+      const response = await api.get('/timer/suggestions/breaks');
+      setBreakSuggestion(response.data.suggestion);
+      showInfo(`Suggested break: ${Math.floor(response.data.suggestion.breakDuration / 60)} minutes. ${response.data.suggestion.reason}`);
+    } catch (error) {
+      console.error('Failed to load break suggestion:', error);
     }
   };
 
@@ -419,6 +515,42 @@ const TimerPage = () => {
         <p className="text-gray-600 dark:text-gray-300">
           Use the Pomodoro Technique to boost your productivity
         </p>
+      </div>
+
+      {/* Quick Action Buttons */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <button
+          onClick={handleStudySession}
+          disabled={isRunning}
+          className="flex flex-col items-center justify-center p-4 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-500 text-white rounded-xl shadow-lg transition-all transform hover:scale-105 disabled:hover:scale-100 disabled:cursor-not-allowed"
+        >
+          <BookOpenIcon className="w-8 h-8 mb-2" />
+          <span className="text-sm font-semibold">Study Session</span>
+        </button>
+
+        <button
+          onClick={handleViewStats}
+          className="flex flex-col items-center justify-center p-4 bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-xl shadow-lg transition-all transform hover:scale-105"
+        >
+          <ChartBarIcon className="w-8 h-8 mb-2" />
+          <span className="text-sm font-semibold">View Stats</span>
+        </button>
+
+        <button
+          onClick={handlePreferences}
+          className="flex flex-col items-center justify-center p-4 bg-gradient-to-br from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white rounded-xl shadow-lg transition-all transform hover:scale-105"
+        >
+          <Cog6ToothIcon className="w-8 h-8 mb-2" />
+          <span className="text-sm font-semibold">Preferences</span>
+        </button>
+
+        <button
+          onClick={handleCustomTimer}
+          className="flex flex-col items-center justify-center p-4 bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white rounded-xl shadow-lg transition-all transform hover:scale-105"
+        >
+          <PlusCircleIcon className="w-8 h-8 mb-2" />
+          <span className="text-sm font-semibold">Custom Timer</span>
+        </button>
       </div>
 
       {/* Main Timer Display */}
@@ -512,6 +644,86 @@ const TimerPage = () => {
           onClose={() => setShowPresetManager(false)}
         />
       )}
+
+      {/* Session History */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Recent Sessions</h2>
+          <button
+            onClick={loadSessionHistory}
+            className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+          >
+            {showSessionHistory ? 'Hide' : 'Show History'}
+          </button>
+        </div>
+
+        {showSessionHistory && (
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {sessionHistory.length === 0 ? (
+              <p className="text-gray-500 text-center py-4">No sessions yet. Start your first session!</p>
+            ) : (
+              sessionHistory.map((session, index) => (
+                <div key={index} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white">{session.subject}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {new Date(session.startTime).toLocaleDateString()} - {Math.floor(session.actualDuration / 60)} min
+                    </p>
+                  </div>
+                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                    session.completed ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                  }`}>
+                    {session.completed ? 'Completed' : 'Incomplete'}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Break Suggestions */}
+      <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-xl shadow-lg p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">Smart Break Suggestions</h2>
+          <button
+            onClick={loadBreakSuggestion}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            Get Suggestion
+          </button>
+        </div>
+
+        {breakSuggestion && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
+            <div className="flex items-start">
+              <div className="flex-shrink-0 w-12 h-12 bg-indigo-100 dark:bg-indigo-900 rounded-full flex items-center justify-center">
+                <ClockIcon className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+              </div>
+              <div className="ml-4 flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+                  Recommended Break: {Math.floor(breakSuggestion.breakDuration / 60)} minutes
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-2">{breakSuggestion.reason}</p>
+                <div className="flex items-center space-x-2">
+                  <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                    breakSuggestion.confidence === 'high' ? 'bg-green-100 text-green-800' :
+                    breakSuggestion.confidence === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-gray-100 text-gray-800'
+                  }`}>
+                    {breakSuggestion.confidence} confidence
+                  </span>
+                  {breakSuggestion.analytics && (
+                    <span className="text-xs text-gray-500">
+                      Based on {breakSuggestion.analytics.recentSessionsAnalyzed} recent sessions
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
 
     </div>
