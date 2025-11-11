@@ -24,8 +24,7 @@ const GoalDetailPage = lazy(() => import('./pages/GoalDetailPage'));
 
 // Timer and Reminder Components
 const TimerPage = lazy(() => import('./pages/timer/TimerPage'));
-const FocusTimerPage = lazy(() => import('./pages/FocusTimerPage'));
-const RemindersPage = lazy(() => import('./pages/reminders/RemindersPage'));
+const ReminderPage = lazy(() => import('./pages/reminders/ReminderPage'));
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -163,9 +162,9 @@ function App() {
             <Route path="goals/:id/edit" element={<GoalFormPage />} />
             {/* Timer and Reminder Routes */}
             <Route path="timer" element={<TimerPage />} />
-            <Route path="focus-timer" element={<FocusTimerPage />} />
-            <Route path="reminders" element={<RemindersPage />} />
-            <Route path="reminder-scheduling" element={<RemindersPage />} />
+            <Route path="focus-timer" element={<TimerPage />} />
+            <Route path="reminders" element={<ReminderPage />} />
+            <Route path="reminder-scheduling" element={<ReminderPage />} />
           </Route>
           
           {/* 404 Route */}

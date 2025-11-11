@@ -7,6 +7,7 @@ import { Toaster } from 'react-hot-toast';
 import App from './App';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { AppStateProvider } from './contexts/AppStateContext';
 import './styles/globals.css';
 
 // Create a client for React Query
@@ -36,7 +37,9 @@ root.render(
       >
         <AuthProvider>
           <ThemeProvider>
-            <App />
+            <AppStateProvider>
+              <App />
+            </AppStateProvider>
           </ThemeProvider>
           <Toaster 
             position="top-right"

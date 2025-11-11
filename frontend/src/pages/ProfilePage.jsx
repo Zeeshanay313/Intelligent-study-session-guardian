@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import ProfileModuleControls from '../components/ProfileModuleControls';
 import { 
   UserIcon,
   CogIcon,
@@ -183,6 +184,9 @@ const ProfilePage = () => {
 
             {/* Additional Settings Sections */}
             <div className="mt-8 space-y-6">
+              {/* Module Controls - Timer, Reminders, Goals */}
+              <ProfileModuleControls />
+
               {/* Notifications */}
               <div className="bg-white dark:bg-secondary-800 rounded-lg shadow-sm border border-secondary-200 dark:border-secondary-700 p-6">
                 <div className="flex items-center mb-4">
