@@ -24,6 +24,8 @@ const oauthTestRoutes = require('./routes/oauthTest');
 const settingsRoutes = require('./routes/settings');
 const analyticsRoutes = require('./routes/analytics');
 const { router: studySessionRoutes, setSocketIO } = require('./routes/studySession');
+const focusTimerRoutes = require('./routes/timer');
+const enhancedReminderRoutes = require('./routes/reminders');
 
 const app = express();
 
@@ -138,10 +140,12 @@ app.use('/api/devices', deviceRoutes);
 app.use('/api/goals', goalTrackerRoutes);
 app.use('/api/timers', timerRoutes);
 app.use('/api/reminders', reminderRoutes);
+app.use('/api/reminder', enhancedReminderRoutes);
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/study-session', studySessionRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/timer', focusTimerRoutes);
 app.use('/api', oauthTestRoutes);
 
 // Root endpoint
@@ -267,6 +271,16 @@ const startServer = async () => {
       } catch (error) {
         console.error('❌ Failed to initialize reminder scheduler:', error.message);
       }
+      
+      // Initialize recurring reminder scheduler
+      try {
+        const RecurringReminderScheduler = require('./services/RecurringReminderScheduler');
+        global.recurringReminderScheduler = new RecurringReminderScheduler(io);
+        await global.recurringReminderScheduler.initialize();
+      } catch (error) {
+        console.error('❌ Failed to initialize recurring reminder scheduler:', error.message);
+      }
+      
       console.log('===============================================');
     });
 
