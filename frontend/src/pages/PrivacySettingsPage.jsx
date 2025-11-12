@@ -1,3 +1,21 @@
+/**
+ * PrivacySettingsPage Component
+ * 
+ * This component provides a comprehensive privacy settings interface for users to manage
+ * their data sharing preferences, notification settings, and device access permissions.
+ * It integrates with the backend API to persist settings and provides real-time updates.
+ * 
+ * Key Features:
+ * - Camera consent management with browser permission handling
+ * - Guardian sharing settings for parent/guardian access
+ * - Granular notification preferences (email, in-app, study reminders, etc.)
+ * - Device access management and revocation
+ * - Real-time settings persistence with optimistic UI updates
+ * 
+ * @component
+ * @author Intelligent Study Session Guardian Team
+ */
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useApi } from '../hooks/useApi';
@@ -6,31 +24,67 @@ import Button from '../components/ui/Button';
 import toast from 'react-hot-toast';
 
 const PrivacySettingsPage = () => {
+  // Authentication context for user data and updates
   const { user, updateUser } = useAuth();
+  // API hook for making authenticated requests
   const { apiCall } = useApi();
+  
+  // Loading state for UI feedback during API calls
   const [loading, setLoading] = useState(false);
+  // List of user's registered devices for access management
   const [devices, setDevices] = useState([]);
   
+  /**
+   * Privacy settings state object containing all user privacy preferences
+   * Initializes with existing user settings or sensible defaults
+   * 
+   * Structure:
+   * - cameraConsent: Boolean for camera access permission
+   * - guardianSharing: Boolean for allowing guardian access to data
+   * - shareFields: Array of fields that can be shared with guardians
+   * - notifications: Object containing various notification preferences
+   */
   const [privacySettings, setPrivacySettings] = useState({
+    // Camera access consent for study session monitoring
     cameraConsent: user?.privacy?.cameraConsent || false,
+    // Allow guardians (parents/teachers) to access study data
     guardianSharing: user?.privacy?.guardianSharing || false,
+    // Specific data fields that can be shared with guardians
     shareFields: user?.privacy?.shareFields || [],
+    // Notification preferences object
     notifications: {
+      // In-app notifications (toast messages, alerts)
       inApp: user?.privacy?.notifications?.inApp ?? true,
+      // Email notifications for important updates
       email: user?.privacy?.notifications?.email ?? false,
+      // Study session reminder notifications
       studyReminders: user?.privacy?.notifications?.studyReminders ?? true,
+      // Updates about guardian activity or messages
       guardianUpdates: user?.privacy?.notifications?.guardianUpdates ?? false,
+      // Notifications when goals are achieved or updated
       goalUpdates: user?.privacy?.notifications?.goalUpdates ?? true,
+      // Achievement milestone and badge notifications
       achievementAlerts: user?.privacy?.notifications?.achievementAlerts ?? true,
+      // Break time and rest period reminder notifications
       breakReminders: user?.privacy?.notifications?.breakReminders ?? true
     }
   });
 
-  // Load user devices
+  /**
+   * Component initialization effect
+   * Loads user's registered devices for device management section
+   */
   useEffect(() => {
     loadDevices();
   }, []);
 
+  /**
+   * Fetches list of user's registered devices from the backend
+   * Used for displaying and managing device access permissions
+   * 
+   * @async
+   * @function loadDevices
+   */
   const loadDevices = async () => {
     try {
       const response = await apiCall('/devices', 'GET');
@@ -42,21 +96,36 @@ const PrivacySettingsPage = () => {
     }
   };
 
+  /**
+   * Updates a specific privacy setting both locally and on the backend
+   * Handles nested settings (e.g., notifications.email) using dot notation
+   * Provides optimistic updates with rollback on failure
+   * 
+   * @async
+   * @function updatePrivacySetting
+   * @param {string} setting - The setting path (supports dot notation for nested properties)
+   * @param {*} value - The new value for the setting
+   */
   const updatePrivacySetting = async (setting, value) => {
     try {
       setLoading(true);
+      // Create a deep copy of current settings to avoid mutations
       const newSettings = { ...privacySettings };
       
+      // Handle nested properties (e.g., 'notifications.email')
       if (setting.includes('.')) {
         const [parent, child] = setting.split('.');
         newSettings[parent] = { ...newSettings[parent], [child]: value };
       } else {
+        // Handle top-level properties
         newSettings[setting] = value;
       }
       
+      // Persist changes to backend
       const response = await apiCall('/users/me/privacy', 'PATCH', newSettings);
       
       if (response.success) {
+        // Update local state and auth context on success
         setPrivacySettings(newSettings);
         updateUser({ ...user, privacy: newSettings });
         toast.success('Privacy settings updated');
@@ -64,6 +133,7 @@ const PrivacySettingsPage = () => {
         throw new Error('Failed to update settings');
       }
     } catch (error) {
+      // Show user-friendly error message
       toast.error('Failed to update privacy settings');
       console.error('Privacy update error:', error);
     } finally {
@@ -71,16 +141,25 @@ const PrivacySettingsPage = () => {
     }
   };
 
+  /**
+   * Handles camera permission management including browser permission requests
+   * Toggles camera consent and requests actual browser permissions when enabling
+   * Immediately stops camera stream after permission grant for privacy
+   * 
+   * @async
+   * @function handleCameraPermission
+   */
   const handleCameraPermission = async () => {
     try {
       if (!privacySettings.cameraConsent) {
-        // Request camera permission
+        // Request browser camera permission when enabling
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        stream.getTracks().forEach(track => track.stop()); // Stop immediately after permission
+        // Stop stream immediately after permission verification for privacy
+        stream.getTracks().forEach(track => track.stop());
         await updatePrivacySetting('cameraConsent', true);
         toast.success('Camera access granted');
       } else {
-        // Revoke camera consent
+        // Revoke camera consent (note: cannot revoke browser permission programmatically)
         await updatePrivacySetting('cameraConsent', false);
         toast.success('Camera access revoked');
       }
@@ -90,26 +169,45 @@ const PrivacySettingsPage = () => {
     }
   };
 
+  /**
+   * Toggles a specific field in the guardian sharing fields array
+   * Adds the field if not present, removes if already included
+   * Used for granular control over what data guardians can access
+   * 
+   * @function toggleShareField
+   * @param {string} field - The field name to toggle in sharing permissions
+   */
   const toggleShareField = (field) => {
     const currentFields = privacySettings.shareFields;
     const newFields = currentFields.includes(field)
-      ? currentFields.filter(f => f !== field)
-      : [...currentFields, field];
+      ? currentFields.filter(f => f !== field) // Remove if present
+      : [...currentFields, field]; // Add if not present
     
     updatePrivacySetting('shareFields', newFields);
   };
 
+  /**
+   * Exports all user data as a downloadable JSON file
+   * Provides users with a copy of their data for transparency and portability
+   * Creates a timestamped file with all user information from the backend
+   * 
+   * @async
+   * @function exportUserData
+   */
   const exportUserData = async () => {
     try {
       setLoading(true);
+      // Request user data export from backend
       const response = await apiCall('/users/me/export', 'POST');
       
       if (response.success) {
-        // Trigger download
+        // Create downloadable JSON file
         const blob = new Blob([JSON.stringify(response.data, null, 2)], { 
           type: 'application/json' 
         });
         const url = URL.createObjectURL(blob);
+        
+        // Trigger download with timestamped filename
         const a = document.createElement('a');
         a.href = url;
         a.download = `my-study-guardian-data-${new Date().toISOString().split('T')[0]}.json`;
@@ -128,10 +226,20 @@ const PrivacySettingsPage = () => {
     }
   };
 
+  /**
+   * Revokes access for a specific device
+   * Removes device from user's registered devices and invalidates its access tokens
+   * Used for security management when devices are lost or compromised
+   * 
+   * @async
+   * @function revokeDeviceAccess
+   * @param {string} deviceId - The unique identifier of the device to revoke
+   */
   const revokeDeviceAccess = async (deviceId) => {
     try {
       const response = await apiCall(`/devices/${deviceId}`, 'DELETE');
       if (response.success) {
+        // Update local device list by removing revoked device
         setDevices(devices.filter(d => d._id !== deviceId));
         toast.success('Device access revoked');
       }
@@ -140,8 +248,14 @@ const PrivacySettingsPage = () => {
     }
   };
 
+  /**
+   * Main component render
+   * Structured in sections: Camera Consent, Guardian Sharing, Notifications, 
+   * Device Management, and Data Export
+   */
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
+      {/* Page Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-secondary-900 dark:text-secondary-100">
           Privacy & Security Settings

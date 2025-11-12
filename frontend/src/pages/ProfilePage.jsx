@@ -1,3 +1,26 @@
+/**
+ * ProfilePage Component
+ * 
+ * This component provides a comprehensive user profile management interface
+ * for the Intelligent Study Session Guardian application. It allows users to
+ * view and edit their personal information, manage account settings, and
+ * control various aspects of their study experience.
+ * 
+ * Key Features:
+ * - Personal information editing (name, email, phone, institution)
+ * - Profile picture management and display
+ * - Bio and personal description editing
+ * - Module control settings for study features
+ * - Account preferences and customization options
+ * - Real-time form validation and updates
+ * 
+ * The page integrates with the authentication context to maintain user
+ * data consistency across the application.
+ * 
+ * @component
+ * @author Intelligent Study Session Guardian Team
+ */
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import ProfileModuleControls from '../components/ProfileModuleControls';
@@ -11,18 +34,34 @@ import {
 } from '@heroicons/react/24/outline';
 
 const ProfilePage = () => {
+  // Authentication context for user data and profile management
   const { user } = useAuth();
+  
+  /**
+   * Form data state for user profile information
+   * Manages all editable user profile fields
+   */
   const [formData, setFormData] = useState({
+    // User's display name (can be different from legal name)
     displayName: '',
+    // User's email address (used for login and notifications)
     email: '',
+    // Optional phone number for contact and SMS notifications
     phoneNumber: '',
+    // Educational institution or workplace
     institution: '',
+    // Personal bio or description text
     bio: ''
   });
 
+  /**
+   * Initialize form data with current user information
+   * Runs when user data is loaded or updated
+   */
   useEffect(() => {
     if (user) {
       setFormData({
+        // Prefer profile display name over auth display name
         displayName: user.profile?.displayName || user.displayName || '',
         email: user.email || '',
         phoneNumber: user.profile?.phoneNumber || '',
@@ -32,6 +71,13 @@ const ProfilePage = () => {
     }
   }, [user]);
 
+  /**
+   * Handles form input changes for controlled components
+   * Updates the corresponding field in formData state
+   * 
+   * @function handleInputChange
+   * @param {React.ChangeEvent} e - The input change event
+   */
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -40,12 +86,24 @@ const ProfilePage = () => {
     }));
   };
 
+  /**
+   * Handles form submission for profile updates
+   * Currently in demo mode - would integrate with backend API
+   * 
+   * @function handleSubmit
+   * @param {React.FormEvent} e - The form submission event
+   */
   const handleSubmit = (e) => {
     e.preventDefault();
+    // TODO: Integrate with actual API call for profile updates
     console.log('Profile update data:', formData);
     alert('Profile updated successfully! (Demo mode)');
   };
 
+  /**
+   * Main component render
+   * Displays profile form with user information and module controls
+   */
   return (
     <div className="min-h-screen bg-secondary-50 dark:bg-secondary-900 py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">

@@ -1,3 +1,24 @@
+/**
+ * PrivacyPage Component
+ * 
+ * This component serves as the main privacy information and policy page for the
+ * Intelligent Study Session Guardian application. It provides users with comprehensive
+ * information about data collection, usage policies, and privacy controls.
+ * 
+ * Key Features:
+ * - Display privacy policy and terms of service
+ * - User privacy settings management interface
+ * - Device access and session management
+ * - Data export and deletion controls
+ * - Transparent data usage information
+ * 
+ * This page ensures compliance with privacy regulations (GDPR, COPPA) and provides
+ * users with full control over their personal information and study data.
+ * 
+ * @component
+ * @author Intelligent Study Session Guardian Team
+ */
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import Button from '../components/ui/Button';
@@ -5,32 +26,63 @@ import Card from '../components/ui/Card';
 import { useApi } from '../hooks/useApi';
 
 const PrivacyPage = () => {
+  // Authentication context for user data access
   const { user } = useAuth();
+  // API hook for making authenticated requests
   const { apiCall } = useApi();
+  
+  // Loading state for async operations
   const [loading, setLoading] = useState(false);
+  // List of user's registered devices for session management
   const [devices, setDevices] = useState([]);
+  
+  /**
+   * Privacy settings state containing user's privacy preferences
+   * These settings control data visibility and sharing permissions
+   */
   const [privacySettings, setPrivacySettings] = useState({
+    // Profile visibility level (private, friends, public)
     profileVisibility: 'private',
+    // Whether to show email in public profile
     showEmail: false,
+    // Whether to show phone number in public profile  
     showPhone: false,
+    // Allow sharing of study session data for research
     shareStudyData: false,
+    // Enable analytics data collection for app improvement
     allowAnalytics: true,
+    // Email notification preferences
     emailNotifications: true,
+    // Push notification preferences
     pushNotifications: true,
+    // Study reminder notification preferences
     studyReminders: true,
+    // Security alert notification preferences
     securityAlerts: true
   });
 
+  /**
+   * Component initialization effect
+   * Loads user's current privacy settings and registered devices
+   */
   useEffect(() => {
     fetchPrivacySettings();
     fetchDevices();
   }, []);
 
+  /**
+   * Fetches current privacy settings from the backend
+   * Merges server settings with default local settings
+   * 
+   * @async
+   * @function fetchPrivacySettings
+   */
   const fetchPrivacySettings = async () => {
     try {
       const response = await apiCall('/users/me/privacy');
       if (response.ok) {
         const data = await response.json();
+        // Merge fetched settings with defaults
         setPrivacySettings(prev => ({ ...prev, ...data }));
       }
     } catch (error) {
@@ -38,6 +90,13 @@ const PrivacyPage = () => {
     }
   };
 
+  /**
+   * Fetches list of user's registered devices
+   * Used for displaying active sessions and device management
+   * 
+   * @async  
+   * @function fetchDevices
+   */
   const fetchDevices = async () => {
     try {
       const response = await apiCall('/devices');
