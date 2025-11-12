@@ -3,7 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../components/shared/NotificationToast';
 import { useSocket } from '../../hooks/useSocket';
-import useLocalReminders from '../../hooks/useLocalReminders';
+import useLocalReminders, { globalStopAllSounds } from '../../hooks/useLocalReminders';
 import ReminderPopup from '../../components/reminder/ReminderPopup';
 import {
   BellIcon,
@@ -27,12 +27,14 @@ const ReminderPage = () => {
     addReminder: addLocalReminder, 
     removeReminder: removeLocalReminder,
     checkDueReminders,
+    stopNotificationSound,
     subscribeToReminderTriggers
   } = useLocalReminders();
 
   const [reminders, setReminders] = useState([]);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [calendarSyncLoading, setCalendarSyncLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('active'); // active, history
   const [activePopup, setActivePopup] = useState(null); // For showing reminder popup
   const [useLocalMode, setUseLocalMode] = useState(false); // Fallback to local mode
@@ -91,6 +93,18 @@ const ReminderPage = () => {
 
   useEffect(() => {
     loadReminders();
+    // Auto-sync with calendars on page load (every 30 minutes)
+    syncWithCalendars().catch(console.error);
+    
+    // Set up automatic calendar sync interval
+    const syncInterval = setInterval(() => {
+      console.log('🔄 Auto-syncing with calendars...');
+      syncWithCalendars().catch(console.error);
+    }, 30 * 60 * 1000); // 30 minutes
+
+    return () => {
+      clearInterval(syncInterval);
+    };
   }, [activeTab]);
 
   // Socket.IO listener for real-time reminder notifications
@@ -118,16 +132,37 @@ const ReminderPage = () => {
       showInfo('Study Reminder', data.message || 'Time to get back to studying!');
     };
 
-    // Listen for reminder events
+    const handleCalendarSync = (data) => {
+      console.log('📅 Calendar sync event received:', data);
+      loadReminders(); // Refresh reminders when calendar syncs
+      if (data.type === 'sync_complete') {
+        showSuccess(`Calendar synced: ${data.syncedCount || 0} reminders updated`);
+      } else if (data.type === 'new_event') {
+        showInfo('New calendar event', `Reminder created: ${data.title}`);
+      }
+    };
+
+    const handleCalendarError = (data) => {
+      console.error('📅 Calendar error:', data);
+      showError(`Calendar sync error: ${data.message || 'Unknown error'}`);
+    };
+
+    // Listen for reminder and calendar events
     console.log('📡 Registering event listeners...');
     socketService.on('reminder:notification', handleReminderNotification);
     socketService.on('reminder:nudge', handleIdleNudge);
+    socketService.on('calendar:sync:complete', handleCalendarSync);
+    socketService.on('calendar:sync:error', handleCalendarError);
+    socketService.on('calendar:new_reminder', handleCalendarSync);
     console.log('✅ Event listeners registered');
 
     return () => {
       console.log('🔌 Cleaning up Socket.IO listeners...');
       socketService.off('reminder:notification', handleReminderNotification);
       socketService.off('reminder:nudge', handleIdleNudge);
+      socketService.off('calendar:sync:complete', handleCalendarSync);
+      socketService.off('calendar:sync:error', handleCalendarError);
+      socketService.off('calendar:new_reminder', handleCalendarSync);
     };
   }, [socketService, showInfo]);
 
@@ -157,6 +192,60 @@ const ReminderPage = () => {
       setUseLocalMode(true);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Calendar sync functionality
+  const syncWithCalendars = async () => {
+    setCalendarSyncLoading(true);
+    try {
+      // Check if user has calendar integration enabled
+      const calendarResponse = await api.get('/calendar/integrations');
+      const integrations = calendarResponse.data;
+
+      if (!integrations || integrations.length === 0) {
+        showError('No calendar integrations found. Please set up Google Calendar or Outlook integration in your profile settings.');
+        return;
+      }
+
+      showInfo('Syncing with calendars...');
+
+      // Sync with each integrated calendar
+      for (const integration of integrations) {
+        try {
+          if (integration.provider === 'google') {
+            await api.post('/calendar/google/sync-reminders');
+          } else if (integration.provider === 'outlook') {
+            await api.post('/calendar/outlook/sync-reminders');
+          }
+        } catch (syncError) {
+          console.error(`Failed to sync with ${integration.provider}:`, syncError);
+        }
+      }
+
+      // Reload reminders to show synchronized data
+      await loadReminders();
+      showSuccess('Calendar sync completed! Your reminders are now synchronized with your external calendars.');
+
+      // Set up real-time sync if not already done
+      if (socketService) {
+        socketService.on('calendar:sync:complete', () => {
+          loadReminders();
+          showInfo('Calendar automatically synced');
+        });
+      }
+
+    } catch (error) {
+      console.error('Error syncing with calendars:', error);
+      if (error.response?.status === 401) {
+        showError('Calendar authorization expired. Please reconnect your calendar in profile settings.');
+      } else if (error.response?.status === 404) {
+        showError('Calendar service unavailable. Please try again later.');
+      } else {
+        showError('Failed to sync with calendars. Please check your internet connection.');
+      }
+    } finally {
+      setCalendarSyncLoading(false);
     }
   };
 
@@ -210,6 +299,11 @@ const ReminderPage = () => {
 
   const handleSnooze = async (reminderId, duration) => {
     try {
+      // Stop any playing notification sound
+      if (stopNotificationSound) {
+        stopNotificationSound();
+      }
+      
       // Close popup
       setActivePopup(null);
       
@@ -244,6 +338,12 @@ const ReminderPage = () => {
 
   const handleDismiss = async (reminderId) => {
     try {
+      // NUCLEAR OPTION - Stop ALL sounds immediately
+      globalStopAllSounds();
+      if (stopNotificationSound) {
+        stopNotificationSound();
+      }
+      
       // Close popup
       setActivePopup(null);
       
@@ -267,6 +367,12 @@ const ReminderPage = () => {
 
   const handleComplete = async (reminderId) => {
     try {
+      // NUCLEAR OPTION - Stop ALL sounds immediately
+      globalStopAllSounds();
+      if (stopNotificationSound) {
+        stopNotificationSound();
+      }
+      
       // Close popup
       setActivePopup(null);
       
@@ -389,6 +495,9 @@ const ReminderPage = () => {
           </h1>
           <p className="text-gray-600 dark:text-gray-300">
             Create and manage your study reminders with advanced scheduling
+            <span className="ml-2 text-sm">
+              📅 Syncs with Google Calendar & Outlook every 30 minutes
+            </span>
           </p>
         </div>
         <div className="flex space-x-2">
@@ -398,26 +507,6 @@ const ReminderPage = () => {
             </div>
           )}
           <button
-            onClick={() => {
-              // Quick test: Create a reminder for 30 seconds from now
-              const testTime = new Date(Date.now() + 30000);
-              const testReminder = addLocalReminder({
-                title: '⚡ Test Reminder',
-                message: 'This is a quick test reminder set for 30 seconds!',
-                customMessage: 'Testing the reminder system - this should trigger in 30 seconds',
-                datetime: testTime.toISOString(),
-                type: 'one-off',
-                sound: true,
-                channels: { inApp: true, browser: true }
-              });
-              showSuccess(`Test reminder set for ${testTime.toLocaleTimeString()}. Wait 30 seconds!`);
-            }}
-            className="flex items-center px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors text-sm"
-            title="Create a test reminder that triggers in 30 seconds"
-          >
-            ⚡ Quick Test (30s)
-          </button>
-          <button
             onClick={checkDueReminders}
             className="flex items-center px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm"
             title="Check for due reminders now"
@@ -426,24 +515,17 @@ const ReminderPage = () => {
             Check Now
           </button>
           <button
-            onClick={() => {
-              console.log('🧪 Testing reminder popup...');
-              const testReminder = {
-                _id: 'test-' + Date.now(),
-                title: 'Test Reminder',
-                customMessage: 'This is a test reminder to verify the alarm sound works!',
-                priority: 'high',
-                category: 'study',
-                sound: { enabled: true, type: 'alarm' },
-                type: 'one-off',
-                datetime: new Date(),
-                channels: { inApp: true }
-              };
-              setActivePopup(testReminder);
-            }}
-            className="flex items-center px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+            onClick={syncWithCalendars}
+            disabled={calendarSyncLoading}
+            className="flex items-center px-3 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white rounded-lg transition-colors text-sm"
+            title="Sync reminders with external calendars"
           >
-            🧪 Test Alarm
+            {calendarSyncLoading ? (
+              <ArrowPathIcon className="w-4 h-4 mr-1 animate-spin" />
+            ) : (
+              <CalendarIcon className="w-4 h-4 mr-1" />
+            )}
+            {calendarSyncLoading ? 'Syncing...' : 'Sync Calendars'}
           </button>
           <button
             onClick={() => setShowCreateForm(true)}
@@ -1055,42 +1137,21 @@ const ReminderPage = () => {
           reminder={activePopup}
           onSnooze={(id, duration) => {
             console.log('Snooze clicked:', id, duration);
-            if (id.toString().startsWith('test-')) {
-              // Test reminder - just close
-              setActivePopup(null);
-              showInfo(`Test alarm snoozed for ${duration} minutes`);
-            } else {
-              // Real reminder - call API
-              handleSnooze(id, duration);
-              setActivePopup(null);
-            }
+            handleSnooze(id, duration);
           }}
           onDismiss={(id) => {
             console.log('Dismiss clicked:', id);
-            if (id.toString().startsWith('test-')) {
-              // Test reminder - just close
-              setActivePopup(null);
-              showInfo('Test alarm dismissed');
-            } else {
-              // Real reminder - call API
-              handleDismiss(id);
-              setActivePopup(null);
-            }
+            handleDismiss(id);
           }}
           onComplete={(id) => {
             console.log('Complete clicked:', id);
-            if (id.toString().startsWith('test-')) {
-              // Test reminder - just close
-              setActivePopup(null);
-              showSuccess('Test alarm completed');
-            } else {
-              // Real reminder - call API
-              handleComplete(id);
-              setActivePopup(null);
-            }
+            handleComplete(id);
           }}
           onClose={() => {
             console.log('Close clicked');
+            if (stopNotificationSound) {
+              stopNotificationSound();
+            }
             setActivePopup(null);
           }}
         />
