@@ -11,8 +11,6 @@ const Header = () => {
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: 'dashboard' },
-    { name: 'Focus Timer', href: '/timer', icon: 'clock' },
-    { name: 'Goals', href: '/goals', icon: 'target' },
     { name: 'Profile', href: '/profile', icon: 'user' },
     { name: 'Privacy', href: '/privacy', icon: 'shield' },
   ];
@@ -141,8 +139,12 @@ const Header = () => {
                 </div>
               </div>
               
-              {/* Avatar */}
-              <div className="h-8 w-8 rounded-full bg-primary-600 flex items-center justify-center">
+              {/* Avatar - Click to go to profile */}
+              <Link 
+                to="/profile"
+                className="h-8 w-8 rounded-full bg-primary-600 flex items-center justify-center hover:bg-primary-700 transition-colors cursor-pointer"
+                title="Go to Profile"
+              >
                 {user?.profile?.avatar ? (
                   <img 
                     src={user.profile.avatar} 
@@ -154,7 +156,7 @@ const Header = () => {
                     {(user?.displayName || user?.profile?.displayName || user?.email || 'U')[0].toUpperCase()}
                   </span>
                 )}
-              </div>
+              </Link>
 
               {/* Logout Button */}
               <button

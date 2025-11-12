@@ -7,7 +7,6 @@ import {
   PlayIcon, 
   PauseIcon, 
   StopIcon,
-  Cog6ToothIcon,
   ChartBarIcon,
   ClockIcon,
   BellIcon,
@@ -21,19 +20,10 @@ const IntegratedStudySession = ({ onStartSession }) => {
   const { socketService } = useSocket();
   const [activeSession, setActiveSession] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [sessionConfig, setSessionConfig] = useState({
-    subject: '',
-    workDuration: 25,
-    breakDuration: 5,
-    linkedGoalId: '',
-    syncToCalendar: true
-  });
-  const [availableGoals, setAvailableGoals] = useState([]);
   const [timeRemaining, setTimeRemaining] = useState(0);
 
   // Load user's active goals on component mount
   useEffect(() => {
-    fetchAvailableGoals();
     fetchActiveSession();
   }, []);
 
@@ -54,46 +44,6 @@ const IntegratedStudySession = ({ onStartSession }) => {
       unsubscribers.forEach(unsubscribe => unsubscribe());
     };
   }, [socketService]);
-
-  const fetchAvailableGoals = async () => {
-    try {
-      const response = await api.get('/goals?isActive=true');
-      const goals = response.data.goals || [];
-      setAvailableGoals(goals);
-      
-      // Auto-select most recent goal
-      if (goals.length > 0) {
-        setSessionConfig(prev => ({
-          ...prev,
-          linkedGoalId: goals[0]._id,
-          subject: `Study: ${goals[0].title}`
-        }));
-      }
-    } catch (error) {
-      console.error('Error fetching goals:', error);
-      // Provide mock goals as fallback
-      const mockGoals = [
-        {
-          _id: 'mock-goal-1',
-          title: 'Complete React Project',
-          description: 'Finish the study session guardian app'
-        },
-        {
-          _id: 'mock-goal-2', 
-          title: 'Learn JavaScript',
-          description: 'Master modern JavaScript concepts'
-        }
-      ];
-      setAvailableGoals(mockGoals);
-      
-      // Auto-select first mock goal
-      setSessionConfig(prev => ({
-        ...prev,
-        linkedGoalId: mockGoals[0]._id,
-        subject: `Study: ${mockGoals[0].title}`
-      }));
-    }
-  };
 
   const fetchActiveSession = async () => {
     try {
@@ -118,11 +68,11 @@ const IntegratedStudySession = ({ onStartSession }) => {
       // Use parent's onStartSession function if provided
       if (onStartSession) {
         const sessionData = await onStartSession({
-          subject: sessionConfig.subject || 'Quick Focus Session',
-          workDuration: sessionConfig.workDuration || 25,
-          breakDuration: sessionConfig.breakDuration || 5,
-          linkedGoalId: sessionConfig.linkedGoalId || null,
-          syncCalendar: sessionConfig.syncToCalendar || false,
+          subject: 'Quick Focus Session',
+          workDuration: 25,
+          breakDuration: 5,
+          linkedGoalId: null,
+          syncCalendar: false,
           notifications: true
         });
         
@@ -131,7 +81,7 @@ const IntegratedStudySession = ({ onStartSession }) => {
           sessionId: sessionData.sessionId,
           status: 'active',
           startTime: new Date(),
-          config: sessionConfig,
+          config: { subject: 'Quick Focus Session', workDuration: 25 },
           comprehensive: true,
           dataCollected: sessionData.dataCollected
         });
@@ -171,30 +121,9 @@ const IntegratedStudySession = ({ onStartSession }) => {
         sessionId: 'basic-session-' + Date.now(),
         status: 'active',
         startTime: new Date(),
-        config: sessionConfig,
+        config: { subject: 'Quick Focus Session', workDuration: 25 },
         comprehensive: false
       });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCustomStart = async () => {
-    console.log('handleCustomStart called!');
-    setLoading(true);
-    try {
-      console.log('Making API call to start session with config:', sessionConfig);
-      const response = await api.post('/study-session/start', sessionConfig);
-
-      if (response.data.success) {
-        setActiveSession(response.data.session);
-        addNotification('Custom study session started!', 'success');
-      } else {
-        addNotification(response.data.error || 'Failed to start session', 'error');
-      }
-    } catch (error) {
-      console.error('Error starting custom session:', error);
-      addNotification('Failed to start study session', 'error');
     } finally {
       setLoading(false);
     }
@@ -371,106 +300,6 @@ const IntegratedStudySession = ({ onStartSession }) => {
               )}
             </button>
           </div>
-
-          {/* Custom Configuration Section */}
-          <div className="border-t pt-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-              <Cog6ToothIcon className="h-5 w-5" />
-              Custom Configuration
-            </h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <div>
-                <label htmlFor="session-subject" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Session Subject
-                </label>
-                <input
-                  id="session-subject"
-                  name="sessionSubject"
-                  type="text"
-                  value={sessionConfig.subject}
-                  onChange={(e) => setSessionConfig(prev => ({ ...prev, subject: e.target.value }))}
-                  placeholder="What are you studying?"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                />
-              </div>
-              
-              <div>
-                <label htmlFor="linked-goal" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Linked Goal
-                </label>
-                <select
-                  id="linked-goal"
-                  name="linkedGoal"
-                  value={sessionConfig.linkedGoalId}
-                  onChange={(e) => setSessionConfig(prev => ({ ...prev, linkedGoalId: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                >
-                  <option value="">No goal (session only)</option>
-                  {availableGoals.map(goal => (
-                    <option key={goal._id} value={goal._id}>
-                      {goal.title} ({goal.progressPercentage}% complete)
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label htmlFor="work-duration-session" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Work Duration (minutes)
-                </label>
-                <input
-                  id="work-duration-session"
-                  name="workDurationSession"
-                  type="number"
-                  min="1"
-                  max="120"
-                  value={sessionConfig.workDuration}
-                  onChange={(e) => setSessionConfig(prev => ({ ...prev, workDuration: parseInt(e.target.value) }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="break-duration-session" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Break Duration (minutes)
-                </label>
-                <input
-                  id="break-duration-session"
-                  name="breakDurationSession"
-                  type="number"
-                  min="1"
-                  max="30"
-                  value={sessionConfig.breakDuration}
-                  onChange={(e) => setSessionConfig(prev => ({ ...prev, breakDuration: parseInt(e.target.value) }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4 mb-4">
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={sessionConfig.syncToCalendar}
-                  onChange={(e) => setSessionConfig(prev => ({ ...prev, syncToCalendar: e.target.checked }))}
-                  className="rounded border-gray-300"
-                />
-                <span className="text-sm text-gray-700 dark:text-gray-300">
-                  Sync to Google Calendar
-                </span>
-              </label>
-            </div>
-
-            <button
-              onClick={handleCustomStart}
-              disabled={loading}
-              className="w-full bg-gray-800 hover:bg-gray-900 disabled:bg-gray-400 text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
-            >
-              <Cog6ToothIcon className="h-5 w-5" />
-              {loading ? 'Starting...' : 'Start Custom Session'}
-            </button>
-          </div>
         </div>
       ) : (
         <div className="space-y-6">
@@ -482,11 +311,6 @@ const IntegratedStudySession = ({ onStartSession }) => {
             <div className="text-lg text-gray-600 dark:text-gray-300">
               Status: <span className="capitalize font-semibold">{activeSession.status}</span>
             </div>
-            {sessionConfig.subject && (
-              <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                {sessionConfig.subject}
-              </div>
-            )}
             
             {/* Comprehensive Data Status */}
             {activeSession.comprehensive && activeSession.dataCollected && (
