@@ -1,75 +1,88 @@
+/**
+ * Goal Tracker Controller - Enhanced Version
+ *
+ * Handles CRUD operations for goals with automatic progress tracking,
+ * milestone management, and integration with session data
+ *
+ * @author Intelligent Study Session Guardian Team
+ */
+
 const mongoose = require('mongoose');
 const Goal = require('../models/Goal');
 const User = require('../models/User');
+const AuditLog = require('../models/AuditLog');
 
-// Get all goals for a user with optional filtering
+/**
+ * Get all goals for a user with optional filtering
+ * @route GET /api/goals
+ */
 const getGoals = async (req, res) => {
   try {
     const userId = req.query.userId || req.user._id;
     const {
-      targetType,
-      completed,
-      startDate,
-      endDate,
+      type,
+      category,
+      status,
+      priority,
+      period,
       limit = 50,
-      skip = 0
+      skip = 0,
+      sort = '-createdAt'
     } = req.query;
 
     // Privacy check - only allow access to own goals unless sharing is enabled
     if (userId.toString() !== req.user._id.toString()) {
       const targetUser = await User.findById(userId).select('privacy.guardianSharing');
-      if (!targetUser || !targetUser.privacy.guardianSharing) {
+      if (!targetUser || !targetUser.privacy?.guardianSharing) {
         return res.status(403).json({
           error: 'Goal access denied - user has not enabled guardian sharing'
         });
       }
     }
 
-    const filters = {};
-    if (targetType && ['hours', 'sessions', 'tasks'].includes(targetType)) {
-      filters.targetType = targetType;
-    }
-    if (completed !== undefined) {
-      filters.completed = completed === 'true';
-    }
-    if (startDate && endDate) {
-      filters.startDate = startDate;
-      filters.endDate = endDate;
-    }
+    // Build filter query
+    const filter = { userId };
 
-    const goals = await Goal.findUserGoals(userId, filters)
-      .limit(parseInt(limit))
-      .skip(parseInt(skip));
+    if (type) filter.type = type;
+    if (category) filter.category = category;
+    if (status) filter.status = status;
+    if (priority) filter.priority = priority;
+    if (period) filter.period = period;
+
+    // Fetch goals
+    const goals = await Goal.find(filter)
+      .limit(parseInt(limit, 10))
+      .skip(parseInt(skip, 10))
+      .sort(sort)
+      .lean();
 
     // Calculate summary statistics
     const stats = await Goal.aggregate([
-      { $match: { userId: new mongoose.Types.ObjectId(userId), isActive: true } },
+      { $match: { userId: mongoose.Types.ObjectId(userId) } },
       {
         $group: {
-          _id: null,
-          totalGoals: { $sum: 1 },
-          completedGoals: {
-            $sum: { $cond: [{ $ne: ['$completedAt', null] }, 1, 0] }
-          },
-          totalProgress: { $sum: '$progressValue' },
-          totalTarget: { $sum: '$targetValue' }
+          _id: '$status',
+          count: { $sum: 1 },
+          avgProgress: { $avg: '$completionRate' }
         }
       }
     ]);
 
-    const summary = stats.length > 0 ? stats[0] : {
-      totalGoals: 0,
-      completedGoals: 0,
-      totalProgress: 0,
-      totalTarget: 0
+    const summary = {
+      total: goals.length,
+      active: stats.find(s => s._id === 'active')?.count || 0,
+      completed: stats.find(s => s._id === 'completed')?.count || 0,
+      paused: stats.find(s => s._id === 'paused')?.count || 0,
+      avgProgress: stats.reduce((sum, s) => sum + (s.avgProgress || 0), 0) / (stats.length || 1)
     };
 
     res.json({
+      success: true,
       goals,
       summary,
       pagination: {
-        limit: parseInt(limit),
-        skip: parseInt(skip),
+        limit: parseInt(limit, 10),
+        skip: parseInt(skip, 10),
         total: goals.length
       }
     });
@@ -79,314 +92,325 @@ const getGoals = async (req, res) => {
   }
 };
 
-// Get a specific goal by ID
+/**
+ * Get a specific goal by ID with full details
+ * @route GET /api/goals/:id
+ */
 const getGoalById = async (req, res) => {
   try {
     const { id } = req.params;
-    const goal = await Goal.findById(id);
+    const goal = await Goal.findById(id).lean();
 
-    if (!goal || !goal.isActive) {
+    if (!goal) {
       return res.status(404).json({ error: 'Goal not found' });
     }
 
     // Privacy check
     if (goal.userId.toString() !== req.user._id.toString()) {
       const targetUser = await User.findById(goal.userId).select('privacy.guardianSharing');
-      if (!targetUser || !targetUser.privacy.guardianSharing) {
-        return res.status(403).json({
-          error: 'Goal access denied - user has not enabled guardian sharing'
-        });
+      if (!targetUser || !targetUser.privacy?.guardianSharing) {
+        return res.status(403).json({ error: 'Access denied' });
       }
     }
 
-    res.json({ goal });
+    res.json({ success: true, goal });
   } catch (error) {
-    console.error('Get goal by ID error:', error);
+    console.error('Get goal error:', error);
     if (error.name === 'CastError') {
-      return res.status(400).json({ error: 'Invalid goal ID format' });
+      return res.status(400).json({ error: 'Invalid goal ID' });
     }
     res.status(500).json({ error: 'Failed to fetch goal' });
   }
 };
 
-// Create a new goal
+/**
+ * Create a new goal
+ * @route POST /api/goals
+ */
 const createGoal = async (req, res) => {
   try {
     const {
       title,
       description,
-      targetType,
-      targetValue,
+      type,
+      target,
+      period,
+      category,
+      priority,
+      progressUnit,
       milestones,
-      startDate,
-      endDate,
-      visibility
+      subTasks,
+      dueDate,
+      reminderEnabled,
+      reminderFrequency,
+      autoProgressFromSessions,
+      linkedSubjects,
+      visibility,
+      shareWithGuardians
     } = req.body;
 
-    // Input validation
-    if (!title || !targetType || !targetValue || !startDate || !endDate) {
+    // Validation
+    if (!title || !type || !target || !period || !progressUnit) {
       return res.status(400).json({
-        error: 'Missing required fields: title, targetType, targetValue, startDate, endDate'
+        error: 'Missing required fields: title, type, target, period, progressUnit'
       });
     }
 
-    if (!['hours', 'sessions', 'tasks'].includes(targetType)) {
-      return res.status(400).json({
-        error: 'Invalid targetType. Must be one of: hours, sessions, tasks'
-      });
-    }
-
-    if (targetValue <= 0 || targetValue > 10000) {
-      return res.status(400).json({
-        error: 'Target value must be between 1 and 10000'
-      });
-    }
-
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    if (start >= end) {
-      return res.status(400).json({
-        error: 'End date must be after start date'
-      });
-    }
-
-    // Privacy enforcement - check user's sharing preferences
-    const user = await User.findById(req.user._id).select('privacy.guardianSharing');
-    let finalVisibility = visibility || 'private';
-
-    if (!user.privacy.guardianSharing && (finalVisibility === 'shared' || finalVisibility === 'public')) {
-      finalVisibility = 'private'; // Force private if sharing is disabled
-    }
-
-    const goalData = {
+    // Create goal
+    const goal = new Goal({
       userId: req.user._id,
-      title: title.trim(),
-      description: description ? description.trim() : '',
-      targetType,
-      targetValue: parseInt(targetValue),
-      startDate: start,
-      endDate: end,
-      visibility: finalVisibility
-    };
+      title,
+      description,
+      type,
+      target,
+      period,
+      category: category || 'personal',
+      priority: priority || 'medium',
+      progressUnit,
+      milestones: milestones || [],
+      subTasks: subTasks || [],
+      dueDate,
+      reminderEnabled: reminderEnabled !== false,
+      reminderFrequency: reminderFrequency || 'weekly',
+      autoProgressFromSessions: autoProgressFromSessions !== false,
+      linkedSubjects: linkedSubjects || [],
+      visibility: visibility || 'private',
+      shareWithGuardians: shareWithGuardians !== false
+    });
 
-    // Process milestones if provided
-    if (milestones && Array.isArray(milestones)) {
-      goalData.milestones = milestones
-        .filter(m => m.title && m.dueDate)
-        .map(milestone => ({
-          title: milestone.title.trim(),
-          dueDate: new Date(milestone.dueDate),
-          done: false
-        }))
-        .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
-    }
-
-    const goal = new Goal(goalData);
     await goal.save();
 
-    res.status(201).json({
-      message: 'Goal created successfully',
-      goal,
-      privacyNote: !user.privacy.guardianSharing && visibility !== 'private'
-        ? 'Visibility was set to private due to privacy settings'
-        : null
+    // Audit log
+    await AuditLog.create({
+      userId: req.user._id,
+      action: 'goal.created',
+      resource: 'Goal',
+      resourceId: goal._id,
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent')
     });
+
+    res.status(201).json({ success: true, goal });
   } catch (error) {
     console.error('Create goal error:', error);
-    if (error.name === 'ValidationError') {
-      const messages = Object.values(error.errors).map(err => err.message);
-      return res.status(400).json({ error: messages.join(', ') });
-    }
     res.status(500).json({ error: 'Failed to create goal' });
   }
 };
 
-// Update an existing goal
+/**
+ * Update an existing goal
+ * @route PUT /api/goals/:id
+ */
 const updateGoal = async (req, res) => {
   try {
     const { id } = req.params;
-    const updates = req.body;
-
     const goal = await Goal.findById(id);
-    if (!goal || !goal.isActive) {
+
+    if (!goal) {
       return res.status(404).json({ error: 'Goal not found' });
     }
 
-    // Authorization check
     if (goal.userId.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ error: 'Not authorized to update this goal' });
+      return res.status(403).json({ error: 'Access denied' });
     }
 
-    // Privacy enforcement for visibility updates
-    if (updates.visibility) {
-      const user = await User.findById(req.user._id).select('privacy.guardianSharing');
-      if (!user.privacy.guardianSharing && (updates.visibility === 'shared' || updates.visibility === 'public')) {
-        updates.visibility = 'private';
+    // Update allowed fields
+    const allowedUpdates = [
+      'title',
+      'description',
+      'target',
+      'category',
+      'priority',
+      'status',
+      'milestones',
+      'subTasks',
+      'dueDate',
+      'reminderEnabled',
+      'reminderFrequency',
+      'linkedSubjects',
+      'visibility',
+      'shareWithGuardians'
+    ];
+
+    allowedUpdates.forEach(field => {
+      if (req.body[field] !== undefined) {
+        goal[field] = req.body[field];
       }
-    }
-
-    // Validate date updates
-    if (updates.startDate || updates.endDate) {
-      const startDate = new Date(updates.startDate || goal.startDate);
-      const endDate = new Date(updates.endDate || goal.endDate);
-      if (startDate >= endDate) {
-        return res.status(400).json({ error: 'End date must be after start date' });
-      }
-    }
-
-    // Process milestone updates
-    if (updates.milestones && Array.isArray(updates.milestones)) {
-      updates.milestones = updates.milestones
-        .filter(m => m.title && m.dueDate)
-        .map(milestone => ({
-          _id: milestone._id || new mongoose.Types.ObjectId(),
-          title: milestone.title.trim(),
-          dueDate: new Date(milestone.dueDate),
-          done: Boolean(milestone.done)
-        }))
-        .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
-    }
-
-    const updatedGoal = await Goal.findByIdAndUpdate(
-      id,
-      { $set: updates },
-      { new: true, runValidators: true }
-    );
-
-    res.json({
-      message: 'Goal updated successfully',
-      goal: updatedGoal
     });
+
+    await goal.save();
+
+    // Audit log
+    await AuditLog.create({
+      userId: req.user._id,
+      action: 'goal.updated',
+      resource: 'Goal',
+      resourceId: goal._id,
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent')
+    });
+
+    res.json({ success: true, goal });
   } catch (error) {
     console.error('Update goal error:', error);
-    if (error.name === 'ValidationError') {
-      const messages = Object.values(error.errors).map(err => err.message);
-      return res.status(400).json({ error: messages.join(', ') });
-    }
-    if (error.name === 'CastError') {
-      return res.status(400).json({ error: 'Invalid goal ID format' });
-    }
     res.status(500).json({ error: 'Failed to update goal' });
   }
 };
 
-// Delete a goal (soft delete)
+/**
+ * Delete a goal (soft delete by marking as cancelled)
+ * @route DELETE /api/goals/:id
+ */
 const deleteGoal = async (req, res) => {
   try {
     const { id } = req.params;
-
+    const { permanent } = req.query;
     const goal = await Goal.findById(id);
-    if (!goal || !goal.isActive) {
+
+    if (!goal) {
       return res.status(404).json({ error: 'Goal not found' });
     }
 
-    // Authorization check
     if (goal.userId.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ error: 'Not authorized to delete this goal' });
+      return res.status(403).json({ error: 'Access denied' });
     }
 
-    // Soft delete
-    goal.isActive = false;
-    await goal.save();
+    if (permanent === 'true') {
+      // Hard delete
+      await goal.deleteOne();
+    } else {
+      // Soft delete
+      goal.status = 'cancelled';
+      await goal.save();
+    }
 
-    res.json({ message: 'Goal deleted successfully' });
+    // Audit log
+    await AuditLog.create({
+      userId: req.user._id,
+      action: permanent === 'true' ? 'goal.deleted' : 'goal.cancelled',
+      resource: 'Goal',
+      resourceId: goal._id,
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent')
+    });
+
+    res.json({ success: true, message: 'Goal deleted successfully' });
   } catch (error) {
     console.error('Delete goal error:', error);
-    if (error.name === 'CastError') {
-      return res.status(400).json({ error: 'Invalid goal ID format' });
-    }
     res.status(500).json({ error: 'Failed to delete goal' });
   }
 };
 
-// Update goal progress atomically
-const updateProgress = async (req, res) => {
+/**
+ * Add progress to a goal manually
+ * @route POST /api/goals/:id/progress
+ */
+const addProgress = async (req, res) => {
   try {
     const { id } = req.params;
-    const { amount } = req.body;
+    const { value, notes } = req.body;
 
-    if (!amount || typeof amount !== 'number') {
-      return res.status(400).json({ error: 'Valid amount is required' });
+    if (!value || value <= 0) {
+      return res.status(400).json({ error: 'Valid progress value required' });
     }
 
     const goal = await Goal.findById(id);
-    if (!goal || !goal.isActive) {
+
+    if (!goal) {
       return res.status(404).json({ error: 'Goal not found' });
     }
 
-    // Authorization check
     if (goal.userId.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ error: 'Not authorized to update this goal' });
+      return res.status(403).json({ error: 'Access denied' });
     }
 
-    // Atomic update to prevent race conditions
-    const updatedGoal = await Goal.findOneAndUpdate(
-      { _id: id, isActive: true },
-      {
-        $inc: { progressValue: amount },
-        $set: { updatedAt: new Date() }
-      },
-      {
-        new: true,
-        runValidators: true
-      }
-    );
-
-    if (!updatedGoal) {
-      return res.status(404).json({ error: 'Goal not found or update failed' });
-    }
-
-    // Check for goal completion
-    const wasJustCompleted = !goal.completedAt && updatedGoal.progressValue >= updatedGoal.targetValue;
-
-    res.json({
-      message: wasJustCompleted ? 'Goal completed! Congratulations!' : 'Progress updated successfully',
-      goal: updatedGoal,
-      justCompleted: wasJustCompleted
-    });
-  } catch (error) {
-    console.error('Update progress error:', error);
-    if (error.name === 'CastError') {
-      return res.status(400).json({ error: 'Invalid goal ID format' });
-    }
-    res.status(500).json({ error: 'Failed to update progress' });
-  }
-};
-
-// Toggle milestone completion
-const toggleMilestone = async (req, res) => {
-  try {
-    const { id, milestoneId } = req.params;
-
-    const goal = await Goal.findById(id);
-    if (!goal || !goal.isActive) {
-      return res.status(404).json({ error: 'Goal not found' });
-    }
-
-    // Authorization check
-    if (goal.userId.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ error: 'Not authorized to update this goal' });
-    }
-
-    const milestone = goal.milestones.id(milestoneId);
-    if (!milestone) {
-      return res.status(404).json({ error: 'Milestone not found' });
-    }
-
-    milestone.done = !milestone.done;
+    // Add progress using model method
+    goal.addProgress(value, 'manual', null, notes || '');
     await goal.save();
 
     res.json({
-      message: `Milestone ${milestone.done ? 'completed' : 'reopened'}`,
+      success: true,
       goal,
-      milestone
+      message: 'Progress added successfully'
     });
   } catch (error) {
-    console.error('Toggle milestone error:', error);
-    if (error.name === 'CastError') {
-      return res.status(400).json({ error: 'Invalid ID format' });
+    console.error('Add progress error:', error);
+    res.status(500).json({ error: 'Failed to add progress' });
+  }
+};
+
+/**
+ * Complete a sub-task
+ * @route POST /api/goals/:id/subtasks/:subtaskId/complete
+ */
+const completeSubTask = async (req, res) => {
+  try {
+    const { id, subtaskId } = req.params;
+    const goal = await Goal.findById(id);
+
+    if (!goal) {
+      return res.status(404).json({ error: 'Goal not found' });
     }
-    res.status(500).json({ error: 'Failed to toggle milestone' });
+
+    if (goal.userId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const success = goal.completeSubTask(subtaskId);
+
+    if (!success) {
+      return res.status(404).json({ error: 'Sub-task not found or already completed' });
+    }
+
+    await goal.save();
+
+    res.json({
+      success: true,
+      goal,
+      message: 'Sub-task completed'
+    });
+  } catch (error) {
+    console.error('Complete sub-task error:', error);
+    res.status(500).json({ error: 'Failed to complete sub-task' });
+  }
+};
+
+/**
+ * Get goal statistics for dashboard
+ * @route GET /api/goals/stats
+ */
+const getStats = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { period = 'week' } = req.query;
+
+    // Get active goals
+    const activeGoals = await Goal.find({ userId, status: 'active' });
+
+    // Calculate period-specific stats
+    let daysToLookBack = 7;
+    if (period === 'month') daysToLookBack = 30;
+    if (period === 'year') daysToLookBack = 365;
+
+    const stats = {
+      totalGoals: activeGoals.length,
+      completedGoals: await Goal.countDocuments({ userId, status: 'completed' }),
+      totalProgress: activeGoals.reduce((sum, g) => sum + g.currentProgress, 0),
+      avgCompletionRate: activeGoals.reduce((sum, g) => sum + g.completionRate, 0) / (activeGoals.length || 1),
+      dueSoon: await Goal.getDueSoon(userId, 7),
+      recentProgress: []
+    };
+
+    // Get recent progress across all goals
+    activeGoals.forEach(goal => {
+      const recentProgress = goal.getProgressForPeriod(daysToLookBack);
+      stats.recentProgress.push(...recentProgress);
+    });
+
+    res.json({ success: true, stats });
+  } catch (error) {
+    console.error('Get stats error:', error);
+    res.status(500).json({ error: 'Failed to fetch statistics' });
   }
 };
 
@@ -396,6 +420,7 @@ module.exports = {
   createGoal,
   updateGoal,
   deleteGoal,
-  updateProgress,
-  toggleMilestone
+  addProgress,
+  completeSubTask,
+  getStats
 };

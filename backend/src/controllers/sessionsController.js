@@ -1,6 +1,8 @@
 const SessionLog = require('../models/SessionLog');
 const Preset = require('../models/Preset');
 const { getSuggestion } = require('../services/suggestionService');
+const { updateGoalsFromSession } = require('../services/GoalProgressService');
+const { awardSessionPoints } = require('../services/RewardsService');
 
 // Complete a session and log it
 const completeSession = async (req, res) => {
@@ -38,6 +40,36 @@ const completeSession = async (req, res) => {
 
     await sessionLog.save();
 
+    // Update goal progress automatically from this session
+    try {
+      const updatedGoals = await updateGoalsFromSession({
+        userId: req.user._id,
+        duration: durationSeconds,
+        subject: presetName,
+        _id: sessionLog._id
+      });
+
+      if (updatedGoals.length > 0) {
+        console.log(`✅ Updated ${updatedGoals.length} goals from session completion`);
+      }
+    } catch (goalError) {
+      // Don't fail the session completion if goal update fails
+      console.error('Error updating goals from session:', goalError);
+    }
+
+    // Award points and check for rewards
+    let rewardsResult = null;
+    try {
+      rewardsResult = await awardSessionPoints(req.user._id, {
+        duration: durationSeconds,
+        _id: sessionLog._id
+      });
+
+      console.log(`🏆 Awarded ${rewardsResult.pointsAwarded} points for session completion`);
+    } catch (rewardError) {
+      console.error('Error awarding points:', rewardError);
+    }
+
     // Get count of sessions completed today
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
@@ -50,7 +82,8 @@ const completeSession = async (req, res) => {
     res.status(201).json({
       success: true,
       data: sessionLog,
-      todayCount
+      todayCount,
+      rewards: rewardsResult
     });
   } catch (error) {
     console.error('Error completing session:', error);

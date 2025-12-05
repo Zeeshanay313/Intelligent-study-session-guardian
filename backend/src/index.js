@@ -17,8 +17,10 @@ require('./config/passport');
 
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
+const profileRoutes = require('./routes/profile');
 const deviceRoutes = require('./routes/devices');
 const goalTrackerRoutes = require('./routes/goalTracker');
+const rewardsRoutes = require('./routes/rewards');
 const timerRoutes = require('./modules/timer/timerRoutes');
 const reminderRoutes = require('./modules/reminder/reminderRoutes');
 const calendarRoutes = require('./modules/calendar/calendarRoutes');
@@ -137,8 +139,10 @@ app.use('/api', (req, res, next) => {
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/profile', profileRoutes);
 app.use('/api/devices', deviceRoutes);
 app.use('/api/goals', goalTrackerRoutes);
+app.use('/api/rewards', rewardsRoutes);
 app.use('/api/timers', timerRoutes);
 app.use('/api/reminders', reminderRoutes);
 app.use('/api/reminder', enhancedReminderRoutes);

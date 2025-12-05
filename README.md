@@ -1,593 +1,552 @@
-# Intelligent Study Session Guardian
+# 🎓 Intelligent Study Session Guardian
 
-A modern, full-stack MERN application designed to help students manage their study sessions, track progress, and maintain focused learning habits. Features a completely modernized UI with professional design, dark/light theme support, and comprehensive study management tools.
+> **A modern, full-stack application to supercharge your study sessions with AI-powered insights, smart timers, goal tracking, and gamification!**
 
-## ✨ Recent Updates
-- 🎨 **Completely Modernized UI** - Professional dashboard with heroicons, modern metrics cards, and charts
-- 🌙 **Dark/Light Theme Toggle** - Automatic system detection with manual override
-- 📱 **Responsive Design** - Mobile-first approach with enhanced component library
-- 🎯 **Focus Timer** - Built-in Pomodoro timer with progress indicators and customizable settings
-- 👤 **Enhanced Profile Management** - Complete user profile system with real-time updates
-- 🚀 **Production Ready** - Clean, professional interface suitable for deployment
+[![React](https://img.shields.io/badge/React-18.0-blue.svg)](https://reactjs.org/)
+[![Vite](https://img.shields.io/badge/Vite-5.0-646CFF.svg)](https://vitejs.dev/)
+[![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-7.0-green.svg)](https://mongodb.com/)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+---
+
+## ✨ Features Overview
+
+### 🎯 **Smart Focus Timer**
+- **Pomodoro Technique** - Scientifically proven time management
+- **Custom Presets** - Save your favorite timer configurations
+  - 8 color themes and 10 icon options
+  - Work/break/long break durations
+  - Cycles before long break
+  - localStorage backup
+- **Session End Modal** - Celebrate completions with:
+  - Audio notifications
+  - AI-powered break suggestions
+  - Streak tracking
+  - Session statistics
+- **Keyboard Shortcuts** - Space to start/pause, Esc to stop
+
+### 📊 **Advanced Goal Tracking**
+- **SMART Goals** - Set specific, measurable, achievable targets
+- **Quick Progress Updates** - +1, +5, or custom increment buttons
+- **Milestone Tracking** - Break goals into smaller achievements
+  - Expandable/collapsible sections
+  - Completion checkmarks
+  - Target progress indicators
+- **Due Date Warnings** - Visual alerts for approaching deadlines
+  - Orange highlight for <7 days
+  - Red overdue badges
+  - Days remaining countdown
+- **Progress History** - Track your journey over time
+- **Privacy Controls** - Manage goal visibility
+
+### 🏆 **Gamification & Rewards**
+- **Level System** - Earn XP and level up
+- **Badges & Achievements** - 50+ unique badges to collect
+- **Rewards Widget** - Compact dashboard display
+  - Current level and points
+  - Progress to next level
+  - Last 5 badges earned
+  - Next badge preview
+- **Leaderboards** - Compare with peers (optional)
+
+### 🔔 **Smart Notifications**
+- **5 Notification Types**:
+  - ✅ Success (green)
+  - ❌ Error (red)
+  - ⚠️ Warning (yellow)
+  - ℹ️ Info (blue)
+  - 🔔 Reminder (purple)
+- **Auto-Dismiss** - Configurable timeout
+- **Dismiss All** - Clear multiple notifications
+- **Smooth Animations** - Slide-in effects
+- **Action Buttons** - Interactive notifications
+
+### 🔐 **Authentication**
+- **Email/Password** - Traditional authentication
+- **Google OAuth** - One-click sign-in
+- **Password Recovery** - Secure reset flow
+- **JWT Tokens** - Secure session management
+- **Remember Me** - Persistent sessions
+
+### 📈 **Analytics & Reports**
+- **Study Time Tracking** - Detailed session logs
+- **Productivity Charts** - Visual progress over time
+- **Goal Completion Rates** - Success metrics
+- **Focus Patterns** - Best study times
+- **Weekly/Monthly Reports** - Comprehensive insights
+
+### 🎨 **Modern UI/UX**
+- **Dark/Light Theme** - Automatic system detection + manual toggle
+- **Fully Responsive** - Mobile, tablet, desktop optimized
+- **Smooth Animations** - 60fps transitions
+- **Accessible** - ARIA labels, keyboard navigation
+- **Professional Design** - Modern, clean interface
+
+---
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js 18+ and npm
-- MongoDB 7.0+
-- Git
-
-### One-Line Setup
 ```bash
-# Clone, install dependencies, setup environment, and start development servers
-git clone <repo-url> study-guardian && cd study-guardian && cp backend/.env.example backend/.env && cp frontend/.env.example frontend/.env && cd backend && npm install && cd ../frontend && npm install && cd ../backend && npm run seed && npm run dev & cd ../frontend && npm start
+Node.js 18+
+npm or yarn
+MongoDB 7.0+
+Git
 ```
 
-### Manual Setup
+### Installation
 
-#### Backend Setup
+1. **Clone the Repository**
+```bash
+git clone https://github.com/yourusername/intelligent-study-session-guardian.git
+cd intelligent-study-session-guardian
+```
+
+2. **Setup Backend**
 ```bash
 cd backend
 npm install
 cp .env.example .env
-# Edit .env with your configuration
-npm run seed  # Create admin and test users
-npm run dev   # Start development server on port 5000
+# Edit .env with your MongoDB URI and secrets
+npm run seed  # Create demo data
+npm start     # Start on http://localhost:5004
 ```
 
-#### Frontend Setup
+3. **Setup Frontend (Vite)**
 ```bash
-cd frontend
+cd frontend-vite
 npm install
 cp .env.example .env
-# Edit .env if needed
-npm start     # Start development server on port 3000
+# Edit .env if needed (VITE_API_URL)
+npm run dev   # Start on http://localhost:3000
 ```
 
-#### Docker Setup
-```bash
-cd backend
-docker-compose -f docker-compose.dev.yml up -d
+4. **Open Browser**
+```
+http://localhost:3000
 ```
 
-## 📋 Features Implemented
-
-### 🔐 Authentication & Security
-- JWT + Refresh tokens in HttpOnly cookies
-- bcrypt password hashing (12 rounds)
-- Rate limiting (auth: 5/15min, API: 100/15min)
-- Helmet.js security headers
-- Input validation with express-validator
-- CSRF protection via SameSite cookies
-- Secure session management
-
-### 👤 Profile Management
-- Editable display name, timezone, preferences
-- Theme selector (light/dark/system)
-- Font size control (small/medium/large)
-- Avatar upload with 2MB limit
-- Profile data validation
-
-### 🛡️ Privacy Controls
-- **Camera consent toggle** (OFF by default)
-- **Guardian sharing opt-in** (OFF by default)
-- Selective field sharing controls
-- Notification preferences (in-app, email)
-- Privacy-first design principles
-
-### 📱 Device Management
-- Device registration with fingerprinting
-- Access control per device
-- Permission management (camera, mic, notifications)
-- Trust scoring system
-- Suspicious activity detection
-
-### 📊 Audit & Compliance
-- Complete audit trail for privacy actions
-- Data export (JSON format)
-- Soft delete with 30-day retention
-- GDPR-compliant data handling
-- Privacy impact scoring
-
-### 🎯 Goal Tracker
-- **Weekly/monthly goals** with hours, sessions, and task targets
-- **Progress tracking** with visual progress bars and percentage completion
-- **Milestones and sub-tasks** with due dates and completion status
-- **History and achievement notifications** for completed goals and milestones
-- **Alerts and catch-up suggestions** when goals fall behind schedule
-- **Privacy-aware sharing** with optional guardian/teacher visibility (respects user privacy settings)
-- **Goal filtering and sorting** by type, completion status, and due dates
-- **Atomic progress updates** with race condition protection
-- **Real-time progress visualization** with color-coded indicators
-
-### 🔄 Data Management
-- User data export functionality
-- Account deletion workflow
-- Restore deleted accounts (within retention period)
-- Guardian invitation system
-
-## 🏗️ Architecture
-
-### Backend (Node.js + Express)
+### Demo Credentials
 ```
-backend/
-├── src/
-│   ├── models/          # Mongoose schemas
-│   ├── routes/          # Express routes
-│   ├── middleware/      # Auth, validation, rate limiting
-│   ├── services/        # Business logic
-│   └── config/          # Database, auth configuration
-├── tests/               # Jest + Supertest tests
-└── scripts/             # Seed data, cleanup
+Email: demo@example.com
+Password: demo123
 ```
-
-### Frontend (React)
-```
-frontend/
-├── src/
-│   ├── components/      # Reusable UI components
-│   ├── pages/           # Route components
-│   ├── hooks/           # Custom React hooks
-│   ├── services/        # API layer
-│   ├── contexts/        # React Context providers
-│   └── styles/          # Global CSS + Tailwind
-└── tests/               # React Testing Library tests
-```
-
-## 🔒 Security Features
-
-### Backend Security Checklist
-- ✅ Secure JWT implementation with rotation
-- ✅ Password hashing with bcrypt (12 rounds)
-- ✅ Rate limiting on sensitive endpoints
-- ✅ Input validation and sanitization
-- ✅ CORS configuration
-- ✅ Helmet.js security headers
-- ✅ MongoDB injection prevention
-- ✅ File upload restrictions
-- ✅ Audit logging for privacy actions
-- ✅ Environment variable protection
-
-### Privacy Implementation
-- ✅ Camera access OFF by default
-- ✅ Explicit consent for guardian sharing
-- ✅ Granular sharing controls
-- ✅ Data minimization principles
-- ✅ Right to be forgotten (soft delete)
-- ✅ Data portability (export)
-- ✅ Consent withdrawal mechanisms
-- ✅ Privacy impact assessments
-
-## 📡 API Endpoints
-
-### Authentication
-```bash
-POST /api/auth/register     # User registration
-POST /api/auth/login        # User login
-POST /api/auth/logout       # User logout
-POST /api/auth/refresh      # Token refresh
-GET  /api/auth/me          # Get current user
-PATCH /api/auth/change-password # Change password
-```
-
-### User Profile & Privacy
-```bash
-GET   /api/users/me                    # Get profile
-PATCH /api/users/me/profile           # Update profile
-PATCH /api/users/me/privacy           # Update privacy settings
-POST  /api/users/me/avatar            # Upload avatar
-POST  /api/users/me/export            # Export user data
-DELETE /api/users/me                  # Delete account
-POST  /api/users/me/guardian-invite   # Invite guardian
-GET   /api/users/:id/audit-logs       # Get audit logs
-```
-
-### Device Management
-```bash
-POST   /api/devices/register          # Register device
-GET    /api/devices/my-devices        # Get user devices
-PATCH  /api/devices/:id/access        # Update device access
-POST   /api/devices/:id/revoke        # Revoke device access
-DELETE /api/devices/:id               # Remove device
-```
-
-### Goal Tracker
-```bash
-GET    /api/goals                     # Get all goals (with filtering)
-GET    /api/goals/:id                 # Get specific goal by ID
-POST   /api/goals                     # Create new goal
-PUT    /api/goals/:id                 # Update existing goal
-DELETE /api/goals/:id                 # Delete goal (soft delete)
-POST   /api/goals/:id/progress        # Update goal progress atomically
-POST   /api/goals/:id/milestones/:milestoneId/toggle # Toggle milestone completion
-```
-
-#### Goal API Query Parameters
-```bash
-GET /api/goals?targetType=hours&completed=false&limit=10&skip=0
-GET /api/goals?userId=<userId>  # Access other user's goals (requires permission)
-```
-
-## 🧪 Sample API Calls
-
-### Register User
-```bash
-curl -X POST http://localhost:5000/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "user@example.com",
-    "password": "SecurePass123!",
-    "displayName": "John Doe"
-  }'
-```
-
-### Login
-```bash
-curl -X POST http://localhost:5000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -c cookies.txt \
-  -d '{
-    "email": "user@example.com",
-    "password": "SecurePass123!"
-  }'
-```
-
-### Update Privacy Settings
-```bash
-curl -X PATCH http://localhost:5000/api/users/me/privacy \
-  -H "Content-Type: application/json" \
-  -b cookies.txt \
-  -d '{
-    "cameraConsent": true,
-    "guardianSharing": false,
-    "shareFields": ["progress"],
-    "notifications": {
-      "email": true,
-      "inApp": true
-    }
-  }'
-```
-
-### Export User Data
-```bash
-curl -X POST http://localhost:5000/api/users/me/export \
-  -b cookies.txt \
-  -o user-data-export.json
-```
-
-### Device Registration
-```bash
-curl -X POST http://localhost:5000/api/devices/register \
-  -H "Content-Type: application/json" \
-  -b cookies.txt \
-  -d '{
-    "deviceId": "device_12345",
-    "deviceInfo": {
-      "name": "Chrome on Windows",
-      "type": "desktop",
-      "os": "Windows",
-      "browser": "Chrome"
-    }
-  }'
-```
-
-### Goal Tracker Examples
-
-#### Create Goal with Milestones
-```bash
-curl -X POST http://localhost:5000/api/goals \
-  -H "Content-Type: application/json" \
-  -b cookies.txt \
-  -d '{
-    "title": "Learn Advanced React",
-    "description": "Master advanced React concepts including hooks, context, and performance optimization",
-    "targetType": "hours",
-    "targetValue": 100,
-    "startDate": "2024-01-01",
-    "endDate": "2024-06-30",
-    "visibility": "shared",
-    "milestones": [
-      {
-        "title": "Complete Hooks Tutorial",
-        "dueDate": "2024-02-15"
-      },
-      {
-        "title": "Build Context API Project",
-        "dueDate": "2024-04-15"
-      }
-    ]
-  }'
-```
-
-#### Update Goal Progress
-```bash
-curl -X POST http://localhost:5000/api/goals/:goalId/progress \
-  -H "Content-Type: application/json" \
-  -b cookies.txt \
-  -d '{"amount": 5}'
-```
-
-#### Get Goals with Filtering
-```bash
-# Get all hours-based goals
-curl -X GET "http://localhost:5000/api/goals?targetType=hours" \
-  -b cookies.txt
-
-# Get completed goals only
-curl -X GET "http://localhost:5000/api/goals?completed=true" \
-  -b cookies.txt
-
-# Get goals with pagination
-curl -X GET "http://localhost:5000/api/goals?limit=10&skip=0" \
-  -b cookies.txt
-```
-
-#### Toggle Milestone Completion
-```bash
-curl -X POST http://localhost:5000/api/goals/:goalId/milestones/:milestoneId/toggle \
-  -b cookies.txt
-```
-
-## 🗄️ Database Schema
-
-### User Collection
-```javascript
-{
-  email: String (unique, required),
-  password: String (hashed),
-  profile: {
-    displayName: String,
-    avatar: String,
-    timezone: String,
-    preferences: {
-      theme: "light" | "dark" | "system",
-      fontSize: "small" | "medium" | "large",
-      language: String
-    }
-  },
-  privacy: {
-    cameraConsent: Boolean (default: false),
-    guardianSharing: Boolean (default: false),
-    shareFields: [String],
-    notifications: {
-      inApp: Boolean,
-      email: Boolean,
-      studyReminders: Boolean,
-      guardianUpdates: Boolean
-    }
-  },
-  deleted: Boolean (default: false),
-  deletedAt: Date,
-  createdAt: Date,
-  updatedAt: Date
-}
-```
-
-### AuditLog Collection
-```javascript
-{
-  userId: ObjectId,
-  action: String, // PRIVACY_UPDATED, CAMERA_CONSENT_CHANGED, etc.
-  details: Object,
-  metadata: {
-    ipAddress: String,
-    userAgent: String,
-    deviceId: String
-  },
-  privacyImpact: "none" | "low" | "medium" | "high",
-  dataCategories: [String],
-  timestamp: Date
-}
-```
-
-### DeviceAccess Collection
-```javascript
-{
-  userId: ObjectId,
-  deviceId: String,
-  deviceInfo: {
-    name: String,
-    type: "desktop" | "mobile" | "tablet",
-    os: String,
-    browser: String
-  },
-  accessEnabled: Boolean,
-  permissions: {
-    camera: Boolean,
-    microphone: Boolean,
-    notifications: Boolean,
-    location: Boolean
-  },
-  trustScore: Number (0-100),
-  lastSeen: Date,
-  createdAt: Date
-}
-```
-
-### Goal Collection
-```javascript
-{
-  userId: ObjectId (ref: User, required),
-  title: String (required, max: 200),
-  description: String (max: 1000),
-  targetType: "hours" | "sessions" | "tasks" (required),
-  targetValue: Number (required, min: 1, max: 10000),
-  progressValue: Number (default: 0, min: 0),
-  milestones: [{
-    title: String (required, max: 200),
-    done: Boolean (default: false),
-    dueDate: Date (required)
-  }],
-  startDate: Date (required),
-  endDate: Date (required, must be after startDate),
-  visibility: "private" | "shared" | "public" (default: "private"),
-  isActive: Boolean (default: true),
-  completedAt: Date (null if not completed),
-  createdAt: Date,
-  updatedAt: Date,
-  
-  // Virtual fields
-  progressPercentage: Number (calculated),
-  isCompleted: Boolean (calculated),
-  daysRemaining: Number (calculated),
-  milestoneProgress: Number (calculated)
-}
-```
-
-## 🧪 Testing
-
-### Backend Tests
-```bash
-cd backend
-npm test              # Run all tests
-npm run test:coverage # Run with coverage report
-npm run test:goals    # Run Goal Tracker tests specifically
-```
-
-### Frontend Tests
-```bash
-cd frontend
-npm test              # Run React tests
-npm run test:coverage # Run with coverage
-npm test -- --testPathPattern=GoalTracker  # Run Goal Tracker tests
-```
-
-### Goal Tracker Test Coverage
-- **Backend**: CRUD operations, privacy enforcement, atomic updates, milestone management
-- **Frontend**: Component rendering, user interactions, API integration, error handling
-- **Integration**: End-to-end goal creation, progress tracking, milestone completion workflows
-
-### Test Accounts
-After running `npm run seed`:
-- **Admin**: admin@studyguardian.com / AdminPass123!
-- **Test User**: testuser@example.com / TestPass123! (with sample goals)
-- **Student**: student@example.com / StudentPass123!
-
-### Goal Tracker Seeding
-```bash
-cd backend
-npm run seed:goals    # Seed sample goals for testing
-node src/seeds/seedGoals.js  # Direct seeding script
-```
-
-### Sample Goals Created
-- **Mathematics Course** (120 hours target, 4 milestones)
-- **Daily Study Sessions** (100 sessions target, monthly milestones)  
-- **Research Paper Tasks** (25 tasks target, 6 research milestones)
-- **Language Learning** (50 hours target, vocabulary & grammar milestones)
-- **Programming Challenges** (52 tasks target, quarterly milestones)
-- **Physical Fitness** (150 sessions target, strength & endurance phases)
-
-## 🚀 Deployment
-
-### Production Environment Variables
-```bash
-NODE_ENV=production
-JWT_SECRET=<strong-secret-key>
-JWT_REFRESH_SECRET=<another-strong-secret>
-MONGODB_URI=<production-mongodb-uri>
-CLIENT_URL=<production-frontend-url>
-```
-
-### Docker Production
-```bash
-docker build -t study-guardian-backend .
-docker run -p 5000:5000 --env-file .env study-guardian-backend
-```
-
-## 📈 Monitoring & Maintenance
-
-### Cleanup Tasks
-```bash
-npm run cleanup  # Remove expired users, devices, logs
-```
-
-### Health Check
-```bash
-curl http://localhost:5000/health
-```
-
-## 🧰 Development Tools
-
-### Postman Collection
-Import the Goal Tracker API collection for testing:
-```bash
-# Located at: tools/postman/GoalTracker.postman_collection.json
-# Features:
-# - Complete API endpoint coverage
-# - Example requests with sample data
-# - Automatic token management
-# - Response validation tests
-# - Workflow examples for common use cases
-```
-
-### Frontend Routes
-```bash
-/goals              # Goal list and management
-/goals/new          # Create new goal
-/goals/:id          # Goal detail view
-/goals/:id/edit     # Edit existing goal
-/profile            # User profile with privacy settings
-```
-
-### Goal Tracker Components
-```bash
-frontend/src/modules/GoalTracker/
-├── components/
-│   ├── GoalList.jsx     # Goal overview with filtering and quick actions
-│   ├── GoalForm.jsx     # Create/edit goal form with milestone management
-│   └── GoalDetail.jsx   # Detailed goal view with progress controls
-├── api/
-│   └── goalApi.js       # API client for goal operations
-├── goalTrackerContext.js # React Context for state management
-└── tests/               # Comprehensive component tests
-```
-
-## 🤝 Development
-
-### Code Style
-- ESLint configuration included
-- Prettier for code formatting
-- Conventional commits recommended
-
-### Contributing
-1. Fork the repository
-2. Create feature branch
-3. Write tests for new features
-4. Ensure all tests pass
-5. Submit pull request
-
-## 📄 License
-
-This project is licensed under the MIT License.
-
-## 🆘 Troubleshooting
-
-### Common Issues
-
-1. **MongoDB Connection Failed**
-   ```bash
-   # Check MongoDB is running
-   mongosh --eval "db.adminCommand('ping')"
-   ```
-
-2. **JWT Token Issues**
-   ```bash
-   # Clear cookies and re-login
-   curl -X POST http://localhost:5000/api/auth/logout -b cookies.txt
-   ```
-
-3. **CORS Errors**
-   - Ensure CLIENT_URL in backend .env matches frontend URL
-   - Check withCredentials is set to true in API calls
-
-4. **File Upload Issues**
-   - Check MAX_FILE_SIZE environment variable
-   - Ensure uploads directory exists and is writable
-
-### Support
-For issues and questions, please create an issue in the repository.
 
 ---
 
-**Security Note**: This implementation follows security best practices for a student project. For production use, consider additional security measures like Web Application Firewall, DDoS protection, and professional security audit.
+## 📦 Tech Stack
+
+### Frontend
+- **React 18** - UI library
+- **Vite 5** - Build tool & dev server
+- **React Router 6** - Client-side routing
+- **Tailwind CSS 3.4** - Utility-first styling
+- **Lucide React** - Icon library
+- **Axios** - HTTP client
+- **Context API** - State management
+
+### Backend
+- **Node.js 18+** - Runtime
+- **Express 4** - Web framework
+- **MongoDB 7** - Database
+- **Mongoose** - ODM
+- **JWT** - Authentication
+- **Passport** - OAuth strategies
+- **Bcrypt** - Password hashing
+- **Joi** - Validation
+
+### DevOps
+- **Docker** - Containerization
+- **Docker Compose** - Multi-container orchestration
+- **GitHub Actions** - CI/CD (optional)
+
+---
+
+## 📁 Project Structure
+
+```
+intelligent-study-session-guardian/
+├── backend/                    # Node.js/Express API
+│   ├── src/
+│   │   ├── controllers/       # Request handlers
+│   │   ├── models/           # MongoDB schemas
+│   │   ├── routes/           # API endpoints
+│   │   ├── services/         # Business logic
+│   │   ├── middleware/       # Auth, validation, etc.
+│   │   └── config/           # Configuration files
+│   ├── tests/                # Backend tests
+│   ├── package.json
+│   └── .env.example
+├── frontend-vite/             # React/Vite frontend ⭐ NEW
+│   ├── src/
+│   │   ├── components/       # Reusable components
+│   │   │   ├── Timer/       # PresetManager, SessionEndModal
+│   │   │   ├── Shared/      # NotificationToast
+│   │   │   ├── Dashboard/   # RewardsWidget
+│   │   │   ├── UI/          # Button, Modal, Input
+│   │   │   └── Layout/      # AppLayout, Navbar
+│   │   ├── contexts/        # Global state
+│   │   │   ├── AuthContext.jsx
+│   │   │   ├── ThemeContext.jsx
+│   │   │   ├── NotificationContext.jsx  ⭐ NEW
+│   │   │   └── GoalTrackerContext.jsx   ⭐ NEW
+│   │   ├── pages/           # Route components
+│   │   │   ├── Landing/
+│   │   │   ├── Auth/
+│   │   │   ├── Dashboard/
+│   │   │   ├── Focus/       ⭐ Enhanced
+│   │   │   ├── Goals/       ⭐ Enhanced
+│   │   │   ├── Rewards/
+│   │   │   ├── Reports/
+│   │   │   └── Settings/
+│   │   ├── services/        # API clients
+│   │   │   ├── api.js
+│   │   │   ├── mockApi.js
+│   │   │   └── socialAuthService.js  ⭐ NEW
+│   │   └── styles/          # Global styles
+│   ├── public/              # Static assets
+│   ├── package.json
+│   └── vite.config.js
+├── docker-compose.yml         # Docker setup
+├── MIGRATION_COMPLETE.md      # Migration docs ⭐ NEW
+├── TESTING_CHECKLIST.md       # Testing guide ⭐ NEW
+├── QUICK_TEST_GUIDE.md        # Quick start ⭐ NEW
+└── README.md                  # This file
+```
+
+---
+
+## 🎮 Usage Guide
+
+### 1. **Getting Started**
+1. Register account or use demo credentials
+2. Complete onboarding tutorial
+3. Set your first learning goal
+
+### 2. **Focus Timer**
+1. Go to **Focus** page
+2. Click **Layers icon** to manage presets
+3. Create preset with your preferences
+4. Apply preset and start session
+5. Complete session → celebrate with modal!
+6. Accept break suggestion
+
+### 3. **Goal Management**
+1. Go to **Goals** page
+2. Click **"New Goal"**
+3. Fill in:
+   - Title (e.g., "Complete React Course")
+   - Target value (e.g., 100 hours)
+   - Deadline
+   - Category
+4. Use quick progress buttons: +1, +5, custom
+5. Track milestones
+6. Complete goal → earn rewards!
+
+### 4. **Earning Rewards**
+- Complete focus sessions
+- Achieve goals
+- Maintain study streaks
+- Complete challenges
+- Check **Rewards Widget** on dashboard
+
+### 5. **Viewing Analytics**
+1. Go to **Reports** page
+2. View charts:
+   - Study time trends
+   - Goal completion rates
+   - Focus patterns
+3. Export reports (CSV, PDF)
+
+---
+
+## 🆕 What's New (Latest Migration)
+
+### ✅ **Completed Features**
+
+#### **PresetManager Component** 🎯
+- Full CRUD for timer presets
+- 8 color themes + 10 icon options
+- Work/break/long break durations
+- localStorage backup
+- Modal-based UI
+
+#### **SessionEndModal Component** 🎉
+- Session completion celebration
+- Web Audio API sound playback
+- AI-powered break suggestions
+- Streak tracking with flame emoji 🔥
+- Session statistics display
+
+#### **NotificationToast System** 🔔
+- Global notification context
+- 5 notification types with distinct styling
+- Auto-dismiss with configurable duration
+- Dismiss all button
+- Smooth slide-in animations
+
+#### **GoalTrackerContext** 🎯
+- Comprehensive state management
+- Progress tracking with history
+- Milestone CRUD operations
+- Privacy settings
+- Statistics calculator
+
+#### **Enhanced Goals Page** 📊
+- Quick progress buttons (+1, +5, custom)
+- Expandable milestone sections
+- Due date warnings (<7 days orange, overdue red)
+- Progress bar animations
+- Notification integration
+
+#### **Enhanced Focus Page** ⏱️
+- Preset integration with quick grid
+- SessionEndModal integration
+- Break suggestions
+- Session data tracking
+- Notification toasts
+
+#### **RewardsWidget Component** 🏆
+- Compact dashboard widget
+- Level & points display
+- Progress bar to next level
+- Last 5 badges showcase
+- Next badge preview
+- Click-through to full page
+
+#### **Global Providers** 🌐
+- NotificationProvider wraps entire app
+- GoalTrackerProvider for goal state
+- NotificationToast at root level
+- Proper provider nesting
+
+#### **Google OAuth** 🔐
+- Complete OAuth flow
+- Error handling (4 error types)
+- URL parameter processing
+- Form security
+- Email pre-filling
+
+---
+
+## 📸 Screenshots
+
+### Focus Timer with Presets
+![Focus Timer](https://via.placeholder.com/800x450?text=Focus+Timer+with+Presets)
+
+### Goal Tracking Dashboard
+![Goals Dashboard](https://via.placeholder.com/800x450?text=Goal+Tracking+Dashboard)
+
+### Session End Celebration
+![Session End](https://via.placeholder.com/800x450?text=Session+Complete+Modal)
+
+### Rewards & Gamification
+![Rewards](https://via.placeholder.com/800x450?text=Rewards+%26+Badges)
+
+### Dark Mode
+![Dark Mode](https://via.placeholder.com/800x450?text=Beautiful+Dark+Mode)
+
+---
+
+## 🧪 Testing
+
+### Run Tests
+```bash
+# Backend tests
+cd backend
+npm test
+
+# Frontend tests (coming soon)
+cd frontend-vite
+npm test
+```
+
+### Manual Testing
+Follow the comprehensive testing checklist:
+```bash
+# See detailed testing guide
+cat TESTING_CHECKLIST.md
+
+# Quick test guide
+cat QUICK_TEST_GUIDE.md
+```
+
+---
+
+## 🚢 Deployment
+
+### Frontend (Vite Build)
+```bash
+cd frontend-vite
+npm run build
+# Deploy 'dist' folder to:
+# - Vercel
+# - Netlify
+# - GitHub Pages
+# - Your own server
+```
+
+### Backend (Node.js)
+```bash
+cd backend
+npm start
+# Deploy to:
+# - Heroku
+# - Railway
+# - Render
+# - AWS EC2
+# - Digital Ocean
+```
+
+### Docker Deployment
+```bash
+docker-compose up -d
+```
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! Please follow these steps:
+
+1. **Fork the repository**
+2. **Create feature branch** (`git checkout -b feature/AmazingFeature`)
+3. **Commit changes** (`git commit -m 'Add AmazingFeature'`)
+4. **Push to branch** (`git push origin feature/AmazingFeature`)
+5. **Open Pull Request**
+
+### Development Guidelines
+- Follow existing code style
+- Write meaningful commit messages
+- Add tests for new features
+- Update documentation
+- Ensure dark mode support
+- Test on mobile devices
+
+---
+
+## 📝 API Documentation
+
+### Authentication
+```
+POST   /api/auth/register          Register new user
+POST   /api/auth/login             Login user
+POST   /api/auth/refresh           Refresh JWT token
+GET    /api/auth/google/signin     Google OAuth sign-in
+GET    /api/auth/google/signup     Google OAuth sign-up
+```
+
+### Sessions
+```
+GET    /api/sessions               List user sessions
+POST   /api/sessions/start         Start new session
+PUT    /api/sessions/:id/end       End session
+GET    /api/sessions/stats         Session statistics
+```
+
+### Goals
+```
+GET    /api/goals                  List goals
+POST   /api/goals                  Create goal
+GET    /api/goals/:id              Get goal details
+PUT    /api/goals/:id              Update goal
+DELETE /api/goals/:id              Delete goal
+```
+
+### Presets
+```
+GET    /api/presets                List presets
+POST   /api/presets                Create preset
+GET    /api/presets/:id            Get preset
+PUT    /api/presets/:id            Update preset
+DELETE /api/presets/:id            Delete preset
+```
+
+### Rewards
+```
+GET    /api/rewards                Get user rewards
+GET    /api/rewards/badges         List badges
+POST   /api/rewards/claim          Claim reward
+```
+
+---
+
+## 🐛 Known Issues
+
+- [ ] Session end audio might be loud (add volume control)
+- [ ] Mobile landscape mode needs optimization
+- [ ] Safari browser compatibility (minor CSS issues)
+
+---
+
+## 🗺️ Roadmap
+
+### Q1 2025
+- [ ] Add milestone creation UI to Goals form
+- [ ] Implement social features (study groups)
+- [ ] Add Spotify integration for study music
+- [ ] Calendar view for scheduled sessions
+- [ ] Export data to CSV/PDF
+
+### Q2 2025
+- [ ] Mobile app (React Native)
+- [ ] Chrome extension for quick timers
+- [ ] AI study recommendations
+- [ ] Integration with Google Calendar
+- [ ] Pomodoro statistics dashboard
+
+### Q3 2025
+- [ ] Study room video chat
+- [ ] Collaborative goal tracking
+- [ ] Custom badge creation
+- [ ] Advanced analytics with ML
+- [ ] API for third-party integrations
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 👥 Authors
+
+- **Your Name** - *Initial work* - [YourGitHub](https://github.com/yourusername)
+
+---
+
+## 🙏 Acknowledgments
+
+- Pomodoro Technique® by Francesco Cirillo
+- React team for amazing framework
+- Vite team for blazing fast tooling
+- Tailwind CSS for utility-first styling
+- MongoDB team for flexible database
+- Open source community
+
+---
+
+## 📞 Support
+
+- **Documentation**: [Full Docs](docs/)
+- **Issues**: [GitHub Issues](https://github.com/yourusername/repo/issues)
+- **Email**: support@studyguardian.com
+- **Discord**: [Join Community](https://discord.gg/studyguardian)
+
+---
+
+## ⭐ Star History
+
+If you find this project helpful, please consider giving it a star! ⭐
+
+---
+
+<div align="center">
+
+**Made with ❤️ and ☕ by developers who love learning**
+
+[Website](https://studyguardian.com) • [Demo](https://demo.studyguardian.com) • [Docs](https://docs.studyguardian.com)
+
+</div>

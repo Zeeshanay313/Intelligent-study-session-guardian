@@ -6,6 +6,7 @@ const User = require('../models/User');
 const GoogleCalendarService = require('../modules/calendar/GoogleCalendarService');
 const EmailService = require('./EmailService');
 const PushNotificationService = require('./PushNotificationService');
+const { updateGoalsFromSession } = require('./GoalProgressService');
 
 class StudySessionOrchestrator {
   constructor(io) {
@@ -270,9 +271,30 @@ class StudySessionOrchestrator {
         status: 'completed',
         endTime: new Date(),
         totalWorkTime: sessionData.config.workDuration || 25
-      });
+      }, { new: true });
 
-      // Update final goal progress if needed
+      // Automatically update goal progress from this session
+      try {
+        const updatedGoals = await updateGoalsFromSession({
+          userId,
+          duration: (sessionData.config.workDuration || 25) * 60, // Convert minutes to seconds
+          subject: sessionData.config.subject || 'Study Session',
+          _id: sessionId
+        });
+
+        if (updatedGoals.length > 0) {
+          console.log(`✅ Auto-updated ${updatedGoals.length} goals from session completion`);
+          // Notify user about goal progress
+          this.io.to(`user_${userId}`).emit('goals_updated', {
+            count: updatedGoals.length,
+            goals: updatedGoals.map(g => ({ id: g._id, title: g.title, progress: g.progressPercentage }))
+          });
+        }
+      } catch (goalError) {
+        console.error('Error auto-updating goals from session:', goalError);
+      }
+
+      // Update final goal progress if needed (for explicitly linked goals)
       if (sessionData.config.linkedGoalId) {
         const finalGoalUpdate = await this.finalizeGoalProgress(userId, sessionData.config.linkedGoalId);
         if (finalGoalUpdate?.isCompleted) {

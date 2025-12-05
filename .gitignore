@@ -5,8 +5,11 @@ yarn-debug.log*
 yarn-error.log*
 
 # Production builds
-/frontend/build/
+/frontend-vite/dist/
 /backend/dist/
+
+# Old frontend (if exists)
+/frontend/
 
 # Environment variables
 .env
