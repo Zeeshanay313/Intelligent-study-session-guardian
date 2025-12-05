@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect, useContext } from 'react'
-import { api } from '../services/api'
+import api from '../services/api'
 
 const AuthContext = createContext()
 
@@ -18,25 +18,21 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     // Check if user is logged in on mount
+    // Since we use HTTP-only cookies, we don't check localStorage
+    // Just try to fetch profile - cookies will be sent automatically
     const checkAuth = async () => {
-      const token = localStorage.getItem('authToken')
-      
-      if (token) {
-        try {
-          const response = await api.profile.get()
-          if (response.success) {
-            setUser(response.data)
-            setIsAuthenticated(true)
-          } else {
-            // Invalid token
-            localStorage.removeItem('authToken')
-            localStorage.removeItem('refreshToken')
-          }
-        } catch (error) {
-          console.error('Auth check failed:', error)
-          localStorage.removeItem('authToken')
-          localStorage.removeItem('refreshToken')
+      try {
+        const response = await api.profile.get()
+        if (response && response.success && response.data) {
+          // Profile returns: { success: true, data: { user, profile, settings, ... } }
+          setUser(response.data.user)
+          setIsAuthenticated(true)
+        } else {
+          setIsAuthenticated(false)
         }
+      } catch (error) {
+        // User not logged in - this is normal
+        setIsAuthenticated(false)
       }
       
       setLoading(false)
@@ -49,25 +45,21 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await api.auth.login(email, password)
       
-      if (response.success) {
-        const { user: userData, token } = response.data
-        
-        // Store tokens
-        localStorage.setItem('authToken', token)
-        
-        // Set user state
-        setUser(userData)
+      // Backend returns { message: '...', user: {...} } and sets HTTP-only cookies
+      // No need to store tokens - they're in cookies
+      if (response && response.user) {
+        setUser(response.user)
         setIsAuthenticated(true)
         
-        return { success: true, user: userData }
+        return { success: true, user: response.user }
       }
       
-      return { success: false, message: 'Login failed' }
+      return { success: false, message: response.message || 'Login failed' }
     } catch (error) {
       console.error('Login error:', error)
       return { 
         success: false, 
-        message: error.response?.data?.message || error.message || 'Login failed' 
+        message: error.response?.data?.message || error.response?.data?.error || error.message || 'Login failed' 
       }
     }
   }
@@ -77,16 +69,12 @@ export const AuthProvider = ({ children }) => {
       const response = await api.auth.register(userData)
       
       if (response.success) {
-        const { user: newUser, token } = response.data
-        
-        // Store tokens
-        localStorage.setItem('authToken', token)
-        
-        // Set user state
-        setUser(newUser)
-        setIsAuthenticated(true)
-        
-        return { success: true, user: newUser }
+        // Don't auto-login - user should manually login after registration
+        return { 
+          success: true, 
+          message: 'Account created successfully! Please login with your credentials.',
+          email: userData.email 
+        }
       }
       
       return { success: false, message: 'Registration failed' }
@@ -151,6 +139,29 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
+  // For OAuth: Backend sets cookies, this fetches user to update context
+  const refreshAuth = async () => {
+    try {
+      console.log('Refreshing auth state (OAuth callback)...')
+      const response = await api.profile.get()
+      
+      if (response && response.success && response.data) {
+        setUser(response.data.user)
+        setIsAuthenticated(true)
+        console.log('Auth refreshed, user:', response.data.user.email)
+        return { success: true, user: response.data.user }
+      }
+      
+      return { success: false, message: 'Could not refresh auth' }
+    } catch (error) {
+      console.error('Refresh auth error:', error)
+      return { 
+        success: false, 
+        message: error.response?.data?.message || error.message || 'Refresh failed' 
+      }
+    }
+  }
+
   const value = {
     user,
     loading,
@@ -160,6 +171,7 @@ export const AuthProvider = ({ children }) => {
     logout,
     updateUser,
     updatePreferences,
+    refreshAuth,
   }
 
   return (

@@ -71,6 +71,19 @@ const ProfileSettings = () => {
   ]
 
   const handleProfileSave = async () => {
+    // Validate display name - only letters and spaces
+    const nameRegex = /^[a-zA-Z\s]+$/
+    if (profileData.displayName.trim() && !nameRegex.test(profileData.displayName.trim())) {
+      alert('Display name can only contain letters and spaces (no numbers or special characters)')
+      return
+    }
+
+    // Validate name is not empty after trimming
+    if (profileData.displayName.trim().length === 0) {
+      alert('Display name is required')
+      return
+    }
+
     setLoading(true)
     try {
       const response = await api.profile.update(profileData)
@@ -240,8 +253,16 @@ const ProfileSettings = () => {
               <Input
                 label="Display Name"
                 value={profileData.displayName}
-                onChange={(e) => setProfileData({ ...profileData, displayName: e.target.value })}
+                onChange={(e) => {
+                  const value = e.target.value
+                  // Only allow letters and spaces
+                  const nameRegex = /^[a-zA-Z\s]*$/
+                  if (nameRegex.test(value)) {
+                    setProfileData({ ...profileData, displayName: value })
+                  }
+                }}
                 placeholder="Enter your name"
+                hint="Only letters and spaces are allowed"
               />
 
               <Input
@@ -250,7 +271,7 @@ const ProfileSettings = () => {
                 value={profileData.email}
                 onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
                 placeholder="your.email@example.com"
-                leftIcon={Mail}
+                leftIcon={<Mail className="w-5 h-5" />}
               />
 
               <div>

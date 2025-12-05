@@ -19,7 +19,7 @@ import {
   Trash2,
   Star,
 } from 'lucide-react'
-import { api } from '../../services/api'
+import api from '../../services/api'
 import Button from '../../components/UI/Button'
 import Modal from '../../components/UI/Modal'
 import Input from '../../components/UI/Input'

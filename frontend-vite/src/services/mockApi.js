@@ -298,6 +298,12 @@ export const mockApi = {
     async register(userData) {
       await delay()
       
+      // Validate name - only letters and spaces
+      const nameRegex = /^[a-zA-Z\s]+$/
+      if (userData.name && !nameRegex.test(userData.name.trim())) {
+        throw new Error('Name can only contain letters and spaces (no numbers or special characters)')
+      }
+      
       // Check if user already exists
       const existingUser = mockDb.users.find(u => u.email === userData.email)
       if (existingUser) {
@@ -320,14 +326,13 @@ export const mockApi = {
       }
       
       mockDb.users.push(newUser)
-      isAuthenticated = true
+      // Don't auto-authenticate - user must login manually
       
       return {
         success: true,
         data: {
           user: newUser,
-          token: currentToken,
-          expiresIn: 86400
+          message: 'Account created successfully! Please login with your credentials.'
         }
       }
     },

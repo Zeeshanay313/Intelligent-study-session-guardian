@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { Plus, Target, Calendar, TrendingUp, Edit2, Trash2, CheckCircle2, ChevronRight, ChevronDown, Award, AlertCircle, Zap } from 'lucide-react'
-import { api } from '../../services/api'
+import api from '../../services/api'
 import Button from '../../components/UI/Button'
 import Modal from '../../components/UI/Modal'
 import Input from '../../components/UI/Input'

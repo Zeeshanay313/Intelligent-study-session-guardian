@@ -5,7 +5,7 @@
 
 class SocialAuthService {
   constructor() {
-    this.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5004'
+    this.baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5004'
   }
 
   /**
@@ -29,12 +29,18 @@ class SocialAuthService {
    */
   async loginWithGoogle(mode = 'signin') {
     try {
+      console.log('=== GOOGLE OAUTH LOGIN INITIATED ===')
+      console.log('Mode:', mode)
+      console.log('Base URL:', this.baseURL)
+      
       // Redirect to backend OAuth route
       const googleAuthURL =
         mode === 'signup'
           ? `${this.baseURL}/api/auth/google/signup`
           : `${this.baseURL}/api/auth/google/signin`
 
+      console.log('Redirecting to:', googleAuthURL)
+      
       // Direct redirect to backend OAuth endpoint
       window.location.href = googleAuthURL
 

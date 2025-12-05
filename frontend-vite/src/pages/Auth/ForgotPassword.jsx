@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Mail, AlertCircle, CheckCircle2, ArrowLeft } from 'lucide-react'
 import Button from '../../components/UI/Button'
 import Input from '../../components/UI/Input'
-import { api } from '../../services/api'
+import api from '../../services/api'
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('')

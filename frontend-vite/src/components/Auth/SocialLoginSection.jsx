@@ -4,12 +4,22 @@
  */
 
 import React from 'react'
-import socialAuthService from '../../services/socialAuthService'
 
 const SocialLoginSection = ({ className = '', mode = 'signin' }) => {
   const handleGoogleLogin = () => {
-    console.log('Google button clicked, mode:', mode)
-    socialAuthService.loginWithGoogle(mode)
+    console.log('=== GOOGLE OAUTH INITIATED ===')
+    console.log('Mode:', mode)
+    
+    // Directly redirect to backend OAuth endpoint (bypass mock API)
+    const backendURL = 'http://localhost:5004'
+    const googleAuthURL = mode === 'signup' 
+      ? `${backendURL}/api/auth/google/signup`
+      : `${backendURL}/api/auth/google/signin`
+    
+    console.log('Redirecting to:', googleAuthURL)
+    
+    // Direct window redirect to backend OAuth route
+    window.location.href = googleAuthURL
   }
 
   return (

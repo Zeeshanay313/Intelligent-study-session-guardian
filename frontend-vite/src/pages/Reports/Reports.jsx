@@ -20,7 +20,7 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 import { Calendar, Clock, TrendingUp, Download, Filter, CheckCircle2 } from 'lucide-react'
-import { api } from '../../services/api'
+import api from '../../services/api'
 import Button from '../../components/UI/Button'
 
 const Reports = () => {

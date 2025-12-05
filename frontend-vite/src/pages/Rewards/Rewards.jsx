@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { Trophy, Star, Award, TrendingUp, Zap, Target, Clock, Flame } from 'lucide-react'
-import { api } from '../../services/api'
+import api from '../../services/api'
 import Button from '../../components/UI/Button'
 
 const Rewards = () => {

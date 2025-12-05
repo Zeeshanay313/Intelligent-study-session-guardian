@@ -34,7 +34,7 @@ import {
   ArrowRight
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
-import { api } from '../../services/api'
+import api from '../../services/api'
 
 // Mock data for fallback
 const mockWeeklyData = [
@@ -61,7 +61,7 @@ const mockRecentActivity = [
 ]
 
 const Dashboard = () => {
-  const { user } = useAuth()
+  const { user, refreshAuth } = useAuth()
   const [metrics, setMetrics] = useState({
     totalFocusTime: 0,
     avgSessionLength: 0,
@@ -74,8 +74,38 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchDashboardData()
+    // Check for OAuth success redirect
+    const urlParams = new URLSearchParams(window.location.search)
+    const oauthSuccess = urlParams.get('oauth')
+    
+    if (oauthSuccess) {
+      console.log('OAuth success detected:', oauthSuccess)
+      // Backend has set cookies, now fetch user profile to update AuthContext
+      fetchUserAfterOAuth()
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname)
+    } else {
+      fetchDashboardData()
+    }
   }, [])
+
+  const fetchUserAfterOAuth = async () => {
+    try {
+      console.log('Fetching user profile after OAuth...')
+      // Backend has set HTTP-only cookies, call refreshAuth to update context
+      const result = await refreshAuth()
+      if (result.success) {
+        console.log('OAuth authentication complete, loading dashboard...')
+        fetchDashboardData()
+      } else {
+        console.error('Failed to authenticate after OAuth redirect')
+        setLoading(false)
+      }
+    } catch (error) {
+      console.error('Error fetching user after OAuth:', error)
+      setLoading(false)
+    }
+  }
 
   const fetchDashboardData = async () => {
     try {

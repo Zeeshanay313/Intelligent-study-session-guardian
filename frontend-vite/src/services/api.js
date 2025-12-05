@@ -20,6 +20,7 @@ const axiosInstance = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // Send cookies with requests (needed for OAuth)
 })
 
 // Request interceptor - add auth token
@@ -91,29 +92,31 @@ const shouldUseMockApi = () => {
   return USE_MOCK_API
 }
 
-// Helper to handle API call with fallback
+// Helper to handle API call - NO MORE FALLBACK, REAL API ONLY
 const apiCall = async (realApiCall, mockApiCall) => {
   if (shouldUseMockApi()) {
     try {
       return await mockApiCall()
     } catch (error) {
-      console.error('Mock API Error:', error)
+      if (DEBUG) console.error('Mock API Error:', error.message)
       throw error
     }
   }
   
+  // Use real API only - no fallback to mock
   try {
     const response = await realApiCall()
     return response.data
   } catch (error) {
-    // If real API fails, fallback to mock
-    console.warn('Real API failed, falling back to mock API:', error.message)
-    try {
-      return await mockApiCall()
-    } catch (mockError) {
-      console.error('Mock API also failed:', mockError)
-      throw error // Throw original error
+    // Log detailed error for debugging
+    if (DEBUG) {
+      console.error('=== API ERROR ===')
+      console.error('Status:', error.response?.status)
+      console.error('Message:', error.response?.data?.error || error.response?.data?.message)
+      console.error('Full response:', error.response?.data)
+      console.error('================')
     }
+    throw error
   }
 }
 
@@ -130,8 +133,15 @@ export const api = {
     },
     
     register: async (userData) => {
+      // Map 'name' to 'displayName' for backend compatibility
+      const backendData = {
+        ...userData,
+        displayName: userData.name || userData.displayName,
+      }
+      delete backendData.name
+      
       return apiCall(
-        () => axiosInstance.post('/api/auth/register', userData),
+        () => axiosInstance.post('/api/auth/register', backendData),
         () => mockApi.auth.register(userData)
       )
     },
@@ -169,35 +179,35 @@ export const api = {
   profile: {
     get: async () => {
       return apiCall(
-        () => axiosInstance.get('/api/profile'),
+        () => axiosInstance.get('/api/profile/me'),
         () => mockApi.profile.get()
       )
     },
     
     update: async (updates) => {
       return apiCall(
-        () => axiosInstance.put('/api/profile', updates),
+        () => axiosInstance.patch('/api/profile/me', updates),
         () => mockApi.profile.update(updates)
       )
     },
     
     updatePreferences: async (preferences) => {
       return apiCall(
-        () => axiosInstance.put('/api/profile/preferences', preferences),
+        () => axiosInstance.patch('/api/profile/me', { preferences }),
         () => mockApi.profile.updatePreferences(preferences)
       )
     },
     
     exportData: async () => {
       return apiCall(
-        () => axiosInstance.get('/api/profile/export'),
+        () => axiosInstance.post('/api/profile/export'),
         () => mockApi.profile.exportData()
       )
     },
     
     deleteAccount: async () => {
       return apiCall(
-        () => axiosInstance.delete('/api/profile'),
+        () => axiosInstance.delete('/api/profile/me'),
         () => mockApi.profile.deleteAccount()
       )
     },

@@ -21,6 +21,7 @@ const profileRoutes = require('./routes/profile');
 const deviceRoutes = require('./routes/devices');
 const goalTrackerRoutes = require('./routes/goalTracker');
 const rewardsRoutes = require('./routes/rewards');
+const sessionsRoutes = require('./routes/sessions');
 const timerRoutes = require('./modules/timer/timerRoutes');
 const reminderRoutes = require('./modules/reminder/reminderRoutes');
 const calendarRoutes = require('./modules/calendar/calendarRoutes');
@@ -37,7 +38,7 @@ const app = express();
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: ['http://localhost:3000', 'http://localhost:3001'],
+    origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173', 'http://localhost:5174'],
     methods: ['GET', 'POST'],
     credentials: true
   }
@@ -45,7 +46,7 @@ const io = new Server(server, {
 
 // Enhanced CORS configuration
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001'],
+  origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173', 'http://localhost:5174', 'http://127.0.0.1:3000', 'http://127.0.0.1:3001', 'http://127.0.0.1:5173'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'x-dev-bypass']
@@ -143,6 +144,7 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/devices', deviceRoutes);
 app.use('/api/goals', goalTrackerRoutes);
 app.use('/api/rewards', rewardsRoutes);
+app.use('/api/sessions', sessionsRoutes);
 app.use('/api/timers', timerRoutes);
 app.use('/api/reminders', reminderRoutes);
 app.use('/api/reminder', enhancedReminderRoutes);

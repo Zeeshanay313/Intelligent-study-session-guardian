@@ -46,9 +46,20 @@ const Register = () => {
   }, [])
 
   const handleChange = (e) => {
+    const { name, value } = e.target
+    
+    // Validate name field - only allow letters and spaces
+    if (name === 'name') {
+      const nameRegex = /^[a-zA-Z\s]*$/
+      if (!nameRegex.test(value)) {
+        setError('Name can only contain letters and spaces')
+        return
+      }
+    }
+    
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [name]: value,
     })
     setError('')
   }
@@ -56,6 +67,19 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+
+    // Validate name - only letters and spaces
+    const nameRegex = /^[a-zA-Z\s]+$/
+    if (!nameRegex.test(formData.name.trim())) {
+      setError('Name can only contain letters and spaces (no numbers or special characters)')
+      return
+    }
+
+    // Validate name is not empty after trimming
+    if (formData.name.trim().length === 0) {
+      setError('Name is required')
+      return
+    }
 
     // Validate passwords match
     if (formData.password !== formData.confirmPassword) {
@@ -79,7 +103,13 @@ const Register = () => {
       })
       
       if (result.success) {
-        navigate('/dashboard')
+        // Redirect to login with success message and pre-filled email
+        navigate('/login', { 
+          state: { 
+            email: result.email,
+            successMessage: result.message || 'Account created successfully! Please login.' 
+          } 
+        })
       } else {
         setError(result.message || 'Registration failed. Please try again.')
       }
@@ -137,6 +167,7 @@ const Register = () => {
               leftIcon={<User className="w-5 h-5" />}
               required
               autoComplete="name"
+              hint="Only letters and spaces are allowed"
             />
 
             <Input

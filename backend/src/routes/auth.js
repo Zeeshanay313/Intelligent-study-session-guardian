@@ -158,9 +158,9 @@ router.post('/login', authLimiter, validateLogin, async (req, res) => {
     if (!user) {
       // Don't log audit entry for non-existent users to avoid userId validation error
       console.log(`Login attempt for non-existent user: ${email} from IP: ${req.ip}`);
-      return res.status(400).json({
-        error: 'Invalid credentials',
-        message: 'No account found with this email. Please create an account first.',
+      return res.status(401).json({
+        error: 'Account not found',
+        message: 'No account exists with this email address. Please sign up first.',
         suggestion: 'register'
       });
     }
@@ -179,7 +179,10 @@ router.post('/login', authLimiter, validateLogin, async (req, res) => {
         }
       );
 
-      return res.status(400).json({ error: 'Invalid credentials' });
+      return res.status(401).json({ 
+        error: 'Invalid password',
+        message: 'The password you entered is incorrect. Please try again or reset your password.'
+      });
     }
 
     // Update login statistics

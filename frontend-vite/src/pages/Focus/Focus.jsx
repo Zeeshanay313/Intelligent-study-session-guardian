@@ -22,7 +22,7 @@ import {
   Clock,
   Layers
 } from 'lucide-react'
-import { api } from '../../services/api'
+import api from '../../services/api'
 import Button from '../../components/UI/Button'
 import PresetManager from '../../components/Timer/PresetManager'
 import SessionEndModal from '../../components/Timer/SessionEndModal'

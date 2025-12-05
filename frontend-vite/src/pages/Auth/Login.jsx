@@ -16,6 +16,7 @@ const Login = () => {
     password: '',
   })
   const [error, setError] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
   const [loading, setLoading] = useState(false)
 
   // Handle OAuth callback errors and pre-fill email from registration
@@ -40,6 +41,13 @@ const Login = () => {
       }
       // Clean up URL parameters
       window.history.replaceState({}, document.title, window.location.pathname)
+    }
+
+    // Handle success message from registration
+    if (location.state?.successMessage) {
+      setSuccessMessage(location.state.successMessage)
+      // Auto-dismiss after 5 seconds
+      setTimeout(() => setSuccessMessage(''), 5000)
     }
 
     // Pre-fill email if coming from registration
@@ -111,6 +119,15 @@ const Login = () => {
 
         {/* Login form */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
+          {successMessage && (
+            <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-start space-x-3">
+              <svg className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="text-sm text-green-600 dark:text-green-400">{successMessage}</p>
+            </div>
+          )}
+
           {error && (
             <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start space-x-3">
               <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
@@ -178,17 +195,7 @@ const Login = () => {
           <div className="mt-6">
             <SocialLoginSection mode="signin" />
           </div>
-
-          {/* Demo credentials hint */}
-          <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-            <p className="text-sm text-blue-800 dark:text-blue-300 font-medium mb-2">
-              Demo Credentials:
-            </p>
-            <p className="text-sm text-blue-700 dark:text-blue-400">
-              Email: demo@example.com<br />
-              Password: password
-            </p>
-          </div>
+         
 
           {/* Sign up link */}
           <div className="mt-6 text-center">
