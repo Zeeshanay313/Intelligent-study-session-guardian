@@ -150,14 +150,17 @@ const createGoal = async (req, res) => {
     } = req.body;
 
     // Validation
+    console.log('📝 Received goal data:', { title, type, target, period, progressUnit, category });
+    
     if (!title || !type || !target || !period || !progressUnit) {
+      console.log('❌ Missing fields:', { title: !!title, type: !!type, target: !!target, period: !!period, progressUnit: !!progressUnit });
       return res.status(400).json({
         error: 'Missing required fields: title, type, target, period, progressUnit'
       });
     }
 
     // Create goal
-    const goal = new Goal({
+    const goalData = {
       userId: req.user._id,
       title,
       description,
@@ -176,9 +179,13 @@ const createGoal = async (req, res) => {
       linkedSubjects: linkedSubjects || [],
       visibility: visibility || 'private',
       shareWithGuardians: shareWithGuardians !== false
-    });
+    };
+    
+    console.log('🎯 Creating goal with data:', goalData);
+    const goal = new Goal(goalData);
 
     await goal.save();
+    console.log('✅ Goal saved successfully:', goal._id);
 
     // Audit log
     await AuditLog.create({
@@ -192,8 +199,19 @@ const createGoal = async (req, res) => {
 
     res.status(201).json({ success: true, goal });
   } catch (error) {
-    console.error('Create goal error:', error);
-    res.status(500).json({ error: 'Failed to create goal' });
+    console.error('❌ Create goal error:', error);
+    console.error('Error details:', error.message);
+    if (error.name === 'ValidationError') {
+      console.error('Validation errors:', error.errors);
+      return res.status(400).json({ 
+        error: 'Validation failed', 
+        details: Object.keys(error.errors).map(key => ({
+          field: key,
+          message: error.errors[key].message
+        }))
+      });
+    }
+    res.status(500).json({ error: 'Failed to create goal', message: error.message });
   }
 };
 

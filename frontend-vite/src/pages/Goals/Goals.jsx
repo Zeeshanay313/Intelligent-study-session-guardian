@@ -22,12 +22,12 @@ const Goals = () => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    type: 'daily',
+    type: 'hours',
     target: '',
     period: 'daily',
     targetDate: '',
     progressUnit: 'hours',
-    category: 'learning',
+    category: 'personal',
     milestones: [],
   })
 
@@ -39,11 +39,19 @@ const Goals = () => {
     e.preventDefault()
     
     try {
+      // Convert target to number
+      const goalData = {
+        ...formData,
+        target: Number(formData.target)
+      }
+      
+      console.log('Submitting goal data:', goalData)
+      
       if (editingGoal) {
-        await updateGoal(editingGoal.id, formData)
+        await updateGoal(editingGoal.id, goalData)
         success('Goal updated successfully!')
       } else {
-        await createGoal(formData)
+        await createGoal(goalData)
         success('Goal created successfully!')
       }
       
@@ -51,7 +59,8 @@ const Goals = () => {
       setEditingGoal(null)
       resetForm()
     } catch (err) {
-      showError('Failed to save goal')
+      console.error('Goal save error:', err)
+      showError(err.response?.data?.error || err.message || 'Failed to save goal')
     }
   }
 
@@ -60,12 +69,12 @@ const Goals = () => {
     setFormData({
       title: goal.title,
       description: goal.description,
-      type: goal.type || 'daily',
+      type: goal.type || 'hours',
       target: goal.target || '',
       period: goal.period || 'daily',
       targetDate: goal.dueDate || goal.targetDate || '',
       progressUnit: goal.progressUnit || 'hours',
-      category: goal.category || 'learning',
+      category: goal.category || 'personal',
       milestones: goal.milestones || [],
     })
     setShowModal(true)
@@ -99,12 +108,12 @@ const Goals = () => {
     setFormData({
       title: '',
       description: '',
-      type: 'daily',
+      type: 'hours',
       target: '',
       period: 'daily',
       targetDate: '',
       progressUnit: 'hours',
-      category: 'learning',
+      category: 'personal',
       milestones: [],
     })
   }
@@ -401,14 +410,15 @@ const Goals = () => {
               <label className="label">Goal Type</label>
               <select
                 value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value, period: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                 className="input"
                 required
               >
-                <option value="daily">Daily Goal</option>
-                <option value="weekly">Weekly Goal</option>
-                <option value="monthly">Monthly Goal</option>
-                <option value="custom">Custom Goal</option>
+                <option value="hours">Time-Based (Hours)</option>
+                <option value="sessions">Sessions Count</option>
+                <option value="tasks">Tasks/Assignments</option>
+                <option value="streak">Daily Streak</option>
+                <option value="custom">Custom</option>
               </select>
             </div>
 
@@ -419,12 +429,13 @@ const Goals = () => {
               onChange={(e) => setFormData({ ...formData, target: e.target.value })}
               required
               placeholder="40"
+              min="1"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="label">Unit</label>
+              <label className="label">Progress Unit</label>
               <select
                 value={formData.progressUnit}
                 onChange={(e) => setFormData({ ...formData, progressUnit: e.target.value })}
@@ -434,9 +445,9 @@ const Goals = () => {
                 <option value="hours">Hours</option>
                 <option value="minutes">Minutes</option>
                 <option value="sessions">Sessions</option>
-                <option value="pages">Pages</option>
-                <option value="chapters">Chapters</option>
                 <option value="tasks">Tasks</option>
+                <option value="points">Points</option>
+                <option value="days">Days</option>
               </select>
             </div>
 
@@ -451,8 +462,9 @@ const Goals = () => {
                 <option value="daily">Daily</option>
                 <option value="weekly">Weekly</option>
                 <option value="monthly">Monthly</option>
+                <option value="quarterly">Quarterly</option>
                 <option value="yearly">Yearly</option>
-                <option value="custom">Custom</option>
+                <option value="lifetime">Lifetime</option>
               </select>
             </div>
           </div>
