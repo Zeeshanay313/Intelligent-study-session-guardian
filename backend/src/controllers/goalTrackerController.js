@@ -58,7 +58,7 @@ const getGoals = async (req, res) => {
 
     // Calculate summary statistics
     const stats = await Goal.aggregate([
-      { $match: { userId: mongoose.Types.ObjectId(userId) } },
+      { $match: { userId: new mongoose.Types.ObjectId(userId) } },
       {
         $group: {
           _id: '$status',
