@@ -20,7 +20,7 @@ export const GoalTrackerProvider = ({ children }) => {
       setLoading(true)
       setError(null)
       const response = await api.goals.list()
-      setGoals(response.data || [])
+      setGoals(response.goals || [])
     } catch (err) {
       console.error('Error loading goals:', err)
       setError(err.message)

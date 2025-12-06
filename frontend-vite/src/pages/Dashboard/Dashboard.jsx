@@ -153,8 +153,8 @@ const Dashboard = () => {
       
       // Fetch goals data
       const goalsResponse = await api.goals.list()
-      if (goalsResponse.success) {
-        const goals = goalsResponse.data
+      if (goalsResponse.success && goalsResponse.goals) {
+        const goals = goalsResponse.goals
         const completed = goals.filter(g => g.status === 'completed').length
         const active = goals.filter(g => g.status === 'active').length
         const notStarted = goals.filter(g => g.status === 'not_started').length
