@@ -18,6 +18,17 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     // Check if user is logged in on mount
+    // Skip auto-authentication for login/register pages
+    const currentPath = window.location.pathname
+    const isAuthPage = currentPath === '/login' || currentPath === '/register' || currentPath === '/'
+    
+    if (isAuthPage) {
+      // Don't auto-authenticate on auth pages - let user manually login
+      setLoading(false)
+      setIsAuthenticated(false)
+      return
+    }
+    
     // Since we use HTTP-only cookies, we don't check localStorage
     // Just try to fetch profile - cookies will be sent automatically
     const checkAuth = async () => {

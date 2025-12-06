@@ -72,7 +72,7 @@ const Landing = () => {
                 <span className="text-white font-bold text-lg">SG</span>
               </div>
               <span className="font-bold text-xl text-gray-900 dark:text-white">
-                Study Guardian
+                Intelligent Study Session Guardian
               </span>
             </div>
 
@@ -186,7 +186,7 @@ const Landing = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
               <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-6">
-                Why Choose Study Guardian?
+                Why Choose Intelligent Study Session Guardian?
               </h2>
               <p className="text-lg text-gray-600 dark:text-gray-400 mb-8">
                 Join thousands of students and professionals who have transformed 
