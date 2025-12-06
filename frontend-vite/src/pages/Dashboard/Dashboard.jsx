@@ -195,7 +195,7 @@ const Dashboard = () => {
       <div className="bg-gradient-to-r from-primary-600 to-accent-600 rounded-2xl p-8 text-white shadow-lg">
         <div className="max-w-3xl">
           <h1 className="text-3xl font-bold mb-2">
-            {getGreeting()}, {user?.name || 'Student'}! 👋
+            {getGreeting()}, {user?.profile?.displayName || user?.user?.email?.split('@')[0] || 'Student'}! 👋
           </h1>
           <p className="text-primary-100 mb-6">
             You're doing great! Ready to make today productive?

@@ -36,7 +36,8 @@ export const AuthProvider = ({ children }) => {
         const response = await api.profile.get()
         if (response && response.success && response.data) {
           // Profile returns: { success: true, data: { user, profile, settings, ... } }
-          setUser(response.data.user)
+          // Store complete data so we can access profile.displayName
+          setUser(response.data)
           setIsAuthenticated(true)
         } else {
           setIsAuthenticated(false)
@@ -59,9 +60,17 @@ export const AuthProvider = ({ children }) => {
       // Backend returns { message: '...', user: {...} } and sets HTTP-only cookies
       // No need to store tokens - they're in cookies
       if (response && response.user) {
+        // Fetch complete profile to get displayName
+        const profileResponse = await api.profile.get()
+        if (profileResponse && profileResponse.success) {
+          setUser(profileResponse.data)
+          setIsAuthenticated(true)
+          return { success: true, user: profileResponse.data }
+        }
+        
+        // Fallback if profile fetch fails
         setUser(response.user)
         setIsAuthenticated(true)
-        
         return { success: true, user: response.user }
       }
       
@@ -88,12 +97,12 @@ export const AuthProvider = ({ children }) => {
         }
       }
       
-      return { success: false, message: 'Registration failed' }
+      return { success: false, message: response.message || response.error || 'Registration failed' }
     } catch (error) {
       console.error('Registration error:', error)
       return { 
         success: false, 
-        message: error.response?.data?.message || error.message || 'Registration failed' 
+        message: error.response?.data?.error || error.response?.data?.message || error.message || 'Registration failed' 
       }
     }
   }
@@ -157,10 +166,10 @@ export const AuthProvider = ({ children }) => {
       const response = await api.profile.get()
       
       if (response && response.success && response.data) {
-        setUser(response.data.user)
+        setUser(response.data)
         setIsAuthenticated(true)
         console.log('Auth refreshed, user:', response.data.user.email)
-        return { success: true, user: response.data.user }
+        return { success: true, user: response.data }
       }
       
       return { success: false, message: 'Could not refresh auth' }

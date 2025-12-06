@@ -692,9 +692,14 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   router.get(
     '/google/signin',
     (req, res, next) => {
-      // Store the intent in session
+      // Store the intent in session and save before redirecting
       req.session.oauthIntent = 'signin';
-      next();
+      req.session.save((err) => {
+        if (err) {
+          console.error('Session save error:', err);
+        }
+        next();
+      });
     },
     passport.authenticate('google', {
       scope: ['profile', 'email'],
@@ -706,9 +711,14 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   router.get(
     '/google/signup',
     (req, res, next) => {
-      // Store the intent in session
+      // Store the intent in session and save before redirecting
       req.session.oauthIntent = 'signup';
-      next();
+      req.session.save((err) => {
+        if (err) {
+          console.error('Session save error:', err);
+        }
+        next();
+      });
     },
     passport.authenticate('google', {
       scope: ['profile', 'email'],
@@ -733,9 +743,24 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   // Google OAuth callback route
   router.get(
     '/google/callback',
-    passport.authenticate('google', {
-      failureRedirect: false // Handle failures manually
-    }),
+    (req, res, next) => {
+      passport.authenticate('google', {
+        failureRedirect: false
+      }, (err, user, info) => {
+        if (err) {
+          console.error('=== GOOGLE OAUTH ERROR ===');
+          console.error('Error:', err);
+          console.error('Error message:', err.message);
+          console.error('Error stack:', err.stack);
+          return res.redirect(
+            `${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=oauth_error&message=${encodeURIComponent(err.message || 'Google OAuth failed')}`
+          );
+        }
+        req.user = user;
+        req.authInfo = info;
+        next();
+      })(req, res, next);
+    },
     async (req, res) => {
       try {
       // Check for authentication failures

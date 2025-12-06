@@ -35,9 +35,12 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
       console.log('Profile ID:', profile.id);
       console.log('Profile email:', profile.emails?.[0]?.value);
       console.log('Profile name:', profile.displayName);
-      console.log('OAuth Intent:', req.session?.oauthIntent);
+      console.log('Session exists:', !!req.session);
+      console.log('OAuth Intent from session:', req.session?.oauthIntent);
+      console.log('Full session:', JSON.stringify(req.session, null, 2));
 
       const oauthIntent = req.session?.oauthIntent || 'signin';
+      console.log('Using OAuth Intent:', oauthIntent);
       const userEmail = profile.emails[0].value.toLowerCase();
 
       // Check if user already exists with Google ID or email

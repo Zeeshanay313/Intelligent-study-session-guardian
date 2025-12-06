@@ -56,9 +56,9 @@ const ProfileSettings = () => {
   useEffect(() => {
     if (user) {
       setProfileData({
-        displayName: user.displayName || user.name || '',
-        email: user.email || '',
-        bio: user.bio || '',
+        displayName: user.profile?.displayName || '',
+        email: user.user?.email || '',
+        bio: user.profile?.bio || '',
       })
     }
   }, [user])
