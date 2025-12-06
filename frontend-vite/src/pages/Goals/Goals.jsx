@@ -22,9 +22,11 @@ const Goals = () => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
+    type: 'daily',
+    target: '',
+    period: 'daily',
     targetDate: '',
-    targetValue: '',
-    unit: 'hours',
+    progressUnit: 'hours',
     category: 'learning',
     milestones: [],
   })
@@ -58,10 +60,12 @@ const Goals = () => {
     setFormData({
       title: goal.title,
       description: goal.description,
-      targetDate: goal.targetDate,
-      targetValue: goal.targetValue,
-      unit: goal.unit,
-      category: goal.category,
+      type: goal.type || 'daily',
+      target: goal.target || '',
+      period: goal.period || 'daily',
+      targetDate: goal.dueDate || goal.targetDate || '',
+      progressUnit: goal.progressUnit || 'hours',
+      category: goal.category || 'learning',
       milestones: goal.milestones || [],
     })
     setShowModal(true)
@@ -95,9 +99,11 @@ const Goals = () => {
     setFormData({
       title: '',
       description: '',
+      type: 'daily',
+      target: '',
+      period: 'daily',
       targetDate: '',
-      targetValue: '',
-      unit: 'hours',
+      progressUnit: 'hours',
       category: 'learning',
       milestones: [],
     })
@@ -391,26 +397,62 @@ const Goals = () => {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">Goal Type</label>
+              <select
+                value={formData.type}
+                onChange={(e) => setFormData({ ...formData, type: e.target.value, period: e.target.value })}
+                className="input"
+                required
+              >
+                <option value="daily">Daily Goal</option>
+                <option value="weekly">Weekly Goal</option>
+                <option value="monthly">Monthly Goal</option>
+                <option value="custom">Custom Goal</option>
+              </select>
+            </div>
+
             <Input
               label="Target Value"
               type="number"
-              value={formData.targetValue}
-              onChange={(e) => setFormData({ ...formData, targetValue: e.target.value })}
+              value={formData.target}
+              onChange={(e) => setFormData({ ...formData, target: e.target.value })}
               required
               placeholder="40"
             />
+          </div>
 
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label">Unit</label>
               <select
-                value={formData.unit}
-                onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                value={formData.progressUnit}
+                onChange={(e) => setFormData({ ...formData, progressUnit: e.target.value })}
                 className="input"
+                required
               >
                 <option value="hours">Hours</option>
+                <option value="minutes">Minutes</option>
                 <option value="sessions">Sessions</option>
                 <option value="pages">Pages</option>
                 <option value="chapters">Chapters</option>
+                <option value="tasks">Tasks</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="label">Period</label>
+              <select
+                value={formData.period}
+                onChange={(e) => setFormData({ ...formData, period: e.target.value })}
+                className="input"
+                required
+              >
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+                <option value="yearly">Yearly</option>
+                <option value="custom">Custom</option>
               </select>
             </div>
           </div>
