@@ -14,7 +14,12 @@ const {
   getProgress,
   getLeaderboardData,
   getRank,
-  awardBonus
+  awardBonus,
+  getNotifications,
+  clearUserNotifications,
+  shareUserAchievement,
+  getSuggestions,
+  getStreakInfo
 } = require('../controllers/rewardsController');
 
 const router = express.Router();
@@ -35,6 +40,21 @@ router.get('/leaderboard', getLeaderboardData);
 // GET /api/rewards/rank - Get user's rank on leaderboard
 // Query params: ?type=alltime|weekly|monthly
 router.get('/rank', getRank);
+
+// GET /api/rewards/notifications - Get pending achievement notifications
+router.get('/notifications', getNotifications);
+
+// POST /api/rewards/notifications/clear - Clear notifications
+router.post('/notifications/clear', clearUserNotifications);
+
+// GET /api/rewards/suggestions - Get study suggestions based on performance
+router.get('/suggestions', getSuggestions);
+
+// GET /api/rewards/streak - Get detailed streak information
+router.get('/streak', getStreakInfo);
+
+// POST /api/rewards/achievements/share - Share an achievement (with consent)
+router.post('/achievements/share', shareUserAchievement);
 
 // GET /api/rewards - Get all available rewards
 // Query params: ?type=badge|achievement&category=study|goal|streak

@@ -3,6 +3,8 @@ const router = express.Router();
 const TimerSession = require('../models/TimerSession');
 const TimerPreset = require('../modules/timer/TimerPreset');
 const { authenticate } = require('../middleware/auth');
+const { awardSessionPoints, updateChallengesFromSession } = require('../services/RewardsService');
+const { updateGoalsFromSession } = require('../services/GoalProgressService');
 
 // ============================================
 // TIMER PRESETS ENDPOINTS
@@ -121,7 +123,61 @@ router.post('/sessions', authenticate, async (req, res) => {
     });
 
     await session.save();
-    res.status(201).json(session);
+    
+    // Only award points for completed work sessions
+    let rewardsResult = null;
+    let challengeResults = null;
+    
+    if (completed && sessionType === 'work') {
+      const sessionDuration = actualDuration || duration;
+      
+      // Award points and check for rewards
+      try {
+        rewardsResult = await awardSessionPoints(req.user._id, {
+          duration: sessionDuration,
+          _id: session._id
+        });
+        console.log(`🏆 Awarded ${rewardsResult.pointsAwarded} points for timer session`);
+      } catch (rewardError) {
+        console.error('Error awarding points:', rewardError);
+      }
+      
+      // Update goal progress
+      try {
+        await updateGoalsFromSession({
+          userId: req.user._id,
+          duration: sessionDuration,
+          subject: subject,
+          _id: session._id
+        });
+      } catch (goalError) {
+        console.error('Error updating goals:', goalError);
+      }
+      
+      // Update challenge progress
+      try {
+        challengeResults = await updateChallengesFromSession(req.user._id, {
+          duration: sessionDuration,
+          _id: session._id
+        });
+        
+        if (challengeResults && challengeResults.length > 0) {
+          const completedChallenges = challengeResults.filter(c => c.completed);
+          if (completedChallenges.length > 0) {
+            console.log(`🏆 Completed ${completedChallenges.length} challenge(s)!`);
+          }
+        }
+      } catch (challengeError) {
+        console.error('Error updating challenges:', challengeError);
+      }
+    }
+    
+    res.status(201).json({
+      success: true,
+      data: session,
+      rewards: rewardsResult,
+      challenges: challengeResults
+    });
   } catch (error) {
     console.error('Error logging session:', error);
     res.status(500).json({ error: 'Failed to log session' });

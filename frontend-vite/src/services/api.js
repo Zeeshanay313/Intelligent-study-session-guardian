@@ -211,6 +211,13 @@ export const api = {
         () => mockApi.profile.deleteAccount()
       )
     },
+    
+    getGuardians: async () => {
+      return apiCall(
+        () => axiosInstance.get('/api/users/me/guardians'),
+        () => mockApi.profile.getGuardians()
+      )
+    },
   },
 
   // ==================== SESSIONS ====================
@@ -294,6 +301,76 @@ export const api = {
         () => mockApi.goals.updateProgress(id, progress)
       )
     },
+    
+    addProgress: async (id, value, notes = '') => {
+      return apiCall(
+        () => axiosInstance.post(`/api/goals/${id}/progress`, { value, notes }),
+        () => mockApi.goals.updateProgress(id, value)
+      )
+    },
+    
+    getProgressSummary: async () => {
+      return apiCall(
+        () => axiosInstance.get('/api/goals/progress-summary'),
+        () => ({ success: true, summary: {} })
+      )
+    },
+    
+    getWeeklyProgress: async (id) => {
+      return apiCall(
+        () => axiosInstance.get(`/api/goals/${id}/weekly-progress`),
+        () => ({ success: true, weeklyProgress: {} })
+      )
+    },
+    
+    getMonthlyProgress: async (id) => {
+      return apiCall(
+        () => axiosInstance.get(`/api/goals/${id}/monthly-progress`),
+        () => ({ success: true, monthlyProgress: {} })
+      )
+    },
+    
+    getMilestones: async (id) => {
+      return apiCall(
+        () => axiosInstance.get(`/api/goals/${id}/milestones`),
+        () => ({ success: true, milestones: [] })
+      )
+    },
+    
+    addMilestone: async (id, milestoneData) => {
+      return apiCall(
+        () => axiosInstance.post(`/api/goals/${id}/milestones`, milestoneData),
+        () => ({ success: true, milestone: milestoneData })
+      )
+    },
+    
+    getCatchUpSuggestions: async () => {
+      return apiCall(
+        () => axiosInstance.get('/api/goals/catch-up-suggestions'),
+        () => ({ success: true, suggestions: [] })
+      )
+    },
+    
+    getNotifications: async () => {
+      return apiCall(
+        () => axiosInstance.get('/api/goals/notifications'),
+        () => ({ success: true, notifications: [] })
+      )
+    },
+    
+    markNotificationsRead: async (notificationIds) => {
+      return apiCall(
+        () => axiosInstance.put('/api/goals/notifications/mark-read', { notificationIds }),
+        () => ({ success: true })
+      )
+    },
+    
+    shareWithGuardian: async (id, guardianId, accessLevel, userConsent) => {
+      return apiCall(
+        () => axiosInstance.post(`/api/goals/${id}/share-with-guardian`, { guardianId, accessLevel, userConsent }),
+        () => ({ success: true })
+      )
+    },
   },
 
   // ==================== REWARDS ====================
@@ -307,8 +384,69 @@ export const api = {
     
     getUserRewards: async () => {
       return apiCall(
-        () => axiosInstance.get('/api/rewards/user'),
+        () => axiosInstance.get('/api/rewards/me'),
         () => mockApi.rewards.getUserRewards()
+      )
+    },
+    
+    getProgress: async () => {
+      return apiCall(
+        () => axiosInstance.get('/api/rewards/progress'),
+        () => Promise.resolve({ success: true, progress: [] })
+      )
+    },
+    
+    getLeaderboard: async (type = 'alltime', limit = 100) => {
+      return apiCall(
+        () => axiosInstance.get('/api/rewards/leaderboard', { params: { type, limit } }),
+        () => Promise.resolve({ success: true, leaderboard: [] })
+      )
+    },
+    
+    getRank: async (type = 'alltime') => {
+      return apiCall(
+        () => axiosInstance.get('/api/rewards/rank', { params: { type } }),
+        () => Promise.resolve({ success: true, rank: null })
+      )
+    },
+    
+    getNotifications: async () => {
+      return apiCall(
+        () => axiosInstance.get('/api/rewards/notifications'),
+        () => Promise.resolve({ success: true, notifications: [], count: 0 })
+      )
+    },
+    
+    clearNotifications: async (notificationIds = null) => {
+      return apiCall(
+        () => axiosInstance.post('/api/rewards/notifications/clear', { notificationIds }),
+        () => Promise.resolve({ success: true })
+      )
+    },
+    
+    getSuggestions: async () => {
+      return apiCall(
+        () => axiosInstance.get('/api/rewards/suggestions'),
+        () => Promise.resolve({ success: true, suggestions: [] })
+      )
+    },
+    
+    getStreak: async () => {
+      return apiCall(
+        () => axiosInstance.get('/api/rewards/streak'),
+        () => Promise.resolve({ success: true, data: { currentStreak: 0, longestStreak: 0 } })
+      )
+    },
+    
+    shareAchievement: async (achievementId, shareWith, message, consent) => {
+      return apiCall(
+        () => axiosInstance.post('/api/rewards/achievements/share', {
+          achievementId,
+          shareWith,
+          message,
+          consent
+        }),
+        () => Promise.resolve({ success: true })
       )
     },
     

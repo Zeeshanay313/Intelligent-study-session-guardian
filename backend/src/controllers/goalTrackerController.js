@@ -10,7 +10,14 @@
 const mongoose = require('mongoose');
 const Goal = require('../models/Goal');
 const User = require('../models/User');
+const Guardian = require('../models/Guardian');
 const AuditLog = require('../models/AuditLog');
+const { generateRealtimeProgressSummary, sendNotifications } = require('../services/GoalProgressService');
+const { 
+  awardGoalCompletionPoints, 
+  queueAchievementNotification,
+  checkAndAwardRewards 
+} = require('../services/RewardsService');
 
 /**
  * Get all goals for a user with optional filtering
@@ -170,7 +177,16 @@ const createGoal = async (req, res) => {
       category: category || 'personal',
       priority: priority || 'medium',
       progressUnit,
-      milestones: milestones || [],
+      // Process milestones to ensure proper structure
+      milestones: (milestones || []).map(m => ({
+        title: m.title || 'Untitled Milestone',
+        description: m.description || '',
+        target: Number(m.target) || 0,
+        completed: m.completed || false,
+        completedAt: m.completedAt || null,
+        dueDate: m.dueDate ? new Date(m.dueDate) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        reward: m.reward || ''
+      })),
       subTasks: subTasks || [],
       dueDate,
       reminderEnabled: reminderEnabled !== false,
@@ -230,6 +246,9 @@ const updateGoal = async (req, res) => {
       return res.status(403).json({ error: 'Access denied' });
     }
 
+    // Track if goal was already completed before update
+    const wasCompleted = goal.status === 'completed';
+
     // Update allowed fields
     const allowedUpdates = [
       'title',
@@ -245,16 +264,47 @@ const updateGoal = async (req, res) => {
       'reminderFrequency',
       'linkedSubjects',
       'visibility',
-      'shareWithGuardians'
+      'shareWithGuardians',
+      'progressUnit',
+      'period',
+      'type'
     ];
 
     allowedUpdates.forEach(field => {
       if (req.body[field] !== undefined) {
-        goal[field] = req.body[field];
+        // Special handling for milestones - ensure proper structure
+        if (field === 'milestones' && Array.isArray(req.body[field])) {
+          goal[field] = req.body[field].map(m => ({
+            title: m.title || 'Untitled Milestone',
+            description: m.description || '',
+            target: Number(m.target) || 0,
+            completed: m.completed || false,
+            completedAt: m.completedAt || null,
+            dueDate: m.dueDate ? new Date(m.dueDate) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+            reward: m.reward || ''
+          }));
+        } else {
+          goal[field] = req.body[field];
+        }
       }
     });
 
     await goal.save();
+
+    // Check if goal just got completed and award rewards
+    let rewardResult = null;
+    if (!wasCompleted && goal.status === 'completed') {
+      rewardResult = await awardGoalCompletionPoints(req.user._id, goal);
+      
+      // Queue achievement notification
+      queueAchievementNotification(req.user._id, {
+        type: 'goal_completed',
+        title: '🎯 Goal Completed!',
+        message: `Congratulations! You completed "${goal.title}"`,
+        pointsAwarded: rewardResult.pointsAwarded,
+        goalId: goal._id
+      });
+    }
 
     // Audit log
     await AuditLog.create({
@@ -266,10 +316,14 @@ const updateGoal = async (req, res) => {
       userAgent: req.get('user-agent')
     });
 
-    res.json({ success: true, data: goal });
+    res.json({ success: true, data: goal, rewardResult });
   } catch (error) {
-    console.error('Update goal error:', error);
-    res.status(500).json({ error: 'Failed to update goal' });
+    console.error('Update goal error:', error.message);
+    console.error('Stack:', error.stack);
+    if (error.errors) {
+      console.error('Validation errors:', JSON.stringify(error.errors, null, 2));
+    }
+    res.status(500).json({ error: 'Failed to update goal', details: error.message });
   }
 };
 
@@ -340,14 +394,33 @@ const addProgress = async (req, res) => {
       return res.status(403).json({ error: 'Access denied' });
     }
 
+    // Track if goal was already completed
+    const wasCompleted = goal.status === 'completed';
+
     // Add progress using model method
     goal.addProgress(value, 'manual', null, notes || '');
     await goal.save();
 
+    // Check if goal just got completed and award rewards
+    let rewardResult = null;
+    if (!wasCompleted && goal.status === 'completed') {
+      rewardResult = await awardGoalCompletionPoints(req.user._id, goal);
+      
+      // Queue achievement notification
+      queueAchievementNotification(req.user._id, {
+        type: 'goal_completed',
+        title: '🎯 Goal Completed!',
+        message: `Congratulations! You completed "${goal.title}"`,
+        pointsAwarded: rewardResult.pointsAwarded,
+        goalId: goal._id
+      });
+    }
+
     res.json({
       success: true,
       goal,
-      message: 'Progress added successfully'
+      message: 'Progress added successfully',
+      rewardResult
     });
   } catch (error) {
     console.error('Add progress error:', error);
@@ -372,6 +445,9 @@ const completeSubTask = async (req, res) => {
       return res.status(403).json({ error: 'Access denied' });
     }
 
+    // Track if goal was already completed
+    const wasCompleted = goal.status === 'completed';
+
     const success = goal.completeSubTask(subtaskId);
 
     if (!success) {
@@ -380,10 +456,26 @@ const completeSubTask = async (req, res) => {
 
     await goal.save();
 
+    // Check if goal just got completed and award rewards
+    let rewardResult = null;
+    if (!wasCompleted && goal.status === 'completed') {
+      rewardResult = await awardGoalCompletionPoints(req.user._id, goal);
+      
+      // Queue achievement notification
+      queueAchievementNotification(req.user._id, {
+        type: 'goal_completed',
+        title: '🎯 Goal Completed!',
+        message: `Congratulations! You completed "${goal.title}"`,
+        pointsAwarded: rewardResult.pointsAwarded,
+        goalId: goal._id
+      });
+    }
+
     res.json({
       success: true,
       goal,
-      message: 'Sub-task completed'
+      message: 'Sub-task completed',
+      rewardResult
     });
   } catch (error) {
     console.error('Complete sub-task error:', error);
@@ -430,6 +522,358 @@ const getStats = async (req, res) => {
   }
 };
 
+/**
+ * Get real-time progress summary with weekly/monthly breakdowns
+ * @route GET /api/goals/progress-summary
+ */
+const getProgressSummary = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const summary = await generateRealtimeProgressSummary(userId);
+    
+    res.json({ 
+      success: true, 
+      summary 
+    });
+  } catch (error) {
+    console.error('Get progress summary error:', error);
+    res.status(500).json({ error: 'Failed to fetch progress summary' });
+  }
+};
+
+/**
+ * Get weekly progress for specific goal
+ * @route GET /api/goals/:id/weekly-progress
+ */
+const getWeeklyProgress = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const goal = await Goal.findById(id);
+
+    if (!goal) {
+      return res.status(404).json({ error: 'Goal not found' });
+    }
+
+    // Privacy check
+    if (goal.userId.toString() !== req.user._id.toString()) {
+      const targetUser = await User.findById(goal.userId).select('privacy.guardianSharing');
+      if (!targetUser || !targetUser.privacy?.guardianSharing) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+    }
+
+    goal.calculatePeriodTargets();
+    const weeklyProgress = goal.getWeeklyProgressSummary();
+
+    res.json({
+      success: true,
+      weeklyProgress,
+      goal: {
+        id: goal._id,
+        title: goal.title,
+        type: goal.type,
+        target: goal.target,
+        currentProgress: goal.currentProgress
+      }
+    });
+  } catch (error) {
+    console.error('Get weekly progress error:', error);
+    res.status(500).json({ error: 'Failed to fetch weekly progress' });
+  }
+};
+
+/**
+ * Get monthly progress for specific goal
+ * @route GET /api/goals/:id/monthly-progress
+ */
+const getMonthlyProgress = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const goal = await Goal.findById(id);
+
+    if (!goal) {
+      return res.status(404).json({ error: 'Goal not found' });
+    }
+
+    // Privacy check
+    if (goal.userId.toString() !== req.user._id.toString()) {
+      const targetUser = await User.findById(goal.userId).select('privacy.guardianSharing');
+      if (!targetUser || !targetUser.privacy?.guardianSharing) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+    }
+
+    goal.calculatePeriodTargets();
+    const monthlyProgress = goal.getMonthlyProgressSummary();
+
+    res.json({
+      success: true,
+      monthlyProgress,
+      goal: {
+        id: goal._id,
+        title: goal.title,
+        type: goal.type,
+        target: goal.target,
+        currentProgress: goal.currentProgress
+      }
+    });
+  } catch (error) {
+    console.error('Get monthly progress error:', error);
+    res.status(500).json({ error: 'Failed to fetch monthly progress' });
+  }
+};
+
+/**
+ * Get milestones for a goal
+ * @route GET /api/goals/:id/milestones
+ */
+const getMilestones = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const goal = await Goal.findById(id);
+
+    if (!goal) {
+      return res.status(404).json({ error: 'Goal not found' });
+    }
+
+    // Privacy check
+    if (goal.userId.toString() !== req.user._id.toString()) {
+      const targetUser = await User.findById(goal.userId).select('privacy.guardianSharing');
+      if (!targetUser || !targetUser.privacy?.guardianSharing) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+    }
+
+    const milestones = goal.milestones.map(milestone => ({
+      ...milestone.toObject(),
+      progressToMilestone: Math.min(100, (goal.currentProgress / milestone.target) * 100)
+    }));
+
+    res.json({
+      success: true,
+      milestones,
+      totalMilestones: milestones.length,
+      completedMilestones: milestones.filter(m => m.completed).length
+    });
+  } catch (error) {
+    console.error('Get milestones error:', error);
+    res.status(500).json({ error: 'Failed to fetch milestones' });
+  }
+};
+
+/**
+ * Add milestone to goal
+ * @route POST /api/goals/:id/milestones
+ */
+const addMilestone = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, description, target, dueDate, reward } = req.body;
+
+    if (!title || !target || !dueDate) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: title, target, dueDate' 
+      });
+    }
+
+    const goal = await Goal.findById(id);
+    if (!goal) {
+      return res.status(404).json({ error: 'Goal not found' });
+    }
+
+    // Privacy check
+    if (goal.userId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    goal.milestones.push({
+      title,
+      description,
+      target,
+      dueDate: new Date(dueDate),
+      reward
+    });
+
+    await goal.save();
+
+    res.json({
+      success: true,
+      message: 'Milestone added',
+      milestone: goal.milestones[goal.milestones.length - 1]
+    });
+  } catch (error) {
+    console.error('Add milestone error:', error);
+    res.status(500).json({ error: 'Failed to add milestone' });
+  }
+};
+
+/**
+ * Get catch-up suggestions for goals behind schedule
+ * @route GET /api/goals/catch-up-suggestions
+ */
+const getCatchUpSuggestions = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const goals = await Goal.find({ 
+      userId, 
+      status: 'active',
+      $or: [
+        { isOverdue: true },
+        { 'catchUpSuggestions.0': { $exists: true } }
+      ]
+    });
+
+    const suggestions = goals.map(goal => ({
+      goalId: goal._id,
+      goalTitle: goal.title,
+      isOverdue: goal.isOverdue,
+      completionRate: goal.completionRate,
+      suggestions: goal.catchUpSuggestions,
+      daysRemaining: goal.daysRemaining
+    }));
+
+    res.json({
+      success: true,
+      suggestions,
+      totalGoalsBehind: suggestions.length
+    });
+  } catch (error) {
+    console.error('Get catch-up suggestions error:', error);
+    res.status(500).json({ error: 'Failed to fetch catch-up suggestions' });
+  }
+};
+
+/**
+ * Share goal with guardian (with consent)
+ * @route POST /api/goals/:id/share-with-guardian
+ */
+const shareWithGuardian = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { guardianId, accessLevel = 'view', userConsent } = req.body;
+
+    if (!guardianId || !userConsent) {
+      return res.status(400).json({ 
+        error: 'Guardian ID and user consent required' 
+      });
+    }
+
+    const goal = await Goal.findById(id);
+    if (!goal) {
+      return res.status(404).json({ error: 'Goal not found' });
+    }
+
+    // Privacy check
+    if (goal.userId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Verify guardian relationship
+    const guardian = await Guardian.findOne({
+      userId: goal.userId,
+      guardianId,
+      consentStatus: 'accepted'
+    });
+
+    if (!guardian) {
+      return res.status(404).json({ 
+        error: 'Guardian relationship not found or not accepted' 
+      });
+    }
+
+    await goal.shareWithGuardian(guardianId, accessLevel, userConsent);
+    await goal.save();
+
+    res.json({
+      success: true,
+      message: 'Goal shared with guardian',
+      sharedWith: goal.sharedGuardians.find(sg => sg.guardianId.toString() === guardianId)
+    });
+  } catch (error) {
+    console.error('Share with guardian error:', error);
+    res.status(500).json({ error: 'Failed to share goal with guardian' });
+  }
+};
+
+/**
+ * Get notifications for user goals
+ * @route GET /api/goals/notifications
+ */
+const getNotifications = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { sent = false, limit = 50 } = req.query;
+
+    const goals = await Goal.find({ 
+      userId, 
+      'notifications.sent': sent === 'true' 
+    }).select('title notifications');
+
+    const notifications = [];
+    goals.forEach(goal => {
+      goal.notifications
+        .filter(n => n.sent === (sent === 'true'))
+        .forEach(notification => {
+          notifications.push({
+            ...notification.toObject(),
+            goalId: goal._id,
+            goalTitle: goal.title
+          });
+        });
+    });
+
+    // Sort by creation date, newest first
+    notifications.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    res.json({
+      success: true,
+      notifications: notifications.slice(0, parseInt(limit)),
+      total: notifications.length
+    });
+  } catch (error) {
+    console.error('Get notifications error:', error);
+    res.status(500).json({ error: 'Failed to fetch notifications' });
+  }
+};
+
+/**
+ * Mark notifications as read
+ * @route PUT /api/goals/notifications/mark-read
+ */
+const markNotificationsRead = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { notificationIds } = req.body;
+
+    if (!notificationIds || !Array.isArray(notificationIds)) {
+      return res.status(400).json({ 
+        error: 'Notification IDs array required' 
+      });
+    }
+
+    await Goal.updateMany(
+      { 
+        userId,
+        'notifications._id': { $in: notificationIds }
+      },
+      { 
+        $set: { 
+          'notifications.$.sent': true,
+          'notifications.$.sentAt': new Date()
+        }
+      }
+    );
+
+    res.json({
+      success: true,
+      message: `Marked ${notificationIds.length} notifications as read`
+    });
+  } catch (error) {
+    console.error('Mark notifications read error:', error);
+    res.status(500).json({ error: 'Failed to mark notifications as read' });
+  }
+};
+
 module.exports = {
   getGoals,
   getGoalById,
@@ -438,5 +882,14 @@ module.exports = {
   deleteGoal,
   addProgress,
   completeSubTask,
-  getStats
+  getStats,
+  getProgressSummary,
+  getWeeklyProgress,
+  getMonthlyProgress,
+  getMilestones,
+  addMilestone,
+  getCatchUpSuggestions,
+  shareWithGuardian,
+  getNotifications,
+  markNotificationsRead
 };

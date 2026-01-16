@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { NotificationProvider } from './contexts/NotificationContext'
 import { GoalTrackerProvider } from './contexts/GoalTrackerContext'
+import { AchievementToastProvider } from './components/UI/AchievementToast'
 import NotificationToast from './components/Shared/NotificationToast'
 
 // Layout
@@ -180,8 +181,10 @@ function App() {
       <AuthProvider>
         <NotificationProvider>
           <GoalTrackerProvider>
-            <AppRoutes />
-            <NotificationToast />
+            <AchievementToastProvider>
+              <AppRoutes />
+              <NotificationToast />
+            </AchievementToastProvider>
           </GoalTrackerProvider>
         </NotificationProvider>
       </AuthProvider>

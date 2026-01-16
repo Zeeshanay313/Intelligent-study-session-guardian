@@ -553,6 +553,43 @@ router.post('/me/restore', async (req, res) => {
   }
 });
 
+// Get user's guardians
+router.get('/me/guardians', authenticate, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const guardians = await Guardian.find({ 
+      userId,
+      consentStatus: { $in: ['accepted', 'pending'] }
+    })
+    .select('guardianEmail guardianId relationship consentStatus accessLevel createdAt')
+    .lean();
+
+    // Format response with name if guardianId is linked
+    const formattedGuardians = await Promise.all(guardians.map(async (guardian) => {
+      let name = guardian.guardianEmail;
+      if (guardian.guardianId) {
+        const guardianUser = await User.findById(guardian.guardianId).select('profile.displayName').lean();
+        if (guardianUser?.profile?.displayName) {
+          name = guardianUser.profile.displayName;
+        }
+      }
+      return {
+        _id: guardian._id,
+        name,
+        email: guardian.guardianEmail,
+        relationship: guardian.relationship,
+        status: guardian.consentStatus,
+        accessLevel: guardian.accessLevel
+      };
+    }));
+
+    res.json({ guardians: formattedGuardians });
+  } catch (error) {
+    console.error('Get guardians error:', error);
+    res.status(500).json({ error: 'Failed to fetch guardians' });
+  }
+});
+
 // Invite guardian
 router.post('/me/guardian-invite', authenticate, sensitiveLimiter, validateGuardianInvite, async (req, res) => {
   try {

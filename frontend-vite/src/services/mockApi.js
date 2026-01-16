@@ -434,6 +434,34 @@ export const mockApi = {
         success: true,
         message: 'Account deleted successfully'
       }
+    },
+    
+    async getGuardians() {
+      await delay()
+      if (!isAuthenticated) throw new Error('Not authenticated')
+      
+      // Mock guardians data
+      return {
+        success: true,
+        guardians: [
+          {
+            _id: 'guardian-1',
+            name: 'John Parent',
+            email: 'parent@example.com',
+            relationship: 'parent',
+            status: 'accepted',
+            accessLevel: 'view'
+          },
+          {
+            _id: 'guardian-2', 
+            name: 'Ms. Teacher',
+            email: 'teacher@school.edu',
+            relationship: 'teacher',
+            status: 'pending',
+            accessLevel: 'limited'
+          }
+        ]
+      }
     }
   },
 
@@ -545,6 +573,7 @@ export const mockApi = {
       
       return {
         success: true,
+        goals: mockDb.goals,
         data: mockDb.goals
       }
     },
@@ -553,7 +582,7 @@ export const mockApi = {
       await delay()
       if (!isAuthenticated) throw new Error('Not authenticated')
       
-      const goal = mockDb.goals.find(g => g.id === parseInt(id))
+      const goal = mockDb.goals.find(g => g.id === parseInt(id) || g._id === id)
       if (!goal) throw new Error('Goal not found')
       
       return {
@@ -568,16 +597,20 @@ export const mockApi = {
       
       const newGoal = {
         id: mockDb.goals.length + 1,
+        _id: `goal_${Date.now()}`,
         userId: 1,
         title: goalData.title,
         description: goalData.description || '',
-        targetDate: goalData.targetDate,
-        targetValue: goalData.targetValue,
-        currentValue: 0,
-        unit: goalData.unit || 'hours',
-        category: goalData.category || 'general',
+        type: goalData.type || 'hours',
+        target: goalData.target || goalData.targetValue || 10,
+        currentProgress: 0,
+        period: goalData.period || 'weekly',
+        dueDate: goalData.dueDate || goalData.targetDate,
+        progressUnit: goalData.progressUnit || 'hours',
+        category: goalData.category || 'personal',
         status: 'active',
         milestones: goalData.milestones || [],
+        completionRate: 0,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       }
@@ -594,7 +627,7 @@ export const mockApi = {
       await delay()
       if (!isAuthenticated) throw new Error('Not authenticated')
       
-      const goal = mockDb.goals.find(g => g.id === parseInt(id))
+      const goal = mockDb.goals.find(g => g.id === parseInt(id) || g._id === id)
       if (!goal) throw new Error('Goal not found')
       
       Object.assign(goal, updates)
@@ -610,7 +643,7 @@ export const mockApi = {
       await delay()
       if (!isAuthenticated) throw new Error('Not authenticated')
       
-      const index = mockDb.goals.findIndex(g => g.id === parseInt(id))
+      const index = mockDb.goals.findIndex(g => g.id === parseInt(id) || g._id === id)
       if (index === -1) throw new Error('Goal not found')
       
       mockDb.goals.splice(index, 1)
@@ -625,15 +658,151 @@ export const mockApi = {
       await delay()
       if (!isAuthenticated) throw new Error('Not authenticated')
       
-      const goal = mockDb.goals.find(g => g.id === parseInt(id))
+      const goal = mockDb.goals.find(g => g.id === parseInt(id) || g._id === id)
       if (!goal) throw new Error('Goal not found')
       
-      goal.currentValue = progress
+      goal.currentProgress = (goal.currentProgress || 0) + progress
+      goal.completionRate = Math.min(100, Math.round((goal.currentProgress / goal.target) * 100))
       goal.updatedAt = new Date().toISOString()
       
       return {
         success: true,
+        goal: goal,
         data: goal
+      }
+    },
+    
+    async getCatchUpSuggestions() {
+      await delay()
+      if (!isAuthenticated) throw new Error('Not authenticated')
+      
+      // Generate mock catch-up suggestions based on goals behind schedule
+      const behindGoals = mockDb.goals.filter(g => {
+        if (g.status === 'completed') return false
+        const progress = (g.currentProgress || 0) / (g.target || 1)
+        return progress < 0.5 // Less than 50% progress
+      })
+      
+      const suggestions = behindGoals.flatMap(goal => [
+        {
+          goalId: goal._id || goal.id,
+          goalTitle: goal.title,
+          type: 'schedule',
+          suggestion: `Add 30 more minutes of daily study time for "${goal.title}" to catch up`,
+          impact: 'Will put you back on track within 1 week',
+          difficulty: 'medium'
+        },
+        {
+          goalId: goal._id || goal.id,
+          goalTitle: goal.title,
+          type: 'intensity',
+          suggestion: `Increase focus on "${goal.title}" during your most productive hours`,
+          impact: 'Can boost progress by 25%',
+          difficulty: 'easy'
+        }
+      ])
+      
+      return {
+        success: true,
+        suggestions: suggestions.slice(0, 5) // Limit to 5 suggestions
+      }
+    },
+    
+    async getNotifications() {
+      await delay()
+      if (!isAuthenticated) throw new Error('Not authenticated')
+      
+      // Mock notifications
+      return {
+        success: true,
+        notifications: [
+          {
+            _id: 'notif-1',
+            type: 'milestone',
+            title: 'Milestone Reached!',
+            message: 'You completed the first milestone for "Complete React Course"',
+            read: false,
+            createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+          },
+          {
+            _id: 'notif-2',
+            type: 'reminder',
+            title: 'Goal Behind Schedule',
+            message: 'Your goal "Read 12 Books" is 15% behind schedule',
+            read: true,
+            createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+          }
+        ]
+      }
+    },
+    
+    async markNotificationsRead() {
+      await delay()
+      if (!isAuthenticated) throw new Error('Not authenticated')
+      
+      return {
+        success: true,
+        message: 'Notifications marked as read'
+      }
+    },
+    
+    async shareWithGuardian(goalId, guardianId, accessLevel, consent) {
+      await delay()
+      if (!isAuthenticated) throw new Error('Not authenticated')
+      
+      return {
+        success: true,
+        message: 'Goal shared successfully'
+      }
+    },
+    
+    async getProgressSummary() {
+      await delay()
+      if (!isAuthenticated) throw new Error('Not authenticated')
+      
+      return {
+        success: true,
+        summary: {
+          totalGoals: mockDb.goals.length,
+          activeGoals: mockDb.goals.filter(g => g.status === 'active').length,
+          completedGoals: mockDb.goals.filter(g => g.status === 'completed').length,
+          overallProgress: 65,
+          weeklyProgress: 45,
+          monthlyProgress: 72
+        }
+      }
+    },
+    
+    async getMilestones(goalId) {
+      await delay()
+      if (!isAuthenticated) throw new Error('Not authenticated')
+      
+      const goal = mockDb.goals.find(g => g.id === parseInt(goalId) || g._id === goalId)
+      return {
+        success: true,
+        milestones: goal?.milestones || []
+      }
+    },
+    
+    async addMilestone(goalId, milestoneData) {
+      await delay()
+      if (!isAuthenticated) throw new Error('Not authenticated')
+      
+      const goal = mockDb.goals.find(g => g.id === parseInt(goalId) || g._id === goalId)
+      if (!goal) throw new Error('Goal not found')
+      
+      if (!goal.milestones) goal.milestones = []
+      const newMilestone = {
+        _id: `milestone_${Date.now()}`,
+        ...milestoneData,
+        completed: false,
+        createdAt: new Date().toISOString()
+      }
+      goal.milestones.push(newMilestone)
+      
+      return {
+        success: true,
+        milestone: newMilestone
       }
     }
   },

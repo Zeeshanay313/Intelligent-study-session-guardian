@@ -11,9 +11,14 @@ const {
   getRewardsProgress,
   getLeaderboard,
   getUserRank,
-  awardBonusPoints
+  awardBonusPoints,
+  getPendingNotifications,
+  clearNotifications,
+  shareAchievement,
+  getStudySuggestions
 } = require('../services/RewardsService');
 const Reward = require('../models/Reward');
+const UserRewards = require('../models/UserRewards');
 
 /**
  * Get user's rewards profile
@@ -171,11 +176,237 @@ const awardBonus = async (req, res) => {
   }
 };
 
+/**
+ * Get pending achievement notifications
+ * @route GET /api/rewards/notifications
+ */
+const getNotifications = async (req, res) => {
+  try {
+    const notifications = getPendingNotifications(req.user._id);
+    
+    res.json({
+      success: true,
+      notifications,
+      count: notifications.length
+    });
+  } catch (error) {
+    console.error('Error getting notifications:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch notifications'
+    });
+  }
+};
+
+/**
+ * Mark notifications as read/cleared
+ * @route POST /api/rewards/notifications/clear
+ */
+const clearUserNotifications = async (req, res) => {
+  try {
+    const { notificationIds } = req.body;
+    
+    clearNotifications(req.user._id, notificationIds);
+    
+    res.json({
+      success: true,
+      message: 'Notifications cleared'
+    });
+  } catch (error) {
+    console.error('Error clearing notifications:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to clear notifications'
+    });
+  }
+};
+
+/**
+ * Share an achievement
+ * @route POST /api/rewards/achievements/share
+ */
+const shareUserAchievement = async (req, res) => {
+  try {
+    const { achievementId, shareWith, message, consent } = req.body;
+    
+    if (!consent) {
+      return res.status(400).json({
+        success: false,
+        error: 'User consent is required to share achievements'
+      });
+    }
+    
+    if (!shareWith || !Array.isArray(shareWith) || shareWith.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Please specify recipients to share with'
+      });
+    }
+    
+    // Get the achievement details
+    const userRewards = await UserRewards.findOne({ userId: req.user._id })
+      .populate('earnedRewards.rewardId');
+    
+    if (!userRewards) {
+      return res.status(404).json({
+        success: false,
+        error: 'User rewards not found'
+      });
+    }
+    
+    const earnedReward = userRewards.earnedRewards.find(
+      er => er.rewardId._id.toString() === achievementId || er._id.toString() === achievementId
+    );
+    
+    if (!earnedReward) {
+      return res.status(404).json({
+        success: false,
+        error: 'Achievement not found'
+      });
+    }
+    
+    const achievementData = {
+      type: earnedReward.rewardId.type,
+      title: earnedReward.rewardId.name,
+      description: earnedReward.rewardId.description,
+      earnedAt: earnedReward.earnedAt,
+      icon: earnedReward.rewardId.icon,
+      pointsValue: earnedReward.rewardId.pointsValue
+    };
+    
+    const shareData = shareWith.map(recipient => ({
+      recipientId: recipient.id,
+      type: recipient.type,
+      message: message || ''
+    }));
+    
+    const sharedAchievement = await shareAchievement(
+      req.user._id,
+      achievementData,
+      shareData,
+      consent
+    );
+    
+    res.json({
+      success: true,
+      message: 'Achievement shared successfully',
+      data: sharedAchievement
+    });
+  } catch (error) {
+    console.error('Error sharing achievement:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to share achievement'
+    });
+  }
+};
+
+/**
+ * Get study suggestions based on user performance
+ * @route GET /api/rewards/suggestions
+ */
+const getSuggestions = async (req, res) => {
+  try {
+    const suggestions = await getStudySuggestions(req.user._id);
+    
+    res.json({
+      success: true,
+      suggestions
+    });
+  } catch (error) {
+    console.error('Error getting suggestions:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch suggestions'
+    });
+  }
+};
+
+/**
+ * Get detailed streak information
+ * @route GET /api/rewards/streak
+ */
+const getStreakInfo = async (req, res) => {
+  try {
+    const userRewards = await UserRewards.findOne({ userId: req.user._id });
+    
+    if (!userRewards) {
+      return res.json({
+        success: true,
+        data: {
+          currentStreak: 0,
+          longestStreak: 0,
+          lastStudyDate: null,
+          streakStatus: 'none',
+          nextMilestone: 7,
+          daysToMilestone: 7
+        }
+      });
+    }
+    
+    const { currentStreak, longestStreak, lastStudyDate } = userRewards.lifetimeStats;
+    
+    // Determine streak status
+    let streakStatus = 'active';
+    if (!lastStudyDate) {
+      streakStatus = 'none';
+    } else {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const lastStudy = new Date(lastStudyDate);
+      lastStudy.setHours(0, 0, 0, 0);
+      const daysDiff = Math.floor((today - lastStudy) / (1000 * 60 * 60 * 24));
+      
+      if (daysDiff === 0) {
+        streakStatus = 'completed_today';
+      } else if (daysDiff === 1) {
+        streakStatus = 'at_risk';
+      } else if (daysDiff > 1) {
+        streakStatus = 'broken';
+      }
+    }
+    
+    // Calculate next milestone
+    const milestones = [7, 14, 21, 30, 60, 90, 180, 365];
+    const nextMilestone = milestones.find(m => m > currentStreak) || currentStreak + 30;
+    const daysToMilestone = nextMilestone - currentStreak;
+    
+    res.json({
+      success: true,
+      data: {
+        currentStreak,
+        longestStreak,
+        lastStudyDate,
+        streakStatus,
+        nextMilestone,
+        daysToMilestone,
+        milestones: milestones.map(m => ({
+          days: m,
+          achieved: currentStreak >= m,
+          isCurrent: m === nextMilestone
+        }))
+      }
+    });
+  } catch (error) {
+    console.error('Error getting streak info:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch streak information'
+    });
+  }
+};
+
 module.exports = {
   getMyRewards,
   getAllRewards,
   getProgress,
   getLeaderboardData,
   getRank,
-  awardBonus
+  awardBonus,
+  // New exports
+  getNotifications,
+  clearUserNotifications,
+  shareUserAchievement,
+  getSuggestions,
+  getStreakInfo
 };

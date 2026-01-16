@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react'
-import { Plus, Target, Calendar, TrendingUp, Edit2, Trash2, CheckCircle2, ChevronRight, ChevronDown, Award, AlertCircle, Zap } from 'lucide-react'
+import { Plus, Target, Calendar, TrendingUp, Edit2, Trash2, CheckCircle2, ChevronRight, ChevronDown, Award, AlertCircle, Zap, Bell, Share2, Lightbulb, Users, X } from 'lucide-react'
 import api from '../../services/api'
 import Button from '../../components/UI/Button'
 import Modal from '../../components/UI/Modal'
@@ -13,13 +13,19 @@ import { useGoalTracker } from '../../contexts/GoalTrackerContext'
 import { useNotification } from '../../contexts/NotificationContext'
 
 const Goals = () => {
-  const { goals, loading, loadGoals, createGoal, updateGoal, deleteGoal, updateProgress, getGoalStats } = useGoalTracker()
+  const { goals, loading, error, loadGoals, createGoal, updateGoal, deleteGoal, updateProgress, getGoalStats } = useGoalTracker()
   const { success, error: showError, warning } = useNotification()
   
   const [showModal, setShowModal] = useState(false)
   const [editingGoal, setEditingGoal] = useState(null)
   const [expandedGoals, setExpandedGoals] = useState({})
   const [presets, setPresets] = useState([])
+  const [catchUpSuggestions, setCatchUpSuggestions] = useState([])
+  const [notifications, setNotifications] = useState([])
+  const [showCatchUpModal, setShowCatchUpModal] = useState(false)
+  const [showShareModal, setShowShareModal] = useState(false)
+  const [selectedGoalForShare, setSelectedGoalForShare] = useState(null)
+  const [guardians, setGuardians] = useState([])
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -36,7 +42,10 @@ const Goals = () => {
   useEffect(() => {
     loadGoals()
     loadPresets()
-  }, [])
+    loadCatchUpSuggestions()
+    loadNotifications()
+    loadGuardians()
+  }, [loadGoals])
 
   const loadPresets = async () => {
     try {
@@ -49,18 +58,121 @@ const Goals = () => {
     }
   }
 
+  const loadCatchUpSuggestions = async () => {
+    try {
+      const response = await api.goals.getCatchUpSuggestions()
+      if (response.success) {
+        // Flatten the suggestions from nested format
+        const allSuggestions = []
+        const suggestions = response.suggestions || []
+        suggestions.forEach(goalData => {
+          if (goalData.suggestions && Array.isArray(goalData.suggestions)) {
+            goalData.suggestions.forEach(suggestion => {
+              allSuggestions.push({
+                ...suggestion,
+                goalId: goalData.goalId,
+                goalTitle: goalData.goalTitle
+              })
+            })
+          } else if (goalData.type && goalData.suggestion) {
+            // Handle flat format from mock API
+            allSuggestions.push(goalData)
+          }
+        })
+        setCatchUpSuggestions(allSuggestions)
+      }
+    } catch (error) {
+      console.error('Failed to load catch-up suggestions:', error)
+    }
+  }
+
+  const loadNotifications = async () => {
+    try {
+      const response = await api.goals.getNotifications()
+      if (response.success) {
+        setNotifications(response.notifications || [])
+      }
+    } catch (error) {
+      console.error('Failed to load notifications:', error)
+    }
+  }
+
+  const loadGuardians = async () => {
+    try {
+      const response = await api.profile.getGuardians()
+      if (response?.guardians) {
+        setGuardians(response.guardians)
+      } else if (response?.data) {
+        setGuardians(response.data)
+      }
+    } catch (error) {
+      console.error('Failed to load guardians:', error)
+    }
+  }
+
+  const handleShareWithGuardian = async (goalId, guardianId) => {
+    try {
+      const response = await api.goals.shareWithGuardian(goalId, guardianId, 'progress', true)
+      if (response.success) {
+        success('Goal shared with guardian successfully!')
+        setShowShareModal(false)
+        setSelectedGoalForShare(null)
+      }
+    } catch (error) {
+      showError('Failed to share goal with guardian')
+    }
+  }
+
+  const addMilestoneToForm = () => {
+    setFormData({
+      ...formData,
+      milestones: [
+        ...formData.milestones,
+        {
+          title: '',
+          target: '',
+          dueDate: formData.targetDate || '',
+          description: ''
+        }
+      ]
+    })
+  }
+
+  const updateMilestone = (index, field, value) => {
+    const updatedMilestones = [...formData.milestones]
+    updatedMilestones[index] = { ...updatedMilestones[index], [field]: value }
+    setFormData({ ...formData, milestones: updatedMilestones })
+  }
+
+  const removeMilestone = (index) => {
+    setFormData({
+      ...formData,
+      milestones: formData.milestones.filter((_, i) => i !== index)
+    })
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     
     try {
       // Convert target to number and ensure progressUnit is set
       // Map targetDate to dueDate for backend compatibility
-      const { targetDate, ...rest } = formData
+      const { targetDate, milestones, ...rest } = formData
+      
+      // Process milestones - filter out empty ones and ensure proper types
+      const processedMilestones = (milestones || []).filter(m => m.title && m.title.trim()).map(m => ({
+        title: m.title.trim(),
+        target: Number(m.target) || 0,
+        dueDate: m.dueDate || targetDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        description: m.description || ''
+      }))
+      
       const goalData = {
         ...rest,
         target: Number(formData.target),
         progressUnit: formData.progressUnit || formData.type || 'hours',
-        dueDate: targetDate // Backend expects dueDate
+        dueDate: targetDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        milestones: processedMilestones
       }
       
       console.log('Submitting goal data:', goalData)
@@ -70,16 +182,31 @@ const Goals = () => {
         await updateGoal(goalId, goalData)
         success('Goal updated successfully!')
       } else {
-        await createGoal(goalData)
+        const newGoal = await createGoal(goalData)
+        console.log('Goal created:', newGoal)
         success('Goal created successfully!')
       }
       
       setShowModal(false)
       setEditingGoal(null)
       resetForm()
+      // Reload goals to ensure we have the latest data
+      loadGoals()
     } catch (err) {
       console.error('Goal save error:', err)
       showError(err.response?.data?.error || err.message || 'Failed to save goal')
+    }
+  }
+
+  // Helper to format date for input[type=date]
+  const formatDateForInput = (dateValue) => {
+    if (!dateValue) return ''
+    try {
+      const date = new Date(dateValue)
+      if (isNaN(date.getTime())) return ''
+      return date.toISOString().split('T')[0]
+    } catch {
+      return ''
     }
   }
 
@@ -89,12 +216,15 @@ const Goals = () => {
       title: goal.title,
       description: goal.description,
       type: goal.type || 'hours',
-      target: goal.target || '',
+      target: goal.target || goal.targetValue || '',
       period: goal.period || 'daily',
-      targetDate: goal.dueDate || goal.targetDate || '',
+      targetDate: formatDateForInput(goal.dueDate || goal.targetDate),
       progressUnit: goal.progressUnit || 'hours',
       category: goal.category || 'personal',
-      milestones: goal.milestones || [],
+      milestones: (goal.milestones || []).map(m => ({
+        ...m,
+        dueDate: formatDateForInput(m.dueDate)
+      })),
       linkedSubjects: goal.linkedSubjects || [],
     })
     setShowModal(true)
@@ -139,7 +269,17 @@ const Goals = () => {
   }
 
   const getProgressPercentage = (goal) => {
-    return Math.min(100, Math.round((goal.currentValue / goal.targetValue) * 100))
+    const current = goal.currentValue ?? goal.currentProgress ?? 0
+    const target = goal.targetValue ?? goal.target ?? 1
+    return Math.min(100, Math.round((current / target) * 100))
+  }
+
+  // Format progress value to avoid floating point display issues
+  const formatProgress = (value) => {
+    if (value === null || value === undefined) return 0
+    const num = Number(value)
+    // Round to 2 decimal places and remove trailing zeros
+    return Number(num.toFixed(2))
   }
 
   const getCategoryColor = (category) => {
@@ -200,9 +340,71 @@ const Goals = () => {
         </div>
       </div>
 
+      {/* Catch-Up Suggestions Alert */}
+      {catchUpSuggestions && catchUpSuggestions.length > 0 && (
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl p-4">
+          <div className="flex items-start justify-between">
+            <div className="flex items-start space-x-3">
+              <Lightbulb className="w-6 h-6 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+              <div>
+                <h3 className="font-semibold text-amber-800 dark:text-amber-200">
+                  {catchUpSuggestions.length} Catch-Up Suggestion{catchUpSuggestions.length > 1 ? 's' : ''}
+                </h3>
+                <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                  Some goals are behind schedule. Click to view suggestions to get back on track.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowCatchUpModal(true)}
+              className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              View Suggestions
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Notifications Alert */}
+      {notifications && notifications.filter(n => !n.read).length > 0 && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-xl p-4">
+          <div className="flex items-center space-x-3">
+            <Bell className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            <span className="text-blue-700 dark:text-blue-300">
+              You have {notifications.filter(n => !n.read).length} new notification{notifications.filter(n => !n.read).length > 1 ? 's' : ''}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Loading State */}
+      {loading && (
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && !loading && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <div className="flex items-center">
+            <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 mr-2" />
+            <span className="text-red-700 dark:text-red-300">{error}</span>
+          </div>
+          <button 
+            onClick={loadGoals}
+            className="mt-2 text-sm text-red-600 dark:text-red-400 underline hover:no-underline"
+          >
+            Try again
+          </button>
+        </div>
+      )}
+
       {/* Goals List */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {goals.map((goal) => {
+      {!loading && !error && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {goals && goals.length > 0 && goals.map((goal) => {
+          if (!goal) return null
           const progress = getProgressPercentage(goal)
           const color = getCategoryColor(goal.category)
           const goalId = goal._id || goal.id;
@@ -231,6 +433,16 @@ const Goals = () => {
                 </div>
                 <div className="flex items-center space-x-2">
                   <button
+                    onClick={() => {
+                      setSelectedGoalForShare(goal)
+                      setShowShareModal(true)
+                    }}
+                    className="p-2 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                    title="Share with Guardian"
+                  >
+                    <Share2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  </button>
+                  <button
                     onClick={() => handleEdit(goal)}
                     className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                   >
@@ -250,7 +462,7 @@ const Goals = () => {
                 <div className="flex items-center justify-between text-sm mb-2">
                   <span className="text-gray-600 dark:text-gray-400">Progress</span>
                   <span className="font-medium text-gray-900 dark:text-white">
-                    {goal.currentValue || 0} / {goal.targetValue} {goal.unit}
+                    {formatProgress(goal.currentValue ?? goal.currentProgress ?? 0)} / {formatProgress(goal.targetValue ?? goal.target ?? 0)} {goal.unit || goal.progressUnit}
                   </span>
                 </div>
                 <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
@@ -290,7 +502,7 @@ const Goals = () => {
                 </button>
                 <button
                   onClick={() => {
-                    const custom = prompt(`Add custom progress (${goal.unit}):`)
+                    const custom = prompt(`Add custom progress (${goal.unit || goal.progressUnit}):`)
                     if (custom && !isNaN(custom)) {
                       handleQuickProgress(goalId, parseInt(custom))
                     }
@@ -305,7 +517,7 @@ const Goals = () => {
               <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 mb-3">
                 <div className="flex items-center">
                   <Calendar className="w-4 h-4 mr-2" />
-                  <span>Target: {new Date(goal.targetDate).toLocaleDateString()}</span>
+                  <span>Target: {(goal.targetDate || goal.dueDate) ? new Date(goal.targetDate || goal.dueDate).toLocaleDateString() : 'No deadline'}</span>
                 </div>
                 {getGoalStats(goal)?.daysRemaining !== null && (
                   <span className={getGoalStats(goal).daysRemaining < 7 ? 'text-orange-600 dark:text-orange-400 font-medium' : ''}>
@@ -336,8 +548,8 @@ const Goals = () => {
                   
                   {expandedGoals[goalId] && (
                     <div className="space-y-2 pl-1">
-                      {goal.milestones.map((milestone) => (
-                        <div key={milestone.id} className="flex items-start space-x-2 text-sm">
+                      {goal.milestones.map((milestone, index) => (
+                        <div key={milestone._id || milestone.id || index} className="flex items-start space-x-2 text-sm">
                           <CheckCircle2
                             className={`w-4 h-4 mt-0.5 flex-shrink-0 ${
                               milestone.completed
@@ -355,9 +567,9 @@ const Goals = () => {
                             >
                               {milestone.title}
                             </span>
-                            {milestone.targetProgress && (
+                            {(milestone.target || milestone.targetProgress) && (
                               <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
-                                (at {milestone.targetProgress} {goal.unit})
+                                (at {milestone.target || milestone.targetProgress} {goal.unit || goal.progressUnit})
                               </span>
                             )}
                           </div>
@@ -370,10 +582,11 @@ const Goals = () => {
             </div>
           )
         })}
-      </div>
+        </div>
+      )}
 
       {/* Empty State */}
-      {goals.length === 0 && !loading && (
+      {!loading && !error && goals.length === 0 && (
         <div className="text-center py-12">
           <Target className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
@@ -518,6 +731,62 @@ const Goals = () => {
             </select>
           </div>
 
+          {/* Milestones Section */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="label mb-0">Milestones (Optional)</label>
+              <button
+                type="button"
+                onClick={addMilestoneToForm}
+                className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 flex items-center"
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                Add Milestone
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+              Break your goal into smaller milestones to track progress
+            </p>
+            {formData.milestones && formData.milestones.length > 0 && (
+              <div className="space-y-3 mb-3">
+                {formData.milestones.map((milestone, index) => (
+                  <div key={index} className="flex items-center space-x-2 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <div className="flex-1 grid grid-cols-3 gap-2">
+                      <input
+                        type="text"
+                        value={milestone.title}
+                        onChange={(e) => updateMilestone(index, 'title', e.target.value)}
+                        placeholder="Milestone title"
+                        className="input text-sm"
+                      />
+                      <input
+                        type="number"
+                        value={milestone.target || ''}
+                        onChange={(e) => updateMilestone(index, 'target', e.target.value)}
+                        placeholder="At progress"
+                        className="input text-sm"
+                        min="1"
+                      />
+                      <input
+                        type="date"
+                        value={milestone.dueDate || ''}
+                        onChange={(e) => updateMilestone(index, 'dueDate', e.target.value)}
+                        className="input text-sm"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeMilestone(index)}
+                      className="p-1 text-red-500 hover:text-red-700 dark:text-red-400"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div>
             <label className="label">Linked Subjects/Presets (Optional)</label>
             <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
@@ -597,6 +866,173 @@ const Goals = () => {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Catch-Up Suggestions Modal */}
+      <Modal
+        isOpen={showCatchUpModal}
+        onClose={() => setShowCatchUpModal(false)}
+        title="Catch-Up Suggestions"
+      >
+        <div className="space-y-4">
+          <p className="text-gray-600 dark:text-gray-400 text-sm">
+            Here are some suggestions to help you get back on track with your goals:
+          </p>
+          {catchUpSuggestions && catchUpSuggestions.length > 0 ? (
+            <div className="space-y-3">
+              {catchUpSuggestions.map((suggestion, index) => (
+                <div
+                  key={index}
+                  className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600"
+                >
+                  <div className="flex items-start space-x-3">
+                    <Lightbulb className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2 mb-1">
+                        <span className={`px-2 py-0.5 text-xs rounded-full ${
+                          suggestion.type === 'schedule' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :
+                          suggestion.type === 'intensity' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' :
+                          'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
+                        }`}>
+                          {suggestion.type}
+                        </span>
+                        {suggestion.difficulty && (
+                          <span className={`px-2 py-0.5 text-xs rounded-full ${
+                            suggestion.difficulty === 'easy' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
+                            suggestion.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300' :
+                            'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                          }`}>
+                            {suggestion.difficulty}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-gray-800 dark:text-gray-200">{suggestion.suggestion}</p>
+                      {suggestion.impact && (
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                          Impact: {suggestion.impact}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto mb-3" />
+              <p className="text-gray-600 dark:text-gray-400">
+                All goals are on track! Keep up the great work!
+              </p>
+            </div>
+          )}
+          <div className="flex justify-end pt-4">
+            <Button variant="secondary" onClick={() => setShowCatchUpModal(false)}>
+              Close
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Share with Guardian Modal */}
+      <Modal
+        isOpen={showShareModal}
+        onClose={() => {
+          setShowShareModal(false)
+          setSelectedGoalForShare(null)
+        }}
+        title="Share Goal with Guardian"
+      >
+        <div className="space-y-4">
+          {selectedGoalForShare && (
+            <>
+              <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <p className="font-medium text-gray-900 dark:text-white">{selectedGoalForShare.title}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Progress: {formatProgress(selectedGoalForShare.currentValue ?? selectedGoalForShare.currentProgress ?? 0)} / {formatProgress(selectedGoalForShare.targetValue ?? selectedGoalForShare.target ?? 0)} {selectedGoalForShare.unit || selectedGoalForShare.progressUnit}
+                </p>
+              </div>
+
+              <div>
+                <label className="label">Select Guardian/Teacher</label>
+                {guardians && guardians.length > 0 ? (
+                  <div className="space-y-2">
+                    {guardians.map((guardian) => (
+                      <label
+                        key={guardian._id || guardian.id || guardian.email}
+                        className="flex items-center space-x-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
+                      >
+                        <input
+                          type="radio"
+                          name="guardian"
+                          value={guardian._id || guardian.id || guardian.email}
+                          className="w-4 h-4 text-primary-600"
+                        />
+                        <div className="flex items-center space-x-2">
+                          <Users className="w-5 h-5 text-gray-400" />
+                          <div>
+                            <p className="font-medium text-gray-900 dark:text-white">{guardian.name}</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">{guardian.email}</p>
+                          </div>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg text-center">
+                    <Users className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-gray-600 dark:text-gray-400 text-sm">
+                      No guardians connected. Add a guardian in your profile settings.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <label className="flex items-start space-x-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    id="consent"
+                    className="w-4 h-4 mt-1 text-primary-600 border-gray-300 rounded"
+                  />
+                  <span className="text-sm text-blue-700 dark:text-blue-300">
+                    I consent to sharing my goal progress, including milestones and completion status, with the selected guardian. They will be able to view my progress but cannot modify goals.
+                  </span>
+                </label>
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-4">
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setShowShareModal(false)
+                    setSelectedGoalForShare(null)
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => {
+                    const consent = document.getElementById('consent')?.checked
+                    const selected = document.querySelector('input[name="guardian"]:checked')?.value
+                    if (!consent) {
+                      showError('Please provide consent to share')
+                      return
+                    }
+                    if (!selected && guardians && guardians.length > 0) {
+                      showError('Please select a guardian')
+                      return
+                    }
+                    handleShareWithGuardian(selectedGoalForShare._id || selectedGoalForShare.id, selected)
+                  }}
+                  disabled={!guardians || guardians.length === 0}
+                >
+                  <Share2 className="w-4 h-4 mr-2" />
+                  Share Goal
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
       </Modal>
     </div>
   )

@@ -12,6 +12,11 @@ const MotivationalTip = require('../models/MotivationalTip');
 const CommunityChallenge = require('../models/CommunityChallenge');
 const UserRewards = require('../models/UserRewards');
 const { authenticate } = require('../middleware/auth');
+const { 
+  initializeUserRewards,
+  queueAchievementNotification,
+  checkAndAwardRewards
+} = require('../services/RewardsService');
 
 // ============================================
 // MOTIVATIONAL TIPS ENDPOINTS
@@ -236,6 +241,12 @@ router.post('/challenges/:id/update-progress', authenticate, async (req, res) =>
       return res.status(404).json({ error: 'Challenge not found' });
     }
     
+    // Track if already completed before update
+    const participant = challenge.participants.find(
+      p => p.userId.toString() === req.user._id.toString()
+    );
+    const wasCompleted = participant?.completed || false;
+    
     const result = challenge.updateProgress(req.user._id, progress);
     
     if (!result.success) {
@@ -244,20 +255,50 @@ router.post('/challenges/:id/update-progress', authenticate, async (req, res) =>
     
     await challenge.save();
     
-    // If completed, award rewards
-    const participant = challenge.participants.find(
+    // Get updated participant
+    const updatedParticipant = challenge.participants.find(
       p => p.userId.toString() === req.user._id.toString()
     );
     
-    if (participant && participant.completed && challenge.rewards.points > 0) {
-      const userRewards = await UserRewards.findOne({ userId: req.user._id });
-      if (userRewards) {
-        userRewards.addPoints(
-          challenge.rewards.points,
-          'challenge',
-          `Completed challenge: ${challenge.title}`
-        );
-        await userRewards.save();
+    let rewardResult = null;
+    
+    // If just completed, award rewards with proper level progression
+    if (!wasCompleted && updatedParticipant?.completed && challenge.rewards.points > 0) {
+      const userRewards = await initializeUserRewards(req.user._id);
+      
+      // Add points with level check
+      userRewards.addPoints(
+        challenge.rewards.points,
+        `Completed challenge: ${challenge.title}`,
+        'achievement',
+        challenge._id
+      );
+      
+      const levelUpResult = userRewards.checkLevelUp();
+      await userRewards.save();
+      
+      rewardResult = {
+        pointsAwarded: challenge.rewards.points,
+        newTotalPoints: userRewards.totalPoints,
+        levelUp: levelUpResult.leveledUp ? { didLevelUp: true, newLevel: userRewards.currentLevel } : null,
+        currentLevel: userRewards.currentLevel
+      };
+      
+      // Queue achievement notification
+      queueAchievementNotification(req.user._id, {
+        type: 'challenge_completed',
+        title: '🏆 Challenge Complete!',
+        message: `You conquered "${challenge.title}"!`,
+        pointsAwarded: challenge.rewards.points,
+        challengeId: challenge._id
+      });
+      
+      // Award badge if challenge has one
+      if (challenge.rewards.badgeId) {
+        const badgeEarned = userRewards.earnReward(challenge.rewards.badgeId);
+        if (badgeEarned) {
+          await userRewards.save();
+        }
       }
     }
     
@@ -265,9 +306,10 @@ router.post('/challenges/:id/update-progress', authenticate, async (req, res) =>
       success: true,
       message: result.message,
       data: {
-        progress: participant.progress,
-        completed: participant.completed
-      }
+        progress: updatedParticipant.progress,
+        completed: updatedParticipant.completed
+      },
+      rewardResult
     });
   } catch (error) {
     console.error('Update challenge progress error:', error);

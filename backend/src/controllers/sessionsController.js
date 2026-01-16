@@ -2,7 +2,7 @@ const SessionLog = require('../models/SessionLog');
 const Preset = require('../models/Preset');
 const { getSuggestion } = require('../services/suggestionService');
 const { updateGoalsFromSession } = require('../services/GoalProgressService');
-const { awardSessionPoints } = require('../services/RewardsService');
+const { awardSessionPoints, updateChallengesFromSession } = require('../services/RewardsService');
 
 // Complete a session and log it
 const completeSession = async (req, res) => {
@@ -70,6 +70,24 @@ const completeSession = async (req, res) => {
       console.error('Error awarding points:', rewardError);
     }
 
+    // Update active challenge progress
+    let challengeResults = null;
+    try {
+      challengeResults = await updateChallengesFromSession(req.user._id, {
+        duration: durationSeconds,
+        _id: sessionLog._id
+      });
+      
+      if (challengeResults && challengeResults.length > 0) {
+        const completedChallenges = challengeResults.filter(c => c.completed);
+        if (completedChallenges.length > 0) {
+          console.log(`🏆 Completed ${completedChallenges.length} challenge(s)!`);
+        }
+      }
+    } catch (challengeError) {
+      console.error('Error updating challenges:', challengeError);
+    }
+
     // Get count of sessions completed today
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
@@ -83,7 +101,8 @@ const completeSession = async (req, res) => {
       success: true,
       data: sessionLog,
       todayCount,
-      rewards: rewardsResult
+      rewards: rewardsResult,
+      challenges: challengeResults
     });
   } catch (error) {
     console.error('Error completing session:', error);

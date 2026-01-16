@@ -21,16 +21,20 @@ import {
   Brain,
   Clock,
   Layers,
-  Plus
+  Plus,
+  Target
 } from 'lucide-react'
 import api from '../../services/api'
 import Button from '../../components/UI/Button'
 import PresetManager from '../../components/Timer/PresetManager'
 import SessionEndModal from '../../components/Timer/SessionEndModal'
+import GoalSelectionModal from '../../components/Timer/GoalSelectionModal'
 import { useNotification } from '../../contexts/NotificationContext'
+import { useAchievementToast } from '../../components/UI/AchievementToast'
 
 const Focus = () => {
   const { success, info } = useNotification()
+  const achievementToast = useAchievementToast()
   
   // Session types with default durations
   const sessionTypes = {
@@ -51,6 +55,11 @@ const Focus = () => {
   const [sessionData, setSessionData] = useState(null)
   const [presets, setPresets] = useState([])
   const [selectedPreset, setSelectedPreset] = useState(null)
+  
+  // Goal tracking state
+  const [showGoalSelection, setShowGoalSelection] = useState(false)
+  const [selectedGoal, setSelectedGoal] = useState(null)
+  const [pendingStart, setPendingStart] = useState(false)
   
   // Settings state
   const [customDurations, setCustomDurations] = useState({
@@ -144,33 +153,64 @@ const Focus = () => {
 
   const handlePlayPause = async () => {
     if (!isRunning) {
-      // Start session
-      if (!sessionId) {
-        try {
-          const response = await api.sessions.start({
-            type: sessionType,
-            duration: duration,
-          })
-          if (response.success) {
-            setSessionId(response.data.id)
-          }
-        } catch (error) {
-          console.error('Failed to start session:', error)
-        }
+      // If starting fresh (no session), show goal selection
+      if (!sessionId && sessionType === 'focus') {
+        setShowGoalSelection(true)
+        setPendingStart(true)
+        return
       }
-      setIsRunning(true)
+      // Resume or start without goal
+      await startSession()
     } else {
       // Pause session
       setIsRunning(false)
     }
   }
 
+  // Actually start the timer session
+  const startSession = async () => {
+    if (!sessionId) {
+      try {
+        const response = await api.sessions.start({
+          type: sessionType,
+          duration: duration,
+          goalId: selectedGoal?._id || selectedGoal?.id || null,
+        })
+        if (response.success) {
+          setSessionId(response.data.id)
+        }
+      } catch (error) {
+        console.error('Failed to start session:', error)
+      }
+    }
+    setIsRunning(true)
+    setPendingStart(false)
+  }
+
+  // Handle goal selection from modal
+  const handleGoalSelected = (goal) => {
+    setSelectedGoal(goal)
+    setShowGoalSelection(false)
+    // Auto-start after selection
+    setTimeout(() => startSession(), 100)
+  }
+
+  // Handle skipping goal selection
+  const handleSkipGoalSelection = () => {
+    setSelectedGoal(null)
+    setShowGoalSelection(false)
+    // Auto-start after skip
+    setTimeout(() => startSession(), 100)
+  }
+
   const handleStop = async () => {
     if (sessionId) {
       try {
+        const actualDuration = duration - timeLeft
         await api.sessions.end(sessionId, {
-          actualDuration: duration - timeLeft,
+          actualDuration: actualDuration,
           completed: false,
+          goalId: selectedGoal?._id || selectedGoal?.id || null,
         })
         info('Session stopped')
       } catch (error) {
@@ -181,6 +221,7 @@ const Focus = () => {
     setIsRunning(false)
     setTimeLeft(duration)
     setSessionId(null)
+    setSelectedGoal(null)
   }
 
   const handleSessionComplete = async () => {
@@ -189,19 +230,53 @@ const Focus = () => {
       presetName: selectedPreset?.name || sessionTypes[sessionType].name,
       todayCount: 1,
       streak: 0,
+      goalUpdated: false,
+      goalTitle: selectedGoal?.title || null,
     }
 
+    let sessionResponse = null
     if (sessionId) {
       try {
-        const response = await api.sessions.end(sessionId, {
+        sessionResponse = await api.sessions.end(sessionId, {
           actualDuration: duration,
           completed: true,
+          goalId: selectedGoal?._id || selectedGoal?.id || null,
         })
-        if (response.success && response.data) {
-          completedSessionData = { ...completedSessionData, ...response.data }
+        if (sessionResponse.success && sessionResponse.data) {
+          completedSessionData = { ...completedSessionData, ...sessionResponse.data }
         }
       } catch (error) {
         console.error('Failed to complete session:', error)
+      }
+    }
+    
+    // Update goal progress if a goal was selected
+    if (selectedGoal) {
+      try {
+        const hoursCompleted = duration / 3600 // Convert seconds to hours
+        const progressResponse = await api.goals.addProgress(selectedGoal._id || selectedGoal.id, hoursCompleted)
+        completedSessionData.goalUpdated = true
+        completedSessionData.hoursAdded = hoursCompleted
+        success(`Added ${hoursCompleted.toFixed(2)} hours to "${selectedGoal.title}"!`)
+        
+        // Check if goal was completed and celebrate
+        if (progressResponse.goal?.status === 'completed' && progressResponse.rewardResult) {
+          setTimeout(() => {
+            achievementToast.showPoints(
+              progressResponse.rewardResult.pointsAwarded, 
+              `Goal Complete: ${selectedGoal.title}`
+            )
+          }, 2000)
+          
+          // Show level up if applicable
+          if (progressResponse.rewardResult.levelUp?.didLevelUp) {
+            setTimeout(() => {
+              achievementToast.showLevelUp(progressResponse.rewardResult.levelUp.newLevel)
+            }, 3500)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to update goal progress:', error)
       }
     }
     
@@ -209,12 +284,54 @@ const Focus = () => {
     setSessionId(null)
     setSessionData(completedSessionData)
     setShowSessionEnd(true)
+    
+    // Show achievement toast for session completion with actual points from server
+    const sessionMinutes = Math.round(duration / 60)
+    const pointsEarned = sessionResponse?.rewards?.pointsAwarded || sessionMinutes * 2
+    achievementToast.showPoints(pointsEarned, `${sessionMinutes}-minute study session completed!`)
+    
+    // Check for level up from session
+    if (sessionResponse?.rewards?.levelUp?.leveledUp) {
+      setTimeout(() => {
+        achievementToast.showLevelUp(sessionResponse.rewards.levelUp.newLevel || sessionResponse.rewards.currentLevel)
+      }, 1500)
+    }
+    
+    // Check for streak milestone celebration
+    if (completedSessionData.streak && completedSessionData.streak >= 7) {
+      setTimeout(() => {
+        achievementToast.showStreak(completedSessionData.streak, 'Keep your streak going!')
+      }, sessionResponse?.rewards?.levelUp?.leveledUp ? 3000 : 1500)
+    }
+    
+    // Show challenge completion celebrations
+    if (sessionResponse?.challenges && sessionResponse.challenges.length > 0) {
+      const completedChallenges = sessionResponse.challenges.filter(c => c.completed)
+      completedChallenges.forEach((challenge, index) => {
+        setTimeout(() => {
+          achievementToast.showAchievement(
+            '🏆',
+            `Challenge Complete!`,
+            challenge.title,
+          )
+          if (challenge.rewardResult?.pointsAwarded) {
+            setTimeout(() => {
+              achievementToast.showPoints(challenge.rewardResult.pointsAwarded, `Bonus for ${challenge.title}`)
+            }, 1000)
+          }
+        }, 2000 + (index * 2500))
+      })
+    }
+    
     success('Session completed! 🎉')
+    
+    // Clear selected goal after session
+    setSelectedGoal(null)
     
     // Play notification sound (if browser supports it)
     if ('Notification' in window && Notification.permission === 'granted') {
       new Notification('Session Complete!', {
-        body: `Your ${sessionTypes[sessionType].name} is complete.`,
+        body: `Your ${sessionTypes[sessionType].name} is complete.${completedSessionData.goalUpdated ? ` Progress added to "${completedSessionData.goalTitle}".` : ''}`,
         icon: '/vite.svg',
       })
     }
@@ -475,6 +592,31 @@ const Focus = () => {
 
       {/* Main Timer Card */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-12 border border-gray-200 dark:border-gray-700">
+        {/* Selected Goal Display */}
+        {selectedGoal && (
+          <div className="mb-6 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Target className="w-5 h-5 text-green-600 dark:text-green-400" />
+                <span className="text-sm font-medium text-green-800 dark:text-green-200">
+                  Tracking: {selectedGoal.title}
+                </span>
+              </div>
+              {!isRunning && (
+                <button
+                  onClick={() => setSelectedGoal(null)}
+                  className="text-xs text-green-600 dark:text-green-400 hover:underline"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+            <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+              Session time will be added to this goal's progress
+            </p>
+          </div>
+        )}
+
         {/* Session Icon and Name */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-20 h-20 bg-primary-100 dark:bg-primary-900/30 rounded-full mb-4">
@@ -554,6 +696,17 @@ const Focus = () => {
         isOpen={showPresets}
         onClose={() => setShowPresets(false)}
         onPresetsChange={loadPresets}
+      />
+
+      {/* Goal Selection Modal */}
+      <GoalSelectionModal
+        isOpen={showGoalSelection}
+        onClose={() => {
+          setShowGoalSelection(false)
+          setPendingStart(false)
+        }}
+        onSelectGoal={handleGoalSelected}
+        onSkip={handleSkipGoalSelection}
       />
 
       {/* Session End Modal */}
