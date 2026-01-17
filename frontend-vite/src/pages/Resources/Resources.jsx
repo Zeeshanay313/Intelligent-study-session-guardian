@@ -335,7 +335,7 @@ const Resources = () => {
                     <Edit2 className="w-4 h-4 text-gray-600 dark:text-gray-400" />
                   </button>
                   <button
-                    onClick={() => handleDelete(resource.id)}
+                    onClick={() => handleDelete(resource._id || resource.id)}
                     className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                   >
                     <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
