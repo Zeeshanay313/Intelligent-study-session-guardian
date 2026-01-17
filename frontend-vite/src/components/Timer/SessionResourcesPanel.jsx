@@ -57,7 +57,7 @@ const SessionResourcesPanel = ({ resources = [], onRemoveResource, onClose }) =>
   }
 
   const openResourceExternally = (resource) => {
-    const url = resource.content?.url || resource.url
+    const url = getResourceUrl(resource)
     if (url) {
       window.open(url, '_blank', 'noopener,noreferrer')
     }
@@ -74,13 +74,20 @@ const SessionResourcesPanel = ({ resources = [], onRemoveResource, onClose }) =>
   }
 
   const getResourceUrl = (resource) => {
+    // Check for uploaded file first
+    if (resource.content?.filePath) {
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5004'
+      return `${baseUrl}${resource.content.filePath}`
+    }
+    // Then check for URL
     return resource.content?.url || resource.url
   }
 
   const hasViewableContent = (resource) => {
     const url = getResourceUrl(resource)
     const text = resource.content?.text || resource.notes
-    return url || text
+    const hasFile = resource.content?.filePath
+    return url || text || hasFile
   }
 
   // Minimized state - just a floating button
