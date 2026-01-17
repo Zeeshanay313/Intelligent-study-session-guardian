@@ -109,9 +109,11 @@ cd backend
 npm install
 cp .env.example .env
 # Edit .env with your MongoDB URI and secrets
-npm run seed  # Create demo data
+npm run seed  # ⭐ IMPORTANT: Seeds badges, challenges, and tips
 npm start     # Start on http://localhost:5004
 ```
+
+> **🎯 New Device Setup:** If you clone this repo on a new device, make sure to run `npm run seed` to populate your database with motivation features, challenges, and badges!
 
 3. **Setup Frontend (Vite)**
 ```bash

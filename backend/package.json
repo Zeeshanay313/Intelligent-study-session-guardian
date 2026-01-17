@@ -6,6 +6,10 @@
   "scripts": {
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
+    "seed": "node src/seeds/index.js",
+    "seed:challenges": "node src/seeds/seedCommunityChallenges.js",
+    "seed:tips": "node src/seeds/seedMotivationalTips.js",
+    "seed:rewards": "node src/seeds/seedRewards.js",
     "test": "jest --coverage --detectOpenHandles --forceExit",
     "test:watch": "jest --watch",
     "test:ci": "jest --ci --coverage --maxWorkers=2"
