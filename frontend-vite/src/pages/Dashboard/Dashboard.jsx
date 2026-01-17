@@ -103,6 +103,47 @@ const Dashboard = () => {
   // Refresh goal progress data without full reload
   const refreshGoalProgress = async () => {
     try {
+      // Refresh session data for weekly chart and metrics
+      const sessionsResponse = await api.sessions.list()
+      if (sessionsResponse.success) {
+        const sessions = sessionsResponse.data
+        
+        // Calculate total focus time (this week)
+        const oneWeekAgo = new Date()
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
+        const weekSessions = sessions.filter(s => new Date(s.startTime) >= oneWeekAgo)
+        const totalMinutes = weekSessions.reduce((sum, s) => sum + (s.actualDuration / 60), 0)
+        
+        // Calculate avg session length
+        const avgMinutes = weekSessions.length > 0 ? totalMinutes / weekSessions.length : 0
+        
+        // Count today's sessions
+        const today = new Date().toDateString()
+        const todaySessions = sessions.filter(s => new Date(s.startTime).toDateString() === today)
+        
+        setMetrics(prev => ({
+          ...prev,
+          totalFocusTime: Math.round(totalMinutes),
+          avgSessionLength: Math.round(avgMinutes),
+          sessionsToday: todaySessions.length,
+        }))
+        
+        // Build weekly data
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+        const weekData = days.map((day, index) => {
+          const date = new Date()
+          date.setDate(date.getDate() - (6 - index))
+          const daySessions = sessions.filter(s => {
+            const sessionDate = new Date(s.startTime)
+            return sessionDate.toDateString() === date.toDateString()
+          })
+          const minutes = daySessions.reduce((sum, s) => sum + (s.actualDuration / 60), 0)
+          return { day: days[date.getDay()], minutes: Math.round(minutes) }
+        })
+        setWeeklyData(weekData)
+      }
+
+      // Refresh goals data
       const goalsResponse = await api.goals.list()
       if (goalsResponse.success && goalsResponse.goals) {
         const goals = goalsResponse.goals
@@ -134,7 +175,7 @@ const Dashboard = () => {
         // Silent fail for progress summary
       }
     } catch (error) {
-      console.error('Failed to refresh goal progress:', error)
+      console.error('Failed to refresh dashboard data:', error)
     }
   }
 
@@ -534,7 +575,7 @@ const Dashboard = () => {
                   border: '1px solid #e5e7eb',
                   borderRadius: '8px',
                 }}
-                formatter={(value) => [`${value} min`, 'Focus Time']}
+                formatter={(value) => [`${Math.round(value)} min`, 'Focus Time']}
               />
               <Bar dataKey="minutes" fill="#0ea5e9" radius={[8, 8, 0, 0]} />
             </BarChart>
