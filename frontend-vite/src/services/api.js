@@ -501,6 +501,31 @@ export const api = {
         () => mockApi.resources.launch(id)
       )
     },
+
+    upload: async (file, metadata = {}) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      Object.keys(metadata).forEach(key => {
+        formData.append(key, metadata[key])
+      })
+      return apiCall(
+        () => axiosInstance.post('/api/resources/upload', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        }),
+        () => mockApi.resources.upload(file, metadata)
+      )
+    },
+
+    getFileUrl: (filePath) => {
+      if (!filePath) return null
+      // If it's already a full URL, return it
+      if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+        return filePath
+      }
+      // Otherwise, construct the full URL from the API base
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5004'
+      return `${baseUrl}${filePath}`
+    },
   },
 
   // ==================== REPORTS ====================

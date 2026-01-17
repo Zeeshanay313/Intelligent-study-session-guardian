@@ -24,17 +24,16 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage,
   limits: {
-    fileSize: 50 * 1024 * 1024 // 50MB limit
+    fileSize: 100 * 1024 * 1024 // 100MB limit for videos
   },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx|txt|md|zip|ppt|pptx|xls|xlsx/;
+    const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx|txt|md|zip|ppt|pptx|xls|xlsx|mp4|webm|ogg|mov|avi|mkv|mp3|wav/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
     
-    if (mimetype && extname) {
+    if (extname) {
       return cb(null, true);
     } else {
-      cb(new Error('Invalid file type'));
+      cb(new Error('Invalid file type. Allowed: images, documents, videos, audio'));
     }
   }
 });
@@ -195,11 +194,25 @@ router.post('/upload', authenticate, upload.single('file'), async (req, res) => 
       folder
     } = req.body;
     
+    // Detect resource type based on file extension
+    const ext = path.extname(req.file.originalname).toLowerCase();
+    let resourceType = 'file';
+    
+    if (['.mp4', '.webm', '.ogg', '.mov', '.avi', '.mkv'].includes(ext)) {
+      resourceType = 'video';
+    } else if (['.pdf', '.doc', '.docx', '.txt', '.md', '.ppt', '.pptx', '.xls', '.xlsx'].includes(ext)) {
+      resourceType = 'document';
+    } else if (['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext)) {
+      resourceType = 'file'; // images
+    } else if (['.mp3', '.wav', '.ogg'].includes(ext)) {
+      resourceType = 'file'; // audio
+    }
+    
     const resourceData = {
       userId: req.user._id,
       title: title || req.file.originalname,
       description: description || '',
-      type: 'file',
+      type: resourceType,
       category: category || 'general',
       content: {
         filePath: `/uploads/resources/${req.file.filename}`,

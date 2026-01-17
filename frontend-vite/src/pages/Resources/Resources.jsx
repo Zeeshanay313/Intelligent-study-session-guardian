@@ -1,9 +1,10 @@
 /**
  * Resources Component
  * Manage and access study resources with filtering and search
+ * Supports file uploads, inline viewing for videos/documents/notes
  */
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   BookOpen,
   FileText,
@@ -18,11 +19,18 @@ import {
   Edit2,
   Trash2,
   Star,
+  Eye,
+  Play,
+  File,
+  X,
+  Image,
+  Music
 } from 'lucide-react'
 import api from '../../services/api'
 import Button from '../../components/UI/Button'
 import Modal from '../../components/UI/Modal'
 import Input from '../../components/UI/Input'
+import ResourceViewer from '../../components/Timer/ResourceViewer'
 
 const Resources = () => {
   const [resources, setResources] = useState([])
@@ -33,12 +41,17 @@ const Resources = () => {
   const [selectedTags, setSelectedTags] = useState([])
   const [showModal, setShowModal] = useState(false)
   const [editingResource, setEditingResource] = useState(null)
+  const [viewingResource, setViewingResource] = useState(null)
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [isUploading, setIsUploading] = useState(false)
+  const fileInputRef = useRef(null)
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     type: 'article',
     url: '',
     tags: '',
+    file: null,
   })
 
   useEffect(() => {
@@ -95,6 +108,8 @@ const Resources = () => {
     { value: 'video', label: 'Videos', icon: Video },
     { value: 'tool', label: 'Tools', icon: LinkIcon },
     { value: 'document', label: 'Documents', icon: BookOpen },
+    { value: 'note', label: 'Notes', icon: FileText },
+    { value: 'file', label: 'Files', icon: File },
   ]
 
   const availableTags = [...new Set(resources.flatMap((r) => r.tags || []))]
@@ -105,6 +120,8 @@ const Resources = () => {
       video: Video,
       tool: LinkIcon,
       document: BookOpen,
+      note: FileText,
+      file: File,
       note: FileText,
     }
     return icons[type] || FileText
@@ -117,49 +134,112 @@ const Resources = () => {
       tool: 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400',
       document: 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400',
       note: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400',
+      file: 'bg-gray-100 dark:bg-gray-900/30 text-gray-600 dark:text-gray-400',
     }
     return colors[type] || 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
   }
 
+  // Handle file selection
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      setFormData({ ...formData, file, title: formData.title || file.name })
+      // Auto-detect type based on file extension
+      const ext = file.name.split('.').pop().toLowerCase()
+      if (['mp4', 'webm', 'ogg', 'mov', 'avi', 'mkv'].includes(ext)) {
+        setFormData(prev => ({ ...prev, file, type: 'video', title: prev.title || file.name }))
+      } else if (['pdf', 'doc', 'docx', 'txt', 'md', 'ppt', 'pptx', 'xls', 'xlsx'].includes(ext)) {
+        setFormData(prev => ({ ...prev, file, type: 'document', title: prev.title || file.name }))
+      } else {
+        setFormData(prev => ({ ...prev, file, type: 'file', title: prev.title || file.name }))
+      }
+    }
+  }
+
+  // Get viewable URL for a resource
+  const getResourceViewUrl = (resource) => {
+    // Check for uploaded file
+    if (resource.content?.filePath) {
+      return api.resources.getFileUrl(resource.content.filePath)
+    }
+    // Check for URL
+    return resource.content?.url || resource.url || null
+  }
+
+  // Check if resource can be viewed inline
+  const canViewInline = (resource) => {
+    const url = getResourceViewUrl(resource)
+    const text = resource.content?.text || resource.notes
+    return url || text
+  }
+
+  // Format file size
+  const formatFileSize = (bytes) => {
+    if (!bytes) return ''
+    if (bytes < 1024) return bytes + ' B'
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
-
-    const resourceData = {
-      title: formData.title,
-      description: formData.description,
-      type: formData.type,
-      category: formData.category || 'general',
-      content: {
-        url: formData.url || '',
-        text: formData.notes || ''
-      },
-      tags: formData.tags ? formData.tags.split(',').map((t) => t.trim()).filter(Boolean) : [],
-      subject: formData.subject || '',
-      folder: formData.folder || 'Unsorted'
-    }
+    setIsUploading(true)
 
     try {
-      if (editingResource) {
-        const resourceId = editingResource.id || editingResource._id
-        const response = await api.resources.update(resourceId, resourceData)
+      // If there's a file, upload it
+      if (formData.file) {
+        const metadata = {
+          title: formData.title,
+          description: formData.description,
+          category: formData.category || 'general',
+          tags: formData.tags || '',
+          folder: formData.folder || 'Unsorted'
+        }
+        
+        const response = await api.resources.upload(formData.file, metadata)
         if (response.success) {
-          // Refetch to get the updated list
           await fetchResources()
         }
       } else {
-        const response = await api.resources.create(resourceData)
-        if (response.success) {
-          // Refetch to get the new resource with proper ID
-          await fetchResources()
+        // Create URL-based or note resource
+        const resourceData = {
+          title: formData.title,
+          description: formData.description,
+          type: formData.type,
+          category: formData.category || 'general',
+          content: {
+            url: formData.url || '',
+            text: formData.notes || ''
+          },
+          tags: formData.tags ? formData.tags.split(',').map((t) => t.trim()).filter(Boolean) : [],
+          subject: formData.subject || '',
+          folder: formData.folder || 'Unsorted'
+        }
+
+        if (editingResource) {
+          const resourceId = editingResource.id || editingResource._id
+          const response = await api.resources.update(resourceId, resourceData)
+          if (response.success) {
+            await fetchResources()
+          }
+        } else {
+          const response = await api.resources.create(resourceData)
+          if (response.success) {
+            await fetchResources()
+          }
         }
       }
 
       setShowModal(false)
       setEditingResource(null)
-      setFormData({ title: '', description: '', type: 'article', url: '', tags: '', category: 'general', subject: '', folder: 'Unsorted', notes: '' })
+      setFormData({ title: '', description: '', type: 'article', url: '', tags: '', category: 'general', subject: '', folder: 'Unsorted', notes: '', file: null })
+      if (fileInputRef.current) fileInputRef.current.value = ''
     } catch (error) {
       console.error('Failed to save resource:', error)
       alert('Failed to save resource. Please try again.')
+    } finally {
+      setIsUploading(false)
+      setUploadProgress(0)
     }
   }
 
@@ -174,7 +254,8 @@ const Resources = () => {
       category: resource.category || 'general',
       subject: resource.subject || '',
       folder: resource.folder || 'Unsorted',
-      notes: resource.content?.text || resource.notes || ''
+      notes: resource.content?.text || resource.notes || '',
+      file: null
     })
     setShowModal(true)
   }
@@ -196,13 +277,17 @@ const Resources = () => {
     try {
       const resourceId = resource.id || resource._id
       await api.resources.launch(resourceId)
-      const url = resource.content?.url || resource.url
+      const url = getResourceViewUrl(resource)
       if (url) {
         window.open(url, '_blank')
       }
     } catch (error) {
       console.error('Failed to launch resource:', error)
     }
+  }
+
+  const handleViewResource = (resource) => {
+    setViewingResource(resource)
   }
 
   const toggleFavorite = async (resource) => {
@@ -365,18 +450,50 @@ const Resources = () => {
                 </div>
               )}
 
+              {/* File info for uploaded files */}
+              {resource.content?.fileName && (
+                <div className="flex items-center space-x-2 mb-4 text-xs text-gray-500 dark:text-gray-400">
+                  <File className="w-3 h-3" />
+                  <span className="truncate">{resource.content.fileName}</span>
+                  {resource.content.fileSize && (
+                    <span className="flex-shrink-0">({formatFileSize(resource.content.fileSize)})</span>
+                  )}
+                </div>
+              )}
+
               <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-gray-700">
                 <span className="text-xs text-gray-500">
                   {new Date(resource.createdAt).toLocaleDateString()}
                 </span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleLaunch(resource)}
-                >
-                  <ExternalLink className="w-4 h-4 mr-1" />
-                  Open
-                </Button>
+                <div className="flex items-center space-x-2">
+                  {canViewInline(resource) && (
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      onClick={() => handleViewResource(resource)}
+                    >
+                      {resource.type === 'video' ? (
+                        <>
+                          <Play className="w-4 h-4 mr-1" />
+                          Watch
+                        </>
+                      ) : (
+                        <>
+                          <Eye className="w-4 h-4 mr-1" />
+                          View
+                        </>
+                      )}
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleLaunch(resource)}
+                  >
+                    <ExternalLink className="w-4 h-4 mr-1" />
+                    Open
+                  </Button>
+                </div>
               </div>
             </div>
           )
@@ -448,18 +565,112 @@ const Resources = () => {
           </div>
 
           {formData.type !== 'note' && (
-            <Input
-              label="URL"
-              type="url"
-              value={formData.url}
-              onChange={(e) => setFormData({ ...formData, url: e.target.value })}
-              required={formData.type !== 'note'}
-              placeholder={
-                formData.type === 'video' 
-                  ? 'https://youtube.com/watch?v=...' 
-                  : 'https://example.com'
-              }
-            />
+            <div className="space-y-3">
+              {/* URL Input */}
+              <Input
+                label="URL (or upload file below)"
+                type="url"
+                value={formData.url}
+                onChange={(e) => setFormData({ ...formData, url: e.target.value, file: null })}
+                disabled={formData.file}
+                placeholder={
+                  formData.type === 'video' 
+                    ? 'https://youtube.com/watch?v=...' 
+                    : 'https://example.com'
+                }
+              />
+              
+              {/* File Upload */}
+              <div className="relative">
+                <p className="text-xs text-gray-500 text-center mb-2">— or upload a file —</p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept={
+                    formData.type === 'video' 
+                      ? 'video/*,.mp4,.webm,.mov,.avi,.mkv' 
+                      : formData.type === 'document' 
+                        ? '.pdf,.doc,.docx,.txt,.xls,.xlsx,.ppt,.pptx'
+                        : '*/*'
+                  }
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                
+                {formData.file ? (
+                  <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                    <div className="flex items-center space-x-3">
+                      {formData.type === 'video' ? (
+                        <Video className="w-5 h-5 text-green-600" />
+                      ) : formData.type === 'document' ? (
+                        <FileText className="w-5 h-5 text-green-600" />
+                      ) : (
+                        <File className="w-5 h-5 text-green-600" />
+                      )}
+                      <div>
+                        <p className="text-sm font-medium text-green-700 dark:text-green-300 truncate max-w-[200px]">
+                          {formData.file.name}
+                        </p>
+                        <p className="text-xs text-green-600 dark:text-green-400">
+                          {formatFileSize(formData.file.size)}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setFormData({ ...formData, file: null })
+                        if (fileInputRef.current) fileInputRef.current.value = ''
+                      }}
+                    >
+                      <X className="w-4 h-4 text-red-500" />
+                    </Button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-indigo-400 dark:hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors text-center"
+                  >
+                    <Upload className="w-6 h-6 text-gray-400 mx-auto mb-2" />
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Click to upload {formData.type === 'video' ? 'video' : formData.type === 'document' ? 'document' : 'file'}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {formData.type === 'video' 
+                        ? 'MP4, WebM, MOV up to 100MB' 
+                        : formData.type === 'document'
+                          ? 'PDF, DOC, DOCX, TXT up to 100MB'
+                          : 'Any file up to 100MB'}
+                    </p>
+                  </button>
+                )}
+
+                {/* Upload Progress */}
+                {isUploading && (
+                  <div className="mt-3">
+                    <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 mb-1">
+                      <span>Uploading...</span>
+                      <span>{uploadProgress}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                      <div 
+                        className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${uploadProgress}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {!formData.url && !formData.file && formData.type !== 'note' && (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  ⚠️ Please provide either a URL or upload a file
+                </p>
+              )}
+            </div>
           )}
 
           {(formData.type === 'note' || formData.type === 'document') && (
@@ -505,12 +716,54 @@ const Resources = () => {
             >
               Cancel
             </Button>
-            <Button type="submit">
-              {editingResource ? 'Update' : 'Add'} Resource
+            <Button type="submit" disabled={isUploading}>
+              {isUploading ? 'Uploading...' : editingResource ? 'Update' : 'Add'} Resource
             </Button>
           </div>
         </form>
       </Modal>
+
+      {/* Resource Viewer Modal */}
+      {viewingResource && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center space-x-3">
+                <span className={`p-2 rounded-lg ${resourceTypes.find(t => t.value === viewingResource.type)?.color || 'bg-gray-100'}`}>
+                  {React.createElement(resourceTypes.find(t => t.value === viewingResource.type)?.icon || FileText, { className: 'w-5 h-5' })}
+                </span>
+                <div>
+                  <h3 className="font-semibold text-gray-900 dark:text-white">{viewingResource.title}</h3>
+                  <p className="text-sm text-gray-500">{viewingResource.type}</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleLaunch(viewingResource)}
+                >
+                  <ExternalLink className="w-4 h-4 mr-1" />
+                  Open External
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setViewingResource(null)}
+                >
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-auto p-4">
+              <ResourceViewer 
+                resource={viewingResource}
+                onClose={() => setViewingResource(null)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
