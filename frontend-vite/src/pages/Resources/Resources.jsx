@@ -24,7 +24,11 @@ import {
   File,
   X,
   Image,
-  Music
+  Music,
+  Sparkles,
+  TrendingUp,
+  Clock,
+  Zap
 } from 'lucide-react'
 import api from '../../services/api'
 import Button from '../../components/UI/Button'
@@ -386,6 +390,92 @@ const Resources = () => {
           )}
         </div>
       )}
+
+      {/* Recommended Resources Section */}
+      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-xl p-6 border border-indigo-100 dark:border-indigo-800/50">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+              <Sparkles className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Recommended Resources
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                AI-powered suggestions based on your study patterns
+              </p>
+            </div>
+          </div>
+          <span className="px-3 py-1 text-xs font-medium bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 rounded-full">
+            Coming Soon
+          </span>
+        </div>
+
+        {/* Placeholder Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Trending Card */}
+          <div className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-lg p-4 border border-white/50 dark:border-gray-700/50">
+            <div className="flex items-center space-x-2 mb-3">
+              <TrendingUp className="w-4 h-4 text-green-600 dark:text-green-400" />
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Trending Topics</span>
+            </div>
+            <div className="space-y-2">
+              <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-3/4"></div>
+              <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-1/2"></div>
+              <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-2/3"></div>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
+              Resources trending in your study area
+            </p>
+          </div>
+
+          {/* Recent Activity Card */}
+          <div className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-lg p-4 border border-white/50 dark:border-gray-700/50">
+            <div className="flex items-center space-x-2 mb-3">
+              <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Based on Recent Activity</span>
+            </div>
+            <div className="space-y-2">
+              <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-2/3"></div>
+              <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-3/4"></div>
+              <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-1/2"></div>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
+              Continue where you left off
+            </p>
+          </div>
+
+          {/* Quick Boost Card */}
+          <div className="bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-lg p-4 border border-white/50 dark:border-gray-700/50">
+            <div className="flex items-center space-x-2 mb-3">
+              <Zap className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Quick Study Boost</span>
+            </div>
+            <div className="space-y-2">
+              <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-1/2"></div>
+              <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-2/3"></div>
+              <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-3/4"></div>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
+              Short resources for quick learning
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 pt-4 border-t border-indigo-200 dark:border-indigo-800/50 flex items-center justify-center">
+          <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center space-x-2">
+            <Sparkles className="w-4 h-4 text-indigo-500" />
+            <span>Smart recommendations will be personalized to your learning style and goals</span>
+          </p>
+        </div>
+      </div>
+
+      {/* Your Resources Heading */}
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Your Resources</h3>
+        <span className="text-sm text-gray-500 dark:text-gray-400">{filteredResources.length} items</span>
+      </div>
 
       {/* Resources Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
