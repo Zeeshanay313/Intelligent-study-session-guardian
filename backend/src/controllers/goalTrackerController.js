@@ -236,6 +236,12 @@ const createGoal = async (req, res) => {
 const updateGoal = async (req, res) => {
   try {
     const { id } = req.params;
+
+    // Validate ObjectId format
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid goal ID format' });
+    }
+
     const goal = await Goal.findById(id);
 
     if (!goal) {
@@ -335,6 +341,12 @@ const deleteGoal = async (req, res) => {
   try {
     const { id } = req.params;
     const { permanent } = req.query;
+
+    // Validate ObjectId format
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid goal ID format' });
+    }
+
     const goal = await Goal.findById(id);
 
     if (!goal) {
@@ -382,6 +394,11 @@ const addProgress = async (req, res) => {
 
     if (!value || value <= 0) {
       return res.status(400).json({ error: 'Valid progress value required' });
+    }
+
+    // Validate ObjectId format
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid goal ID format' });
     }
 
     const goal = await Goal.findById(id);
