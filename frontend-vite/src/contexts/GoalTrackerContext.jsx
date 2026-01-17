@@ -291,11 +291,11 @@ export const GoalTrackerProvider = ({ children }) => {
 
   // Delete goal
   const deleteGoal = useCallback(
-    async (goalId) => {
+    async (goalId, permanent = false) => {
       try {
         setLoading(true)
         setError(null)
-        await api.goals.delete(goalId)
+        await api.goals.delete(goalId, permanent)
         setGoals((prev) => prev.filter((goal) => (goal._id || goal.id) !== goalId))
         
         const currentId = currentGoal?._id || currentGoal?.id;

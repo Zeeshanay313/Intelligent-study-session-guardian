@@ -308,12 +308,15 @@ const Goals = () => {
   }
 
   const handleDelete = async (goalId) => {
-    if (!confirm('Are you sure you want to delete this goal? This action cannot be undone.')) return
+    const confirmMessage = 'Are you sure you want to delete this goal? This action cannot be undone.'
+    if (!confirm(confirmMessage)) return
     
     try {
-      await deleteGoal(goalId)
+      // Use permanent delete to completely remove the goal
+      await deleteGoal(goalId, true)
       success('Goal deleted successfully')
     } catch (err) {
+      console.error('Delete goal error:', err)
       showError('Failed to delete goal')
     }
   }

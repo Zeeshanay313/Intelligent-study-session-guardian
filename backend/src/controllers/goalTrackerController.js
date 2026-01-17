@@ -52,7 +52,12 @@ const getGoals = async (req, res) => {
 
     if (type) filter.type = type;
     if (category) filter.category = category;
-    if (status) filter.status = status;
+    if (status) {
+      filter.status = status;
+    } else {
+      // By default, exclude cancelled/deleted goals unless specifically requested
+      filter.status = { $ne: 'cancelled' };
+    }
     if (priority) filter.priority = priority;
     if (period) filter.period = period;
 
@@ -65,7 +70,12 @@ const getGoals = async (req, res) => {
 
     // Calculate summary statistics
     const stats = await Goal.aggregate([
-      { $match: { userId: new mongoose.Types.ObjectId(userId) } },
+      { 
+        $match: { 
+          userId: new mongoose.Types.ObjectId(userId),
+          status: { $ne: 'cancelled' }  // Exclude cancelled goals from stats
+        } 
+      },
       {
         $group: {
           _id: '$status',

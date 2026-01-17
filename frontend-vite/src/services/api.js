@@ -288,9 +288,10 @@ export const api = {
       )
     },
     
-    delete: async (id) => {
+    delete: async (id, permanent = false) => {
+      const url = permanent ? `/api/goals/${id}?permanent=true` : `/api/goals/${id}`
       return apiCall(
-        () => axiosInstance.delete(`/api/goals/${id}`),
+        () => axiosInstance.delete(url),
         () => mockApi.goals.delete(id)
       )
     },
