@@ -22,13 +22,16 @@ import {
   Clock,
   Layers,
   Plus,
-  Target
+  Target,
+  BookOpen
 } from 'lucide-react'
 import api from '../../services/api'
 import Button from '../../components/UI/Button'
 import PresetManager from '../../components/Timer/PresetManager'
 import SessionEndModal from '../../components/Timer/SessionEndModal'
 import GoalSelectionModal from '../../components/Timer/GoalSelectionModal'
+import ResourceSelectionModal from '../../components/Timer/ResourceSelectionModal'
+import SessionResourcesPanel from '../../components/Timer/SessionResourcesPanel'
 import { useNotification } from '../../contexts/NotificationContext'
 import { useAchievementToast } from '../../components/UI/AchievementToast'
 
@@ -60,6 +63,11 @@ const Focus = () => {
   const [showGoalSelection, setShowGoalSelection] = useState(false)
   const [selectedGoal, setSelectedGoal] = useState(null)
   const [pendingStart, setPendingStart] = useState(false)
+  
+  // Resource selection state
+  const [showResourceSelection, setShowResourceSelection] = useState(false)
+  const [selectedResources, setSelectedResources] = useState([])
+  const [showResourcesPanel, setShowResourcesPanel] = useState(false)
   
   // Settings state
   const [customDurations, setCustomDurations] = useState({
@@ -191,16 +199,45 @@ const Focus = () => {
   const handleGoalSelected = (goal) => {
     setSelectedGoal(goal)
     setShowGoalSelection(false)
-    // Auto-start after selection
-    setTimeout(() => startSession(), 100)
+    // Show resource selection next
+    setShowResourceSelection(true)
   }
 
   // Handle skipping goal selection
   const handleSkipGoalSelection = () => {
     setSelectedGoal(null)
     setShowGoalSelection(false)
+    // Show resource selection next
+    setShowResourceSelection(true)
+  }
+
+  // Handle resource selection from modal
+  const handleResourcesSelected = (resources) => {
+    setSelectedResources(resources)
+    setShowResourceSelection(false)
+    if (resources.length > 0) {
+      setShowResourcesPanel(true)
+    }
+    // Auto-start after selection
+    setTimeout(() => startSession(), 100)
+  }
+
+  // Handle skipping resource selection
+  const handleSkipResourceSelection = () => {
+    setSelectedResources([])
+    setShowResourceSelection(false)
     // Auto-start after skip
     setTimeout(() => startSession(), 100)
+  }
+
+  // Remove a resource from the session
+  const handleRemoveResource = (resourceId) => {
+    setSelectedResources(prev => prev.filter(r => (r._id || r.id) !== resourceId))
+  }
+
+  // Close resources panel
+  const handleCloseResourcesPanel = () => {
+    setShowResourcesPanel(false)
   }
 
   const handleStop = async () => {
@@ -222,6 +259,8 @@ const Focus = () => {
     setTimeLeft(duration)
     setSessionId(null)
     setSelectedGoal(null)
+    setSelectedResources([])
+    setShowResourcesPanel(false)
   }
 
   const handleSessionComplete = async () => {
@@ -325,8 +364,10 @@ const Focus = () => {
     
     success('Session completed! 🎉')
     
-    // Clear selected goal after session
+    // Clear selected goal and resources after session
     setSelectedGoal(null)
+    setSelectedResources([])
+    setShowResourcesPanel(false)
     
     // Play notification sound (if browser supports it)
     if ('Notification' in window && Notification.permission === 'granted') {
@@ -617,6 +658,44 @@ const Focus = () => {
           </div>
         )}
 
+        {/* Selected Resources Display */}
+        {selectedResources.length > 0 && (
+          <div className="mb-6 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <BookOpen className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                  {selectedResources.length} Resource{selectedResources.length !== 1 ? 's' : ''} Ready
+                </span>
+              </div>
+              <div className="flex items-center space-x-2">
+                {!showResourcesPanel && (
+                  <button
+                    onClick={() => setShowResourcesPanel(true)}
+                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    Show Panel
+                  </button>
+                )}
+                {!isRunning && (
+                  <button
+                    onClick={() => {
+                      setSelectedResources([])
+                      setShowResourcesPanel(false)
+                    }}
+                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            </div>
+            <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+              Access your study materials from the floating panel
+            </p>
+          </div>
+        )}
+
         {/* Session Icon and Name */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-20 h-20 bg-primary-100 dark:bg-primary-900/30 rounded-full mb-4">
@@ -708,6 +787,27 @@ const Focus = () => {
         onSelectGoal={handleGoalSelected}
         onSkip={handleSkipGoalSelection}
       />
+
+      {/* Resource Selection Modal */}
+      <ResourceSelectionModal
+        isOpen={showResourceSelection}
+        onClose={() => {
+          setShowResourceSelection(false)
+          setPendingStart(false)
+        }}
+        onSelectResources={handleResourcesSelected}
+        onSkip={handleSkipResourceSelection}
+        selectedResources={selectedResources}
+      />
+
+      {/* Session Resources Panel - shown during active session */}
+      {showResourcesPanel && selectedResources.length > 0 && (
+        <SessionResourcesPanel
+          resources={selectedResources}
+          onRemoveResource={handleRemoveResource}
+          onClose={handleCloseResourcesPanel}
+        />
+      )}
 
       {/* Session End Modal */}
       <SessionEndModal
