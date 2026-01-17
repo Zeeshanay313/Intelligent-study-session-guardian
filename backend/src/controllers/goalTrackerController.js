@@ -312,15 +312,7 @@ const updateGoal = async (req, res) => {
       });
     }
 
-    // Audit log
-    await AuditLog.create({
-      userId: req.user._id,
-      action: 'goal.updated',
-      resource: 'Goal',
-      resourceId: goal._id,
-      ipAddress: req.ip,
-      userAgent: req.get('user-agent')
-    });
+    // Note: Goal audit logging skipped - AuditLog model only supports account/privacy actions
 
     res.json({ success: true, data: goal, rewardResult });
   } catch (error) {
@@ -366,15 +358,8 @@ const deleteGoal = async (req, res) => {
       await goal.save();
     }
 
-    // Audit log
-    await AuditLog.create({
-      userId: req.user._id,
-      action: permanent === 'true' ? 'goal.deleted' : 'goal.cancelled',
-      resource: 'Goal',
-      resourceId: goal._id,
-      ipAddress: req.ip,
-      userAgent: req.get('user-agent')
-    });
+    // Note: Goal audit logging skipped - AuditLog model only supports account/privacy actions
+    // Could be added to a separate activity log in the future
 
     res.json({ success: true, message: 'Goal deleted successfully' });
   } catch (error) {
