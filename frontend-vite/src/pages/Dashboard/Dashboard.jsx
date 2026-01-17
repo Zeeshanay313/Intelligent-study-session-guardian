@@ -245,6 +245,15 @@ const Dashboard = () => {
     return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`
   }
 
+  // Format number to avoid floating point display issues
+  const formatNumber = (num) => {
+    if (num === null || num === undefined) return 0
+    // If it's a whole number, return as integer
+    if (Number.isInteger(num)) return num
+    // Otherwise round to 1 decimal place and remove trailing zeros
+    return parseFloat(num.toFixed(1))
+  }
+
   const getGreeting = () => {
     const hour = new Date().getHours()
     if (hour < 12) return 'Good Morning'
@@ -445,8 +454,8 @@ const Dashboard = () => {
           <div className="space-y-4">
             {activeGoals.slice(0, 5).map((goal) => {
               const progress = getGoalProgress(goal)
-              const current = goal?.currentValue ?? goal?.currentProgress ?? 0
-              const target = goal?.targetValue ?? goal?.target ?? 1
+              const current = formatNumber(goal?.currentValue ?? goal?.currentProgress ?? 0)
+              const target = formatNumber(goal?.targetValue ?? goal?.target ?? 1)
               const progressColor = progress >= 75 ? 'bg-green-500' : progress >= 50 ? 'bg-yellow-500' : progress >= 25 ? 'bg-orange-500' : 'bg-red-500'
               
               return (
