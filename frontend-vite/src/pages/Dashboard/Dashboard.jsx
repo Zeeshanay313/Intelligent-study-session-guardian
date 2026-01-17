@@ -72,6 +72,8 @@ const Dashboard = () => {
   const [goalsData, setGoalsData] = useState(mockGoalsData)
   const [recentActivity, setRecentActivity] = useState(mockRecentActivity)
   const [loading, setLoading] = useState(true)
+  const [activeGoals, setActiveGoals] = useState([])
+  const [progressSummary, setProgressSummary] = useState(null)
 
   useEffect(() => {
     // Check for OAuth success redirect
@@ -88,6 +90,53 @@ const Dashboard = () => {
       fetchDashboardData()
     }
   }, [])
+
+  // Real-time polling for goal progress updates every 30 seconds
+  useEffect(() => {
+    const pollInterval = setInterval(() => {
+      refreshGoalProgress()
+    }, 30000) // Poll every 30 seconds
+
+    return () => clearInterval(pollInterval)
+  }, [])
+
+  // Refresh goal progress data without full reload
+  const refreshGoalProgress = async () => {
+    try {
+      const goalsResponse = await api.goals.list()
+      if (goalsResponse.success && goalsResponse.goals) {
+        const goals = goalsResponse.goals
+        const completed = goals.filter(g => g.status === 'completed').length
+        const active = goals.filter(g => g.status === 'active').length
+        const notStarted = goals.filter(g => g.status === 'not_started').length
+        const total = goals.length
+        
+        // Update active goals
+        const activeGoalsList = goals.filter(g => g.status === 'active')
+        setActiveGoals(activeGoalsList)
+        
+        if (total > 0) {
+          setGoalsData([
+            { name: 'Completed', value: Math.round((completed / total) * 100), color: '#10b981' },
+            { name: 'In Progress', value: Math.round((active / total) * 100), color: '#0ea5e9' },
+            { name: 'Not Started', value: Math.round((notStarted / total) * 100), color: '#94a3b8' },
+          ])
+        }
+      }
+      
+      // Also refresh progress summary
+      try {
+        const progressResponse = await api.goals.getProgressSummary()
+        if (progressResponse.success && progressResponse.summary) {
+          setProgressSummary(progressResponse.summary)
+        }
+      } catch (err) {
+        // Silent fail for progress summary
+      }
+    } catch (error) {
+      console.error('Failed to refresh goal progress:', error)
+    }
+  }
 
   const fetchUserAfterOAuth = async () => {
     try {
@@ -160,6 +209,10 @@ const Dashboard = () => {
         const notStarted = goals.filter(g => g.status === 'not_started').length
         const total = goals.length
         
+        // Store active goals for progress bars
+        const activeGoalsList = goals.filter(g => g.status === 'active')
+        setActiveGoals(activeGoalsList)
+        
         if (total > 0) {
           setGoalsData([
             { name: 'Completed', value: Math.round((completed / total) * 100), color: '#10b981' },
@@ -167,6 +220,16 @@ const Dashboard = () => {
             { name: 'Not Started', value: Math.round((notStarted / total) * 100), color: '#94a3b8' },
           ])
         }
+      }
+      
+      // Fetch real-time progress summary
+      try {
+        const progressResponse = await api.goals.getProgressSummary()
+        if (progressResponse.success && progressResponse.summary) {
+          setProgressSummary(progressResponse.summary)
+        }
+      } catch (err) {
+        console.log('Progress summary not available:', err)
       }
       
       setLoading(false)
@@ -187,6 +250,47 @@ const Dashboard = () => {
     if (hour < 12) return 'Good Morning'
     if (hour < 18) return 'Good Afternoon'
     return 'Good Evening'
+  }
+
+  // Calculate progress percentage for goals
+  const getGoalProgress = (goal) => {
+    const current = goal?.currentValue ?? goal?.currentProgress ?? 0
+    const target = goal?.targetValue ?? goal?.target ?? 1
+    return Math.min(100, Math.round((current / target) * 100))
+  }
+
+  // Calculate overall goal completion for progress bar
+  const getOverallGoalCompletion = () => {
+    if (progressSummary?.overallCompletion) {
+      return Math.round(progressSummary.overallCompletion)
+    }
+    if (activeGoals.length === 0) return 0
+    const totalProgress = activeGoals.reduce((sum, goal) => sum + getGoalProgress(goal), 0)
+    return Math.round(totalProgress / activeGoals.length)
+  }
+
+  // Calculate focus time progress (based on weekly goal of 10 hours = 600 minutes)
+  const getFocusTimeProgress = () => {
+    const weeklyGoal = 600 // 10 hours per week target
+    return Math.min(100, Math.round((metrics.totalFocusTime / weeklyGoal) * 100))
+  }
+
+  // Calculate session goal progress
+  const getSessionsProgress = () => {
+    const dailyGoal = 3 // target 3 sessions per day
+    return Math.min(100, Math.round((metrics.sessionsToday / dailyGoal) * 100))
+  }
+
+  // Calculate streak progress (based on 30-day goal)
+  const getStreakProgress = () => {
+    const streakGoal = 30
+    return Math.min(100, Math.round((metrics.currentStreak / streakGoal) * 100))
+  }
+
+  // Calculate avg session progress (target 45 minutes)
+  const getAvgSessionProgress = () => {
+    const targetAvg = 45
+    return Math.min(100, Math.round((metrics.avgSessionLength / targetAvg) * 100))
   }
 
   return (
@@ -228,7 +332,7 @@ const Dashboard = () => {
               <Clock className="w-6 h-6 text-primary-600 dark:text-primary-400" />
             </div>
             <span className="text-xs font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-2 py-1 rounded-full">
-              +12%
+              {getFocusTimeProgress()}%
             </span>
           </div>
           <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
@@ -237,8 +341,11 @@ const Dashboard = () => {
           <p className="text-sm text-gray-600 dark:text-gray-400">
             Total Focus Time
           </p>
-          <div className="mt-4 h-1 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-            <div className="h-full bg-primary-600 dark:bg-primary-500" style={{ width: '65%' }} />
+          <div className="mt-4 h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-primary-600 dark:bg-primary-500 transition-all duration-500 ease-out" 
+              style={{ width: `${getFocusTimeProgress()}%` }} 
+            />
           </div>
         </div>
 
@@ -249,7 +356,7 @@ const Dashboard = () => {
               <TrendingUp className="w-6 h-6 text-accent-600 dark:text-accent-400" />
             </div>
             <span className="text-xs font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-2 py-1 rounded-full">
-              +5%
+              {getAvgSessionProgress()}%
             </span>
           </div>
           <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
@@ -258,8 +365,11 @@ const Dashboard = () => {
           <p className="text-sm text-gray-600 dark:text-gray-400">
             Avg Session Length
           </p>
-          <div className="mt-4 h-1 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-            <div className="h-full bg-accent-600 dark:bg-accent-500" style={{ width: '75%' }} />
+          <div className="mt-4 h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-accent-600 dark:bg-accent-500 transition-all duration-500 ease-out" 
+              style={{ width: `${getAvgSessionProgress()}%` }} 
+            />
           </div>
         </div>
 
@@ -269,6 +379,9 @@ const Dashboard = () => {
             <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
               <Calendar className="w-6 h-6 text-green-600 dark:text-green-400" />
             </div>
+            <span className="text-xs font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-2 py-1 rounded-full">
+              {getSessionsProgress()}%
+            </span>
           </div>
           <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
             {metrics.sessionsToday}
@@ -276,8 +389,11 @@ const Dashboard = () => {
           <p className="text-sm text-gray-600 dark:text-gray-400">
             Sessions Today
           </p>
-          <div className="mt-4 h-1 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-            <div className="h-full bg-green-600 dark:bg-green-500" style={{ width: '60%' }} />
+          <div className="mt-4 h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-green-600 dark:bg-green-500 transition-all duration-500 ease-out" 
+              style={{ width: `${getSessionsProgress()}%` }} 
+            />
           </div>
         </div>
 
@@ -288,7 +404,7 @@ const Dashboard = () => {
               <Flame className="w-6 h-6 text-orange-600 dark:text-orange-400" />
             </div>
             <span className="text-xs font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-2 py-1 rounded-full">
-              🔥
+              🔥 {getStreakProgress()}%
             </span>
           </div>
           <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
@@ -297,11 +413,77 @@ const Dashboard = () => {
           <p className="text-sm text-gray-600 dark:text-gray-400">
             Current Streak
           </p>
-          <div className="mt-4 h-1 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-            <div className="h-full bg-orange-600 dark:bg-orange-500" style={{ width: '85%' }} />
+          <div className="mt-4 h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-orange-600 dark:bg-orange-500 transition-all duration-500 ease-out" 
+              style={{ width: `${getStreakProgress()}%` }} 
+            />
           </div>
         </div>
       </div>
+
+      {/* Active Goals Progress Section */}
+      {activeGoals.length > 0 && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Active Goals Progress
+              </h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                Real-time progress on your current goals ({getOverallGoalCompletion()}% overall)
+              </p>
+            </div>
+            <Link
+              to="/goals"
+              className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 flex items-center space-x-1"
+            >
+              <span>View All</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+          <div className="space-y-4">
+            {activeGoals.slice(0, 5).map((goal) => {
+              const progress = getGoalProgress(goal)
+              const current = goal?.currentValue ?? goal?.currentProgress ?? 0
+              const target = goal?.targetValue ?? goal?.target ?? 1
+              const progressColor = progress >= 75 ? 'bg-green-500' : progress >= 50 ? 'bg-yellow-500' : progress >= 25 ? 'bg-orange-500' : 'bg-red-500'
+              
+              return (
+                <div key={goal._id || goal.id} className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center space-x-3">
+                      <Target className="w-5 h-5 text-primary-600 dark:text-primary-400" />
+                      <div>
+                        <h3 className="font-medium text-gray-900 dark:text-white">
+                          {goal.title}
+                        </h3>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {goal.category || 'General'} • {goal.type || 'Custom'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-sm font-bold text-gray-900 dark:text-white">
+                        {progress}%
+                      </span>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {current} / {target} {goal.progressUnit || goal.type || 'units'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="h-3 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full ${progressColor} transition-all duration-700 ease-out`}
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
