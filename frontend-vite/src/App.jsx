@@ -180,12 +180,12 @@ function App() {
     <ThemeProvider>
       <AuthProvider>
         <NotificationProvider>
-          <GoalTrackerProvider>
-            <AchievementToastProvider>
+          <AchievementToastProvider>
+            <GoalTrackerProvider>
               <AppRoutes />
               <NotificationToast />
-            </AchievementToastProvider>
-          </GoalTrackerProvider>
+            </GoalTrackerProvider>
+          </AchievementToastProvider>
         </NotificationProvider>
       </AuthProvider>
     </ThemeProvider>

@@ -15,13 +15,8 @@ export const GoalTrackerProvider = ({ children }) => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   
-  // Get achievement toast - safely handle when not wrapped in provider
-  let achievementToast = null
-  try {
-    achievementToast = useAchievementToast()
-  } catch (e) {
-    // Not wrapped in AchievementToastProvider, toasts will be disabled
-  }
+  // Get achievement toast - now properly wrapped in AchievementToastProvider
+  const achievementToast = useAchievementToast()
 
   // Helper to show goal completion celebration
   const celebrateGoalCompletion = useCallback((goalTitle, rewardResult) => {

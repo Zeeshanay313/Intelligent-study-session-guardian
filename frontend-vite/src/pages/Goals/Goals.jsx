@@ -269,8 +269,10 @@ const Goals = () => {
   }
 
   const getProgressPercentage = (goal) => {
+    if (!goal) return 0
     const current = goal.currentValue ?? goal.currentProgress ?? 0
     const target = goal.targetValue ?? goal.target ?? 1
+    if (target === 0) return 0
     return Math.min(100, Math.round((current / target) * 100))
   }
 
@@ -403,7 +405,7 @@ const Goals = () => {
       {/* Goals List */}
       {!loading && !error && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {goals && goals.length > 0 && goals.map((goal) => {
+        {Array.isArray(goals) && goals.length > 0 && goals.map((goal) => {
           if (!goal) return null
           const progress = getProgressPercentage(goal)
           const color = getCategoryColor(goal.category)
@@ -411,7 +413,7 @@ const Goals = () => {
           
           return (
             <div
-              key={goalId}
+              key={goalId || Math.random()}
               className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-shadow"
             >
               <div className="flex items-start justify-between mb-4">
@@ -519,17 +521,21 @@ const Goals = () => {
                   <Calendar className="w-4 h-4 mr-2" />
                   <span>Target: {(goal.targetDate || goal.dueDate) ? new Date(goal.targetDate || goal.dueDate).toLocaleDateString() : 'No deadline'}</span>
                 </div>
-                {getGoalStats(goal)?.daysRemaining !== null && (
-                  <span className={getGoalStats(goal).daysRemaining < 7 ? 'text-orange-600 dark:text-orange-400 font-medium' : ''}>
-                    {getGoalStats(goal).daysRemaining > 0 
-                      ? `${getGoalStats(goal).daysRemaining} days left`
-                      : 'Overdue'}
-                  </span>
-                )}
+                {(() => {
+                  const stats = getGoalStats(goal)
+                  if (!stats || stats.daysRemaining === null) return null
+                  return (
+                    <span className={stats.daysRemaining < 7 ? 'text-orange-600 dark:text-orange-400 font-medium' : ''}>
+                      {stats.daysRemaining > 0 
+                        ? `${stats.daysRemaining} days left`
+                        : 'Overdue'}
+                    </span>
+                  )
+                })()}
               </div>
 
               {/* Milestones */}
-              {goal.milestones && goal.milestones.length > 0 && (
+              {goal.milestones && Array.isArray(goal.milestones) && goal.milestones.length > 0 && (
                 <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
                   <button
                     onClick={() => toggleGoalExpand(goalId)}

@@ -242,20 +242,21 @@ const updateGoal = async (req, res) => {
       return res.status(400).json({ error: 'Invalid goal ID format' });
     }
 
-    const goal = await Goal.findById(id);
+    // First check if goal exists and user has access
+    const existingGoal = await Goal.findById(id);
 
-    if (!goal) {
+    if (!existingGoal) {
       return res.status(404).json({ error: 'Goal not found' });
     }
 
-    if (goal.userId.toString() !== req.user._id.toString()) {
+    if (existingGoal.userId.toString() !== req.user._id.toString()) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
     // Track if goal was already completed before update
-    const wasCompleted = goal.status === 'completed';
+    const wasCompleted = existingGoal.status === 'completed';
 
-    // Update allowed fields
+    // Build update object
     const allowedUpdates = [
       'title',
       'description',
@@ -276,11 +277,12 @@ const updateGoal = async (req, res) => {
       'type'
     ];
 
+    const updateData = {};
     allowedUpdates.forEach(field => {
       if (req.body[field] !== undefined) {
         // Special handling for milestones - ensure proper structure
         if (field === 'milestones' && Array.isArray(req.body[field])) {
-          goal[field] = req.body[field].map(m => ({
+          updateData[field] = req.body[field].map(m => ({
             title: m.title || 'Untitled Milestone',
             description: m.description || '',
             target: Number(m.target) || 0,
@@ -290,12 +292,17 @@ const updateGoal = async (req, res) => {
             reward: m.reward || ''
           }));
         } else {
-          goal[field] = req.body[field];
+          updateData[field] = req.body[field];
         }
       }
     });
 
-    await goal.save();
+    // Use findByIdAndUpdate to avoid version conflicts
+    const goal = await Goal.findByIdAndUpdate(
+      id,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    );
 
     // Check if goal just got completed and award rewards
     let rewardResult = null;
