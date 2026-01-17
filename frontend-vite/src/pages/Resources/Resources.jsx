@@ -141,12 +141,14 @@ const Resources = () => {
         const resourceId = editingResource.id || editingResource._id
         const response = await api.resources.update(resourceId, resourceData)
         if (response.success) {
-          setResources(resources.map((r) => ((r.id || r._id) === resourceId ? response.data : r)))
+          // Refetch to get the updated list
+          await fetchResources()
         }
       } else {
         const response = await api.resources.create(resourceData)
         if (response.success) {
-          setResources([...resources, response.data])
+          // Refetch to get the new resource with proper ID
+          await fetchResources()
         }
       }
 
@@ -180,7 +182,8 @@ const Resources = () => {
 
     try {
       await api.resources.delete(resourceId)
-      setResources(resources.filter((r) => (r.id || r._id) !== resourceId))
+      // Refetch to ensure consistency
+      await fetchResources()
     } catch (error) {
       console.error('Failed to delete resource:', error)
       alert('Failed to delete resource. Please try again.')
@@ -207,7 +210,8 @@ const Resources = () => {
         isFavorite: !resource.isFavorite,
       })
       if (response.success) {
-        setResources(resources.map((r) => ((r.id || r._id) === resourceId ? response.data : r)))
+        // Refetch to ensure data consistency
+        await fetchResources()
       }
     } catch (error) {
       console.error('Failed to toggle favorite:', error)

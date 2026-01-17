@@ -483,7 +483,7 @@ export const api = {
     
     update: async (id, updates) => {
       return apiCall(
-        () => axiosInstance.put(`/api/resources/${id}`, updates),
+        () => axiosInstance.patch(`/api/resources/${id}`, updates),
         () => mockApi.resources.update(id, updates)
       )
     },
