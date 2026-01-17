@@ -24,6 +24,26 @@ import {
   VolumeX
 } from 'lucide-react'
 
+// Get the API base URL for uploaded files
+const getFileUrl = (filePath) => {
+  if (!filePath) return null
+  if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+    return filePath
+  }
+  const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5004'
+  return `${baseUrl}${filePath}`
+}
+
+// Get the viewable URL for a resource (handles both URL and uploaded files)
+const getResourceUrl = (resource) => {
+  // Check for uploaded file first
+  if (resource.content?.filePath) {
+    return getFileUrl(resource.content.filePath)
+  }
+  // Then check for URL
+  return resource.content?.url || resource.url || null
+}
+
 // Extract video ID and type from URL
 const parseVideoUrl = (url) => {
   if (!url) return null
@@ -42,8 +62,8 @@ const parseVideoUrl = (url) => {
     return { type: 'vimeo', id: vimeoMatch[1] }
   }
 
-  // Direct video file
-  const videoExtensions = /\.(mp4|webm|ogg|mov)$/i
+  // Direct video file (including uploaded files)
+  const videoExtensions = /\.(mp4|webm|ogg|mov|avi|mkv)$/i
   if (videoExtensions.test(url)) {
     return { type: 'direct', url }
   }
@@ -51,10 +71,75 @@ const parseVideoUrl = (url) => {
   return null
 }
 
+// Text File Viewer - fetches and displays text content
+const TextFileViewer = ({ url, title, description }) => {
+  const [content, setContent] = React.useState('')
+  const [loading, setLoading] = React.useState(true)
+  const [error, setError] = React.useState(null)
+
+  React.useEffect(() => {
+    const fetchText = async () => {
+      try {
+        setLoading(true)
+        const response = await fetch(url)
+        if (!response.ok) throw new Error('Failed to load file')
+        const text = await response.text()
+        setContent(text)
+        setError(null)
+      } catch (err) {
+        setError(err.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchText()
+  }, [url])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full bg-white dark:bg-gray-900">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full bg-gray-50 dark:bg-gray-900 p-8">
+        <FileText className="w-16 h-16 mb-4 text-red-400" />
+        <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center space-x-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+        >
+          <ExternalLink className="w-4 h-4" />
+          <span>Open File</span>
+        </a>
+      </div>
+    )
+  }
+
+  return (
+    <div className="h-full overflow-auto bg-white dark:bg-gray-900 p-6">
+      <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">{title}</h2>
+      {description && (
+        <p className="text-gray-600 dark:text-gray-400 mb-4 italic">{description}</p>
+      )}
+      <div className="prose dark:prose-invert max-w-none">
+        <pre className="whitespace-pre-wrap text-gray-800 dark:text-gray-200 leading-relaxed font-mono text-sm bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+          {content}
+        </pre>
+      </div>
+    </div>
+  )
+}
+
 // Video Player Component
 const VideoPlayer = ({ resource, isFullscreen, onToggleFullscreen }) => {
   const [isMuted, setIsMuted] = useState(false)
-  const url = resource.content?.url || resource.url
+  const url = getResourceUrl(resource)
 
   const videoInfo = useMemo(() => parseVideoUrl(url), [url])
 
@@ -132,9 +217,17 @@ const VideoPlayer = ({ resource, isFullscreen, onToggleFullscreen }) => {
 
 // Document/Note Viewer Component
 const DocumentViewer = ({ resource }) => {
-  const url = resource.content?.url || resource.url
+  const url = getResourceUrl(resource)
   const text = resource.content?.text || resource.notes || ''
-  const isPDF = url?.toLowerCase().endsWith('.pdf')
+  const fileName = resource.content?.fileName || ''
+  const mimeType = resource.content?.mimeType || ''
+  
+  // Determine file type from extension or mime type
+  const isPDF = url?.toLowerCase().endsWith('.pdf') || mimeType === 'application/pdf'
+  const isText = url?.toLowerCase().match(/\.(txt|md)$/) || mimeType?.startsWith('text/')
+  const isWord = url?.toLowerCase().match(/\.(doc|docx)$/) || mimeType?.includes('word')
+  const isExcel = url?.toLowerCase().match(/\.(xls|xlsx)$/) || mimeType?.includes('spreadsheet')
+  const isPowerPoint = url?.toLowerCase().match(/\.(ppt|pptx)$/) || mimeType?.includes('presentation')
 
   // If there's text content (notes), show it
   if (text) {
@@ -158,15 +251,70 @@ const DocumentViewer = ({ resource }) => {
   }
 
   // If it's a PDF, try to embed it
-  if (isPDF) {
+  if (isPDF && url) {
     return (
-      <div className="h-full bg-gray-100 dark:bg-gray-900">
-        <iframe
-          src={url}
-          title={resource.title}
-          className="w-full h-full"
-          frameBorder="0"
-        />
+      <div className="h-full bg-gray-100 dark:bg-gray-900 flex flex-col">
+        <div className="flex-1">
+          <iframe
+            src={url}
+            title={resource.title}
+            className="w-full h-full"
+            frameBorder="0"
+          />
+        </div>
+        <div className="p-3 bg-gray-200 dark:bg-gray-800 border-t border-gray-300 dark:border-gray-700 flex items-center justify-between">
+          <span className="text-sm text-gray-600 dark:text-gray-400">
+            {fileName || 'PDF Document'}
+          </span>
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center space-x-1 text-sm text-primary-600 dark:text-primary-400 hover:underline"
+            download
+          >
+            <ExternalLink className="w-4 h-4" />
+            <span>Download / Open</span>
+          </a>
+        </div>
+      </div>
+    )
+  }
+
+  // Text files - fetch and display content
+  if (isText && url) {
+    return <TextFileViewer url={url} title={resource.title} description={resource.description} />
+  }
+
+  // Office documents (Word, Excel, PowerPoint) - use Office Online viewer or download
+  if ((isWord || isExcel || isPowerPoint) && url) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full bg-gray-50 dark:bg-gray-900 p-8">
+        <FileText className="w-20 h-20 mb-6 text-indigo-500" />
+        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+          {resource.title}
+        </h3>
+        <p className="text-gray-600 dark:text-gray-400 text-center mb-2">
+          {fileName || (isWord ? 'Word Document' : isExcel ? 'Excel Spreadsheet' : 'PowerPoint Presentation')}
+        </p>
+        {resource.description && (
+          <p className="text-gray-500 dark:text-gray-500 text-center mb-6 max-w-md text-sm">
+            {resource.description}
+          </p>
+        )}
+        <div className="flex space-x-3">
+          <a
+            href={url}
+            download
+            className="flex items-center space-x-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+          >
+            <ExternalLink className="w-4 h-4" />
+            <span>Download File</span>
+          </a>
+        </div>
+        <p className="text-xs text-gray-500 mt-4">
+          💡 Download to view in Microsoft Office or compatible app
+        </p>
       </div>
     )
   }
@@ -220,7 +368,7 @@ const DocumentViewer = ({ resource }) => {
 
 // Article/Link Viewer Component
 const ArticleViewer = ({ resource }) => {
-  const url = resource.content?.url || resource.url
+  const url = getResourceUrl(resource)
 
   // Some sites don't allow iframe embedding, show a preview instead
   return (
