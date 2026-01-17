@@ -105,6 +105,7 @@ const Resources = () => {
       video: Video,
       tool: LinkIcon,
       document: BookOpen,
+      note: FileText,
     }
     return icons[type] || FileText
   }
@@ -115,6 +116,7 @@ const Resources = () => {
       video: 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400',
       tool: 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400',
       document: 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400',
+      note: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400',
     }
     return colors[type] || 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
   }
@@ -441,17 +443,49 @@ const Resources = () => {
               <option value="video">Video</option>
               <option value="tool">Tool</option>
               <option value="document">Document</option>
+              <option value="note">Note / Text</option>
             </select>
           </div>
 
-          <Input
-            label="URL"
-            type="url"
-            value={formData.url}
-            onChange={(e) => setFormData({ ...formData, url: e.target.value })}
-            required
-            placeholder="https://example.com"
-          />
+          {formData.type !== 'note' && (
+            <Input
+              label="URL"
+              type="url"
+              value={formData.url}
+              onChange={(e) => setFormData({ ...formData, url: e.target.value })}
+              required={formData.type !== 'note'}
+              placeholder={
+                formData.type === 'video' 
+                  ? 'https://youtube.com/watch?v=...' 
+                  : 'https://example.com'
+              }
+            />
+          )}
+
+          {(formData.type === 'note' || formData.type === 'document') && (
+            <div>
+              <label className="label">
+                {formData.type === 'note' ? 'Notes / Content' : 'Notes (optional)'}
+              </label>
+              <textarea
+                value={formData.notes || ''}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                className="input font-mono text-sm"
+                rows="8"
+                placeholder={
+                  formData.type === 'note'
+                    ? 'Write your study notes here...\n\nYou can include:\n- Key concepts\n- Important formulas\n- Summaries\n- Questions to review'
+                    : 'Add notes about this document...'
+                }
+                required={formData.type === 'note'}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                💡 {formData.type === 'note' 
+                  ? 'These notes will be viewable inline during study sessions' 
+                  : 'Notes will appear alongside the document'}
+              </p>
+            </div>
+          )}
 
           <Input
             label="Tags"
