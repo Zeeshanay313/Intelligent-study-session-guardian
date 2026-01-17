@@ -16,6 +16,41 @@ const Goals = () => {
   const { goals, loading, error, loadGoals, createGoal, updateGoal, deleteGoal, updateProgress, getGoalStats } = useGoalTracker()
   const { success, error: showError, warning } = useNotification()
   
+  // Error boundary state
+  const [componentError, setComponentError] = useState(null)
+  
+  // Catch component errors
+  useEffect(() => {
+    const handleError = (error) => {
+      console.error('Goals component error:', error)
+      setComponentError(error.message)
+    }
+    
+    window.addEventListener('error', handleError)
+    return () => window.removeEventListener('error', handleError)
+  }, [])
+  
+  // If component has error, show error message instead of crashing
+  if (componentError) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
+        <div className="max-w-2xl mx-auto">
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6">
+            <div className="flex items-center space-x-3 mb-4">
+              <AlertCircle className="w-6 h-6 text-red-600" />
+              <h2 className="text-lg font-semibold text-red-800 dark:text-red-200">Goals Component Error</h2>
+            </div>
+            <p className="text-red-700 dark:text-red-300 mb-4">{componentError}</p>
+            <Button onClick={() => {
+              setComponentError(null)
+              window.location.reload()
+            }}>Reload Page</Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+  
   const [showModal, setShowModal] = useState(false)
   const [editingGoal, setEditingGoal] = useState(null)
   const [expandedGoals, setExpandedGoals] = useState({})
@@ -124,37 +159,72 @@ const Goals = () => {
   }
 
   const addMilestoneToForm = () => {
-    setFormData({
-      ...formData,
-      milestones: [
-        ...formData.milestones,
-        {
-          title: '',
-          target: '',
-          dueDate: formData.targetDate || '',
-          description: ''
-        }
-      ]
-    })
+    try {
+      const currentMilestones = Array.isArray(formData.milestones) ? formData.milestones : []
+      setFormData({
+        ...formData,
+        milestones: [
+          ...currentMilestones,
+          {
+            title: '',
+            target: '',
+            dueDate: formData.targetDate || '',
+            description: ''
+          }
+        ]
+      })
+    } catch (err) {
+      console.error('Error adding milestone:', err)
+      showError('Failed to add milestone')
+    }
   }
 
   const updateMilestone = (index, field, value) => {
-    const updatedMilestones = [...formData.milestones]
-    updatedMilestones[index] = { ...updatedMilestones[index], [field]: value }
-    setFormData({ ...formData, milestones: updatedMilestones })
+    try {
+      const currentMilestones = Array.isArray(formData.milestones) ? formData.milestones : []
+      if (index < 0 || index >= currentMilestones.length) {
+        console.warn('Invalid milestone index:', index)
+        return
+      }
+      const updatedMilestones = [...currentMilestones]
+      updatedMilestones[index] = { ...updatedMilestones[index], [field]: value }
+      setFormData({ ...formData, milestones: updatedMilestones })
+    } catch (err) {
+      console.error('Error updating milestone:', err)
+      showError('Failed to update milestone')
+    }
   }
 
   const removeMilestone = (index) => {
-    setFormData({
-      ...formData,
-      milestones: formData.milestones.filter((_, i) => i !== index)
-    })
+    try {
+      const currentMilestones = Array.isArray(formData.milestones) ? formData.milestones : []
+      if (index < 0 || index >= currentMilestones.length) {
+        console.warn('Invalid milestone index:', index)
+        return
+      }
+      setFormData({
+        ...formData,
+        milestones: currentMilestones.filter((_, i) => i !== index)
+      })
+    } catch (err) {
+      console.error('Error removing milestone:', err)
+      showError('Failed to remove milestone')
+    }
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     
     try {
+      // Validate required fields on frontend
+      if (!formData.title?.trim()) {
+        showError('Goal title is required')
+        return
+      }
+      if (!formData.target || Number(formData.target) <= 0) {
+        showError('Target value must be greater than 0')
+        return
+      }
       // Convert target to number and ensure progressUnit is set
       // Map targetDate to dueDate for backend compatibility
       const { targetDate, milestones, ...rest } = formData
@@ -187,6 +257,7 @@ const Goals = () => {
         success('Goal created successfully!')
       }
       
+      // Only close modal and reset form if no error occurred
       setShowModal(false)
       setEditingGoal(null)
       resetForm()
@@ -194,6 +265,7 @@ const Goals = () => {
       loadGoals()
     } catch (err) {
       console.error('Goal save error:', err)
+      // Don't close modal on error - let user fix the issue
       showError(err.response?.data?.error || err.message || 'Failed to save goal')
     }
   }
@@ -211,23 +283,28 @@ const Goals = () => {
   }
 
   const handleEdit = (goal) => {
-    setEditingGoal(goal)
-    setFormData({
-      title: goal.title,
-      description: goal.description,
-      type: goal.type || 'hours',
-      target: goal.target || goal.targetValue || '',
-      period: goal.period || 'daily',
-      targetDate: formatDateForInput(goal.dueDate || goal.targetDate),
-      progressUnit: goal.progressUnit || 'hours',
-      category: goal.category || 'personal',
-      milestones: (goal.milestones || []).map(m => ({
-        ...m,
-        dueDate: formatDateForInput(m.dueDate)
-      })),
-      linkedSubjects: goal.linkedSubjects || [],
-    })
-    setShowModal(true)
+    try {
+      setEditingGoal(goal)
+      setFormData({
+        title: goal.title || '',
+        description: goal.description || '',
+        type: goal.type || 'hours',
+        target: goal.target || goal.targetValue || '',
+        period: goal.period || 'daily',
+        targetDate: formatDateForInput(goal.dueDate || goal.targetDate),
+        progressUnit: goal.progressUnit || 'hours',
+        category: goal.category || 'personal',
+        milestones: Array.isArray(goal.milestones) ? goal.milestones.map(m => ({
+          ...m,
+          dueDate: formatDateForInput(m.dueDate)
+        })) : [],
+        linkedSubjects: Array.isArray(goal.linkedSubjects) ? goal.linkedSubjects : [],
+      })
+      setShowModal(true)
+    } catch (err) {
+      console.error('Error editing goal:', err)
+      showError('Failed to load goal for editing')
+    }
   }
 
   const handleDelete = async (goalId) => {
@@ -265,6 +342,7 @@ const Goals = () => {
       progressUnit: 'hours',
       category: 'personal',
       milestones: [],
+      linkedSubjects: [],
     })
   }
 
@@ -405,17 +483,19 @@ const Goals = () => {
       {/* Goals List */}
       {!loading && !error && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {Array.isArray(goals) && goals.length > 0 && goals.map((goal) => {
-          if (!goal) return null
-          const progress = getProgressPercentage(goal)
-          const color = getCategoryColor(goal.category)
-          const goalId = goal._id || goal.id;
+        {Array.isArray(goals) && goals.length > 0 ? goals.map((goal) => {
+          if (!goal || !goal.title) return null
           
-          return (
-            <div
-              key={goalId || Math.random()}
-              className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-shadow"
-            >
+          try {
+            const progress = getProgressPercentage(goal)
+            const color = getCategoryColor(goal.category)
+            const goalId = goal._id || goal.id || `goal-${Math.random()}`
+            
+            return (
+              <div
+                key={goalId}
+                className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-shadow"
+              >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
                   <div className="flex items-center space-x-2 mb-2">
@@ -587,7 +667,20 @@ const Goals = () => {
               )}
             </div>
           )
-        })}
+          } catch (err) {
+            console.error('Error rendering goal:', err, goal)
+            return (
+              <div key={goal._id || goal.id || Math.random()} className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                <p className="text-red-600 dark:text-red-400">Error loading goal: {goal.title || 'Unknown goal'}</p>
+              </div>
+            )
+          }
+        }) : (
+          <div className="col-span-2 text-center py-8">
+            <Target className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+            <p className="text-gray-600 dark:text-gray-400">No goals to display</p>
+          </div>
+        )}
         </div>
       )}
 
@@ -753,42 +846,45 @@ const Goals = () => {
             <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
               Break your goal into smaller milestones to track progress
             </p>
-            {formData.milestones && formData.milestones.length > 0 && (
+            {Array.isArray(formData.milestones) && formData.milestones.length > 0 && (
               <div className="space-y-3 mb-3">
-                {formData.milestones.map((milestone, index) => (
-                  <div key={index} className="flex items-center space-x-2 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                    <div className="flex-1 grid grid-cols-3 gap-2">
-                      <input
-                        type="text"
-                        value={milestone.title}
-                        onChange={(e) => updateMilestone(index, 'title', e.target.value)}
-                        placeholder="Milestone title"
-                        className="input text-sm"
-                      />
-                      <input
-                        type="number"
-                        value={milestone.target || ''}
-                        onChange={(e) => updateMilestone(index, 'target', e.target.value)}
-                        placeholder="At progress"
-                        className="input text-sm"
-                        min="1"
-                      />
-                      <input
-                        type="date"
-                        value={milestone.dueDate || ''}
-                        onChange={(e) => updateMilestone(index, 'dueDate', e.target.value)}
-                        className="input text-sm"
-                      />
+                {formData.milestones.map((milestone, index) => {
+                  if (!milestone) return null
+                  return (
+                    <div key={index} className="flex items-center space-x-2 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                      <div className="flex-1 grid grid-cols-3 gap-2">
+                        <input
+                          type="text"
+                          value={milestone.title || ''}
+                          onChange={(e) => updateMilestone(index, 'title', e.target.value)}
+                          placeholder="Milestone title"
+                          className="input text-sm"
+                        />
+                        <input
+                          type="number"
+                          value={milestone.target || ''}
+                          onChange={(e) => updateMilestone(index, 'target', e.target.value)}
+                          placeholder="At progress"
+                          className="input text-sm"
+                          min="1"
+                        />
+                        <input
+                          type="date"
+                          value={milestone.dueDate || ''}
+                          onChange={(e) => updateMilestone(index, 'dueDate', e.target.value)}
+                          className="input text-sm"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeMilestone(index)}
+                        className="p-1 text-red-500 hover:text-red-700 dark:text-red-400"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => removeMilestone(index)}
-                      className="p-1 text-red-500 hover:text-red-700 dark:text-red-400"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </div>
