@@ -297,7 +297,7 @@ export const api = {
     
     updateProgress: async (id, progress) => {
       return apiCall(
-        () => axiosInstance.put(`/api/goals/${id}/progress`, { progress }),
+        () => axiosInstance.post(`/api/goals/${id}/progress`, { value: progress }),
         () => mockApi.goals.updateProgress(id, progress)
       )
     },
