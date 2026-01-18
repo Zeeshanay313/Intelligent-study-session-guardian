@@ -441,6 +441,99 @@ const Motivation = () => {
         </div>
       </div>
 
+      {/* Unlock Premium Features */}
+      <div className="bg-gradient-to-r from-amber-400 via-yellow-500 to-orange-500 rounded-xl p-6 relative overflow-hidden">
+        {/* Background decoration */}
+        <div className="absolute top-0 right-0 w-40 h-40 opacity-20">
+          <Star className="w-full h-full text-white" />
+        </div>
+        <div className="absolute bottom-0 left-0 w-24 h-24 opacity-20">
+          <Sparkles className="w-full h-full text-white" />
+        </div>
+        
+        <div className="relative z-10">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex-1 min-w-[280px]">
+              <div className="flex items-center space-x-3 mb-3">
+                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                  <Gift className="w-7 h-7 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold text-white">Unlock Premium Features</h3>
+                  <p className="text-white/90 text-sm">Earn points through study sessions & challenges</p>
+                </div>
+              </div>
+              <p className="text-white/90 mb-4">
+                Keep earning points to unlock exclusive premium features! Complete study sessions, 
+                join challenges, and maintain your streak to accumulate points faster.
+              </p>
+            </div>
+
+            {/* Points Progress Card */}
+            <div className="bg-white/20 backdrop-blur-sm rounded-xl p-5 min-w-[280px]">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-white font-medium">Your Points</span>
+                <span className="text-2xl font-bold text-white">
+                  {(personalRecords?.totalPoints || 0).toLocaleString()}
+                </span>
+              </div>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-white/80">Next unlock at 5,000 pts</span>
+                  <span className="text-white font-medium">
+                    {Math.min(100, Math.round(((personalRecords?.totalPoints || 0) / 5000) * 100))}%
+                  </span>
+                </div>
+                <div className="w-full bg-white/30 rounded-full h-2.5">
+                  <div 
+                    className="bg-white h-2.5 rounded-full transition-all duration-500"
+                    style={{ width: `${Math.min(100, ((personalRecords?.totalPoints || 0) / 5000) * 100)}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Premium Features Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
+            {[
+              { icon: '🎨', name: 'Custom Themes', points: 2000, unlocked: (personalRecords?.totalPoints || 0) >= 2000 },
+              { icon: '📊', name: 'Advanced Analytics', points: 5000, unlocked: (personalRecords?.totalPoints || 0) >= 5000 },
+              { icon: '🏆', name: 'Exclusive Badges', points: 10000, unlocked: (personalRecords?.totalPoints || 0) >= 10000 },
+              { icon: '⚡', name: 'Priority Support', points: 15000, unlocked: (personalRecords?.totalPoints || 0) >= 15000 }
+            ].map((feature, index) => (
+              <div 
+                key={index} 
+                className={`rounded-lg p-3 text-center transition-all ${
+                  feature.unlocked 
+                    ? 'bg-white/30 ring-2 ring-white/50' 
+                    : 'bg-white/10 opacity-80'
+                }`}
+              >
+                <div className="text-2xl mb-1">{feature.icon}</div>
+                <p className="text-white text-sm font-medium">{feature.name}</p>
+                <p className="text-white/70 text-xs mt-1">
+                  {feature.unlocked ? (
+                    <span className="text-green-200 flex items-center justify-center">
+                      <CheckCircle className="w-3 h-3 mr-1" /> Unlocked
+                    </span>
+                  ) : (
+                    `${feature.points.toLocaleString()} pts`
+                  )}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          {/* Tips to earn more */}
+          <div className="mt-5 flex items-center justify-center space-x-6 text-white/90 text-sm flex-wrap gap-2">
+            <span className="flex items-center"><TrendingUp className="w-4 h-4 mr-1" /> Complete sessions +10 pts</span>
+            <span className="flex items-center"><Flame className="w-4 h-4 mr-1" /> Daily streak +5 pts</span>
+            <span className="flex items-center"><Trophy className="w-4 h-4 mr-1" /> Win challenges +100 pts</span>
+          </div>
+        </div>
+      </div>
+
       {/* Motivational Footer */}
       <div className="text-center py-8">
         <Medal className="w-12 h-12 text-yellow-500 mx-auto mb-3" />
