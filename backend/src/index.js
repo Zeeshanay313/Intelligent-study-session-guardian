@@ -9,6 +9,10 @@ const rateLimit = require('express-rate-limit');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const dns = require('dns');
+
+// Force Google DNS for MongoDB Atlas SRV resolution
+dns.setServers(['8.8.8.8', '8.8.4.4']);
 
 require('dotenv').config();
 
@@ -35,6 +39,7 @@ const focusTimerRoutes = require('./routes/timer');
 const enhancedReminderRoutes = require('./routes/reminders');
 const scheduleRoutes = require('./routes/schedule');
 const motivationRoutes = require('./routes/motivation');
+const adminRoutes = require('./routes/admin');
 
 const app = express();
 
@@ -161,6 +166,7 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/timer', focusTimerRoutes);
 app.use('/api/schedule', scheduleRoutes);
 app.use('/api/motivation', motivationRoutes);
+app.use('/api/admin', adminRoutes); // Admin routes - requires admin role
 app.use('/api', oauthTestRoutes);
 
 // Root endpoint
@@ -280,6 +286,22 @@ const startServer = async () => {
         await global.recurringReminderScheduler.initialize();
       } catch (error) {
         console.error('❌ Failed to initialize recurring reminder scheduler:', error.message);
+      }
+
+      // Initialize default rewards and badges
+      try {
+        const { initializeDefaultRewards } = require('./services/initRewards');
+        await initializeDefaultRewards();
+      } catch (error) {
+        console.error('❌ Failed to initialize default rewards:', error.message);
+      }
+
+      // Initialize default challenges
+      try {
+        const { initializeDefaultChallenges } = require('./services/initChallenges');
+        await initializeDefaultChallenges();
+      } catch (error) {
+        console.error('❌ Failed to initialize default challenges:', error.message);
       }
 
       console.log('===============================================');

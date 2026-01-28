@@ -33,7 +33,20 @@ const auditLogSchema = new mongoose.Schema({
       'DEVICE_REGISTERED',
       'DEVICE_ACCESS_CHANGED',
       'DATA_EXPORTED',
-      'AVATAR_UPDATED'
+      'AVATAR_UPDATED',
+      // Admin actions
+      'USER_CREATED_BY_ADMIN',
+      'USER_UPDATED_BY_ADMIN',
+      'USER_DELETED_BY_ADMIN',
+      'USER_SOFT_DELETED_BY_ADMIN',
+      'USER_HARD_DELETED_BY_ADMIN',
+      'USER_RESTORED_BY_ADMIN',
+      'ADMIN_LOGIN',
+      'ADMIN_ACTION',
+      'ADMIN_USER_UPDATE_FAILED',
+      'ADMIN_USER_DELETE_FAILED',
+      'ADMIN_USER_CREATE_FAILED',
+      'ADMIN_USER_RESTORE_FAILED'
     ]
   },
   details: {

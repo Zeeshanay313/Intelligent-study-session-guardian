@@ -291,7 +291,7 @@ userRewardsSchema.methods.resetMonthly = function () {
 };
 
 // Static method to get leaderboard
-userRewardsSchema.statics.getLeaderboard = function (type = 'alltime', limit = 100) {
+userRewardsSchema.statics.getLeaderboard = async function (type = 'alltime', limit = 100) {
   let sortField = 'totalPoints';
   if (type === 'weekly') {
     sortField = 'weeklyPoints';
@@ -299,11 +299,26 @@ userRewardsSchema.statics.getLeaderboard = function (type = 'alltime', limit = 1
     sortField = 'monthlyPoints';
   }
 
-  return this.find({ 'leaderboardSettings.isPublic': true })
+  // Get all users with rewards, sorted by points
+  const leaderboard = await this.find()
     .sort({ [sortField]: -1 })
     .limit(limit)
-    .populate('userId', 'displayName email')
+    .populate('userId', 'email profile.displayName profile.avatar')
     .lean();
+
+  // Format leaderboard with rank and user info
+  return leaderboard.map((entry, index) => ({
+    rank: index + 1,
+    odiserId: entry.userId?._id,
+    displayName: entry.userId?.profile?.displayName || entry.userId?.email?.split('@')[0] || 'Anonymous',
+    email: entry.userId?.email,
+    avatar: entry.userId?.profile?.avatar,
+    points: entry[sortField] || 0,
+    totalPoints: entry.totalPoints,
+    level: entry.currentLevel || 1,
+    badges: entry.earnedRewards?.length || 0,
+    streak: entry.lifetimeStats?.currentStreak || 0
+  }));
 };
 
 // Static method to get user's rank
@@ -315,18 +330,25 @@ userRewardsSchema.statics.getUserRank = async function (userId, type = 'alltime'
     sortField = 'monthlyPoints';
   }
 
-  const userReward = await this.findOne({ userId });
+  const userReward = await this.findOne({ userId }).populate('userId', 'email profile.displayName');
   if (!userReward) return null;
 
-  const userPoints = userReward[sortField];
+  const userPoints = userReward[sortField] || 0;
 
   const rank = await this.countDocuments({
     [sortField]: { $gt: userPoints }
   }) + 1;
 
+  const totalUsers = await this.countDocuments();
+
   return {
     rank,
     points: userPoints,
+    totalPoints: userReward.totalPoints,
+    level: userReward.currentLevel,
+    displayName: userReward.userId?.profile?.displayName || userReward.userId?.email?.split('@')[0],
+    totalUsers,
+    percentile: totalUsers > 0 ? Math.round(((totalUsers - rank) / totalUsers) * 100) : 0,
     type
   };
 };

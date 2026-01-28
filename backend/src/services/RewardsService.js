@@ -618,12 +618,79 @@ async function updateChallengesFromSession(userId, sessionData) {
   return results;
 }
 
+/**
+ * Update challenge progress when a goal is completed
+ * @param {ObjectId} userId - The user's ID
+ * @param {Object} goal - The completed goal object
+ * @returns {Array} Challenge update results
+ */
+async function updateChallengesFromGoal(userId, goal) {
+  const CommunityChallenge = require('../models/CommunityChallenge');
+  
+  // Find all active challenges the user has joined that are goal-completion type
+  const activeChallenges = await CommunityChallenge.find({
+    status: 'active',
+    type: 'goal-completion',
+    'participants.userId': userId
+  });
+  
+  const results = [];
+  
+  for (const challenge of activeChallenges) {
+    const participant = challenge.participants.find(
+      p => p.userId.toString() === userId.toString()
+    );
+    
+    if (!participant || participant.completed) continue;
+    
+    // Each goal completion adds 1 to progress
+    const progressIncrement = 1;
+    
+    const wasCompleted = participant.completed;
+    const newProgress = Math.min(participant.progress + progressIncrement, challenge.target);
+    
+    challenge.updateProgress(userId, newProgress);
+    await challenge.save();
+    
+    // Re-fetch the updated participant to check completion status
+    const updatedParticipant = challenge.participants.find(
+      p => p.userId.toString() === userId.toString()
+    );
+    const nowCompleted = updatedParticipant?.completed || newProgress >= challenge.target;
+    
+    // If just completed, award points
+    if (!wasCompleted && nowCompleted) {
+      const rewardResult = await awardChallengeCompletionPoints(userId, challenge);
+      results.push({
+        challengeId: challenge._id,
+        title: challenge.title,
+        completed: true,
+        progress: newProgress,
+        target: challenge.target,
+        rewardResult
+      });
+    } else {
+      results.push({
+        challengeId: challenge._id,
+        title: challenge.title,
+        newProgress: newProgress,
+        target: challenge.target,
+        completed: false,
+        percentComplete: Math.round((newProgress / challenge.target) * 100)
+      });
+    }
+  }
+  
+  return results;
+}
+
 module.exports = {
   initializeUserRewards,
   awardSessionPoints,
   awardGoalCompletionPoints,
   awardChallengeCompletionPoints,
   updateChallengesFromSession,
+  updateChallengesFromGoal,
   checkAndAwardRewards,
   getUserRewardsProfile,
   getLeaderboard,

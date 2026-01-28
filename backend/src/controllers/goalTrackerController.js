@@ -16,7 +16,8 @@ const { generateRealtimeProgressSummary, sendNotifications } = require('../servi
 const { 
   awardGoalCompletionPoints, 
   queueAchievementNotification,
-  checkAndAwardRewards 
+  checkAndAwardRewards,
+  updateChallengesFromGoal
 } = require('../services/RewardsService');
 
 /**
@@ -316,8 +317,12 @@ const updateGoal = async (req, res) => {
 
     // Check if goal just got completed and award rewards
     let rewardResult = null;
+    let challengeResults = [];
     if (!wasCompleted && goal.status === 'completed') {
       rewardResult = await awardGoalCompletionPoints(req.user._id, goal);
+      
+      // Update any goal-completion challenges
+      challengeResults = await updateChallengesFromGoal(req.user._id, goal);
       
       // Queue achievement notification
       queueAchievementNotification(req.user._id, {
@@ -325,7 +330,8 @@ const updateGoal = async (req, res) => {
         title: '🎯 Goal Completed!',
         message: `Congratulations! You completed "${goal.title}"`,
         pointsAwarded: rewardResult.pointsAwarded,
-        goalId: goal._id
+        goalId: goal._id,
+        challengeResults
       });
     }
 
@@ -416,14 +422,38 @@ const addProgress = async (req, res) => {
     // Track if goal was already completed
     const wasCompleted = goal.status === 'completed';
 
-    // Add progress using model method
-    goal.addProgress(value, 'manual', null, notes || '');
+    // Prevent adding progress if goal is already completed
+    if (wasCompleted) {
+      return res.status(400).json({ 
+        error: 'Goal is already completed',
+        message: 'Cannot add more progress to a completed goal'
+      });
+    }
+
+    // Prevent progress from exceeding target
+    const remainingProgress = goal.target - goal.currentProgress;
+    if (remainingProgress <= 0) {
+      return res.status(400).json({ 
+        error: 'Goal target already reached',
+        message: 'Cannot add more progress - target has been met'
+      });
+    }
+
+    // Cap the value to not exceed target
+    const cappedValue = Math.min(value, remainingProgress);
+
+    // Add progress using model method (with capped value)
+    goal.addProgress(cappedValue, 'manual', null, notes || '');
     await goal.save();
 
     // Check if goal just got completed and award rewards
     let rewardResult = null;
+    let challengeResults = [];
     if (!wasCompleted && goal.status === 'completed') {
       rewardResult = await awardGoalCompletionPoints(req.user._id, goal);
+      
+      // Update any goal-completion challenges
+      challengeResults = await updateChallengesFromGoal(req.user._id, goal);
       
       // Queue achievement notification
       queueAchievementNotification(req.user._id, {
@@ -431,7 +461,8 @@ const addProgress = async (req, res) => {
         title: '🎯 Goal Completed!',
         message: `Congratulations! You completed "${goal.title}"`,
         pointsAwarded: rewardResult.pointsAwarded,
-        goalId: goal._id
+        goalId: goal._id,
+        challengeResults
       });
     }
 
@@ -477,8 +508,12 @@ const completeSubTask = async (req, res) => {
 
     // Check if goal just got completed and award rewards
     let rewardResult = null;
+    let challengeResults = [];
     if (!wasCompleted && goal.status === 'completed') {
       rewardResult = await awardGoalCompletionPoints(req.user._id, goal);
+      
+      // Update any goal-completion challenges
+      challengeResults = await updateChallengesFromGoal(req.user._id, goal);
       
       // Queue achievement notification
       queueAchievementNotification(req.user._id, {
@@ -486,7 +521,8 @@ const completeSubTask = async (req, res) => {
         title: '🎯 Goal Completed!',
         message: `Congratulations! You completed "${goal.title}"`,
         pointsAwarded: rewardResult.pointsAwarded,
-        goalId: goal._id
+        goalId: goal._id,
+        challengeResults
       });
     }
 

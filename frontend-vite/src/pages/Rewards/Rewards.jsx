@@ -277,6 +277,7 @@ const Rewards = () => {
   const [suggestions, setSuggestions] = useState([])
   const [leaderboard, setLeaderboard] = useState([])
   const [userRank, setUserRank] = useState(null)
+  const [challenges, setChallenges] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('badges')
   const [shareModal, setShareModal] = useState(null)
@@ -290,7 +291,8 @@ const Rewards = () => {
         api.rewards.getStreak(),
         api.rewards.getSuggestions(),
         api.rewards.getLeaderboard('alltime', 10),
-        api.rewards.getRank('alltime')
+        api.rewards.getRank('alltime'),
+        api.challenges.list()
       ])
 
       const [

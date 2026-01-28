@@ -399,8 +399,11 @@ goalSchema.methods.addProgress = function (value, source = 'manual', sessionId =
     });
   }
 
-  // Update current progress
+  // Update current progress (capped at target to prevent over-completion)
   this.currentProgress += value;
+  if (this.currentProgress > this.target) {
+    this.currentProgress = this.target;
+  }
 
   // Check for milestone completion and generate notifications
   const milestonesCompleted = this.checkMilestoneCompletion();

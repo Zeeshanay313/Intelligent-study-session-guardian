@@ -25,6 +25,9 @@ import ProfileSettings from './pages/Settings/ProfileSettings'
 import Schedule from './pages/Schedule/Schedule'
 import Motivation from './pages/Motivation/Motivation'
 
+// Admin Pages
+import { AdminDashboard, AdminUsers } from './pages/Admin'
+
 // Protected Route wrapper
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth()
@@ -61,6 +64,35 @@ const PublicRoute = ({ children }) => {
   }
   
   return children
+}
+
+// Admin Route wrapper (requires admin role)
+const AdminRoute = ({ children }) => {
+  const { user, isAuthenticated, loading } = useAuth()
+  
+  console.log('AdminRoute check:', { user, isAuthenticated, loading, role: user?.user?.role })
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    )
+  }
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />
+  }
+  
+  // Check if user is admin
+  const isAdmin = user?.user?.role === 'admin'
+  console.log('Is Admin:', isAdmin)
+  
+  if (!isAdmin) {
+    return <Navigate to="/dashboard" replace />
+  }
+  
+  return <AppLayout>{children}</AppLayout>
 }
 
 function AppRoutes() {
@@ -165,6 +197,32 @@ function AppRoutes() {
             <ProtectedRoute>
               <ProfileSettings />
             </ProtectedRoute>
+          }
+        />
+
+        {/* Admin routes - requires admin role */}
+        <Route
+          path="/admin"
+          element={
+            <AdminRoute>
+              <AdminDashboard />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/dashboard"
+          element={
+            <AdminRoute>
+              <AdminDashboard />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/users"
+          element={
+            <AdminRoute>
+              <AdminUsers />
+            </AdminRoute>
           }
         />
 

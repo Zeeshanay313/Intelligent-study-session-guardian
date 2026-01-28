@@ -9,7 +9,12 @@ import axios from 'axios'
 import { mockApi } from './mockApi'
 
 // Configuration
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:50041'
+// Support both env var names used across docs and setups.
+// Default to the backend dev port.
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ||
+  import.meta.env.VITE_API_URL ||
+  'http://localhost:5004'
 const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API === 'true'
 const DEBUG = import.meta.env.VITE_DEBUG === 'true'
 
@@ -455,6 +460,45 @@ export const api = {
       return apiCall(
         () => axiosInstance.post(`/api/rewards/${rewardId}/claim`),
         () => mockApi.rewards.claim(rewardId)
+      )
+    },
+  },
+
+  // ==================== CHALLENGES ====================
+  challenges: {
+    list: async (status = null) => {
+      const params = status ? { status } : {};
+      return apiCall(
+        () => axiosInstance.get('/api/motivation/challenges', { params }),
+        () => Promise.resolve({ success: true, data: [] })
+      )
+    },
+    
+    getMy: async () => {
+      return apiCall(
+        () => axiosInstance.get('/api/motivation/challenges/my'),
+        () => Promise.resolve({ success: true, data: [] })
+      )
+    },
+    
+    get: async (id) => {
+      return apiCall(
+        () => axiosInstance.get(`/api/motivation/challenges/${id}`),
+        () => Promise.resolve({ success: true, data: null })
+      )
+    },
+    
+    join: async (id) => {
+      return apiCall(
+        () => axiosInstance.post(`/api/motivation/challenges/${id}/join`),
+        () => Promise.resolve({ success: true })
+      )
+    },
+    
+    leave: async (id) => {
+      return apiCall(
+        () => axiosInstance.post(`/api/motivation/challenges/${id}/leave`),
+        () => Promise.resolve({ success: true })
       )
     },
   },

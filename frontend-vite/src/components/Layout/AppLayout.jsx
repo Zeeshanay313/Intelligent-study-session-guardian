@@ -34,7 +34,8 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  BarChart3
+  BarChart3,
+  Shield
 } from 'lucide-react'
 
 const AppLayout = ({ children }) => {
@@ -45,6 +46,9 @@ const AppLayout = ({ children }) => {
   
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+
+  // Check if user is admin
+  const isAdmin = user?.user?.role === 'admin'
 
   // Navigation items
   const navigation = [
@@ -57,6 +61,8 @@ const AppLayout = ({ children }) => {
     { name: 'Rewards', href: '/rewards', icon: Award },
     { name: 'Reports', href: '/reports', icon: BarChart3 },
     { name: 'Profile', href: '/profile', icon: User },
+    // Admin link - only shown to admin users
+    ...(isAdmin ? [{ name: 'Admin Panel', href: '/admin', icon: Shield, adminOnly: true }] : []),
   ]
 
   const isActive = (path) => location.pathname === path
@@ -132,6 +138,7 @@ const AppLayout = ({ children }) => {
             {navigation.map((item) => {
               const Icon = item.icon
               const active = isActive(item.href)
+              const isAdminItem = item.adminOnly
               
               return (
                 <li key={item.name}>
@@ -140,8 +147,12 @@ const AppLayout = ({ children }) => {
                     className={`
                       flex items-center px-3 py-2.5 rounded-lg transition-all duration-200
                       ${active
-                        ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 font-medium'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                        ? isAdminItem 
+                          ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 font-medium'
+                          : 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 font-medium'
+                        : isAdminItem
+                          ? 'text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 border border-purple-200 dark:border-purple-800'
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                       }
                       ${sidebarCollapsed ? 'justify-center' : 'space-x-3'}
                       focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2
@@ -149,12 +160,12 @@ const AppLayout = ({ children }) => {
                     title={sidebarCollapsed ? item.name : undefined}
                     aria-label={item.name}
                   >
-                    <Icon className="w-5 h-5 flex-shrink-0" />
+                    <Icon className={`w-5 h-5 flex-shrink-0 ${isAdminItem ? 'text-purple-600 dark:text-purple-400' : ''}`} />
                     {!sidebarCollapsed && (
                       <span className="truncate">{item.name}</span>
                     )}
                     {active && !sidebarCollapsed && (
-                      <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary-600 dark:bg-primary-400" />
+                      <span className={`ml-auto w-1.5 h-1.5 rounded-full ${isAdminItem ? 'bg-purple-600 dark:bg-purple-400' : 'bg-primary-600 dark:bg-primary-400'}`} />
                     )}
                   </Link>
                 </li>
