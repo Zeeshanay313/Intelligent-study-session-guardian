@@ -40,6 +40,7 @@ const enhancedReminderRoutes = require('./routes/reminders');
 const scheduleRoutes = require('./routes/schedule');
 const motivationRoutes = require('./routes/motivation');
 const adminRoutes = require('./routes/admin');
+const activityRoutes = require('./routes/activity');
 
 const app = express();
 
@@ -167,6 +168,7 @@ app.use('/api/timer', focusTimerRoutes);
 app.use('/api/schedule', scheduleRoutes);
 app.use('/api/motivation', motivationRoutes);
 app.use('/api/admin', adminRoutes); // Admin routes - requires admin role
+app.use('/api/activity', activityRoutes);
 app.use('/api', oauthTestRoutes);
 
 // Root endpoint

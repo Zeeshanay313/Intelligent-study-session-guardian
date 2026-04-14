@@ -92,6 +92,7 @@ let mockDb = {
       tags: ['reading']
     }
   ],
+  activityLogs: [],
   goals: [
     {
       id: 1,
@@ -1074,46 +1075,189 @@ export const mockApi = {
 
   // ==================== ACTIVITY ====================
   activity: {
-    async ping(activityData) {
+    async startSession(payload) {
       await delay(50)
       if (!isAuthenticated) throw new Error('Not authenticated')
-      
+
       const log = {
         id: mockDb.activityLogs.length + 1,
         userId: 1,
+        sessionId: payload.sessionId,
+        goalId: payload.goalId || null,
+        sessionSource: payload.sessionSource || 'timer',
+        eventType: 'session_start',
         timestamp: new Date().toISOString(),
-        activity: activityData.activity,
-        details: activityData.details || {}
+        activeSeconds: 0,
+        idleSeconds: 0,
+        engagementScore: 0,
+        productivityScore: 0,
+        timeline: []
       }
-      
+
       mockDb.activityLogs.push(log)
-      
+
       return {
         success: true,
         data: log
       }
     },
-    
-    async getLogs(filters = {}) {
-      await delay()
+
+    async updateSession(payload) {
+      await delay(50)
       if (!isAuthenticated) throw new Error('Not authenticated')
-      
-      let logs = [...mockDb.activityLogs]
-      
-      if (filters.startDate) {
-        logs = logs.filter(l => new Date(l.timestamp) >= new Date(filters.startDate))
+
+      const log = {
+        id: mockDb.activityLogs.length + 1,
+        userId: 1,
+        sessionId: payload.sessionId,
+        goalId: payload.goalId || null,
+        sessionSource: payload.sessionSource || 'timer',
+        eventType: payload.eventType || 'session_update',
+        timestamp: new Date().toISOString(),
+        activeSeconds: payload.activeSeconds || 0,
+        idleSeconds: payload.idleSeconds || 0,
+        engagementScore: payload.engagementScore || 0,
+        productivityScore: payload.productivityScore || 0,
+        timeline: payload.timeline || []
       }
-      if (filters.endDate) {
-        logs = logs.filter(l => new Date(l.timestamp) <= new Date(filters.endDate))
-      }
-      if (filters.activity) {
-        logs = logs.filter(l => l.activity === filters.activity)
-      }
-      
+
+      mockDb.activityLogs.push(log)
+
       return {
         success: true,
-        data: logs
+        data: log
       }
+    },
+
+    async endSession(payload) {
+      await delay(50)
+      if (!isAuthenticated) throw new Error('Not authenticated')
+
+      const log = {
+        id: mockDb.activityLogs.length + 1,
+        userId: 1,
+        sessionId: payload.sessionId,
+        goalId: payload.goalId || null,
+        sessionSource: payload.sessionSource || 'timer',
+        eventType: 'session_end',
+        timestamp: new Date().toISOString(),
+        activeSeconds: payload.activeSeconds || 0,
+        idleSeconds: payload.idleSeconds || 0,
+        engagementScore: payload.engagementScore || 0,
+        productivityScore: payload.productivityScore || 0,
+        timeline: payload.timeline || []
+      }
+
+      mockDb.activityLogs.push(log)
+
+      return {
+        success: true,
+        data: {
+          log,
+          summary: {
+            activeSeconds: log.activeSeconds,
+            idleSeconds: log.idleSeconds,
+            engagementScore: log.engagementScore,
+            productivityScore: log.productivityScore
+          },
+          timeline: log.timeline
+        }
+      }
+    },
+
+    async listSessions(filters = {}) {
+      await delay(100)
+      if (!isAuthenticated) throw new Error('Not authenticated')
+
+      if (!mockDb.activityLogs.length) {
+        mockDb.sessions.forEach(session => {
+          mockDb.activityLogs.push({
+            id: mockDb.activityLogs.length + 1,
+            userId: 1,
+            sessionId: session.id,
+            sessionSource: 'timer',
+            eventType: 'session_end',
+            timestamp: session.endTime,
+            activeSeconds: session.actualDuration || session.duration,
+            idleSeconds: Math.max(0, (session.duration || 0) - (session.actualDuration || 0)),
+            engagementScore: 72,
+            productivityScore: 78,
+            timeline: []
+          })
+        })
+      }
+
+      const limit = filters.limit ? Number(filters.limit) : 10
+      const goalIdFilter = filters.goalId ? String(filters.goalId) : null
+      const sessionMap = new Map()
+
+      mockDb.activityLogs.forEach(log => {
+        if (goalIdFilter && String(log.goalId) !== goalIdFilter) return
+        const key = log.sessionId
+        if (!key) return
+        const existing = sessionMap.get(key) || {
+          sessionId: key,
+          goalId: log.goalId || null,
+          sessionSource: log.sessionSource || 'timer',
+          startTime: log.timestamp,
+          endTime: log.timestamp,
+          activeSeconds: 0,
+          idleSeconds: 0,
+          engagementScore: 0,
+          productivityScore: 0
+        }
+
+        existing.startTime = new Date(existing.startTime) < new Date(log.timestamp) ? existing.startTime : log.timestamp
+        existing.endTime = new Date(existing.endTime) > new Date(log.timestamp) ? existing.endTime : log.timestamp
+        existing.activeSeconds = Math.max(existing.activeSeconds, log.activeSeconds || 0)
+        existing.idleSeconds = Math.max(existing.idleSeconds, log.idleSeconds || 0)
+        existing.engagementScore = log.engagementScore || existing.engagementScore
+        existing.productivityScore = log.productivityScore || existing.productivityScore
+        sessionMap.set(key, existing)
+      })
+
+      const sessions = Array.from(sessionMap.values())
+        .sort((a, b) => new Date(b.endTime) - new Date(a.endTime))
+        .slice(0, limit)
+
+      return {
+        success: true,
+        data: sessions
+      }
+    },
+
+    async getSession(sessionId) {
+      await delay(100)
+      if (!isAuthenticated) throw new Error('Not authenticated')
+
+      const logs = mockDb.activityLogs.filter(log => String(log.sessionId) === String(sessionId))
+      if (!logs.length) throw new Error('Session not found')
+
+      const latest = logs[logs.length - 1]
+      const summary = {
+        sessionId,
+        sessionSource: latest.sessionSource || 'timer',
+        goalId: latest.goalId || null,
+        startTime: logs[0].timestamp,
+        endTime: latest.timestamp,
+        activeSeconds: latest.activeSeconds || 0,
+        idleSeconds: latest.idleSeconds || 0,
+        engagementScore: latest.engagementScore || 0,
+        productivityScore: latest.productivityScore || 0
+      }
+
+      return {
+        success: true,
+        data: {
+          summary,
+          timeline: latest.timeline || [],
+          logs
+        }
+      }
+    },
+
+    async listSessionsByGoal(goalId, filters = {}) {
+      return this.listSessions({ ...filters, goalId })
     }
   },
 

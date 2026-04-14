@@ -243,14 +243,14 @@ export const api = {
     
     start: async (sessionData) => {
       return apiCall(
-        () => axiosInstance.post('/api/sessions/start', sessionData),
+        () => axiosInstance.post('/api/timers/start', sessionData),
         () => mockApi.sessions.start(sessionData)
       )
     },
     
     end: async (id, sessionData) => {
       return apiCall(
-        () => axiosInstance.post(`/api/sessions/${id}/end`, sessionData),
+        () => axiosInstance.post(`/api/timers/${id}/stop`, sessionData),
         () => mockApi.sessions.end(id, sessionData)
       )
     },
@@ -623,19 +623,47 @@ export const api = {
 
   // ==================== ACTIVITY ====================
   activity: {
-    ping: async (activityData) => {
+    startSession: async (payload) => {
       return apiCall(
-        () => axiosInstance.post('/api/activity/ping', activityData),
-        () => mockApi.activity.ping(activityData)
+        () => axiosInstance.post('/api/activity/start', payload),
+        () => mockApi.activity.startSession(payload)
       )
     },
-    
-    getLogs: async (filters = {}) => {
+
+    updateSession: async (payload) => {
       return apiCall(
-        () => axiosInstance.get('/api/activity/logs', { params: filters }),
-        () => mockApi.activity.getLogs(filters)
+        () => axiosInstance.post('/api/activity/update', payload),
+        () => mockApi.activity.updateSession(payload)
       )
     },
+
+    endSession: async (payload) => {
+      return apiCall(
+        () => axiosInstance.post('/api/activity/end', payload),
+        () => mockApi.activity.endSession(payload)
+      )
+    },
+
+    listSessions: async (filters = {}) => {
+      return apiCall(
+        () => axiosInstance.get('/api/activity/sessions', { params: filters }),
+        () => mockApi.activity.listSessions(filters)
+      )
+    },
+
+    getSession: async (sessionId) => {
+      return apiCall(
+        () => axiosInstance.get(`/api/activity/session/${sessionId}`),
+        () => mockApi.activity.getSession(sessionId)
+      )
+    },
+
+    listSessionsByGoal: async (goalId, filters = {}) => {
+      return apiCall(
+        () => axiosInstance.get(`/api/activity/goal/${goalId}`, { params: filters }),
+        () => mockApi.activity.listSessionsByGoal(goalId, filters)
+      )
+    }
   },
 
   // ==================== PRESETS ====================

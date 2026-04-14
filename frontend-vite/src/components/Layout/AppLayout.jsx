@@ -35,7 +35,8 @@ import {
   ChevronLeft,
   ChevronRight,
   BarChart3,
-  Shield
+  Shield,
+  Activity
 } from 'lucide-react'
 
 const AppLayout = ({ children }) => {
@@ -59,6 +60,7 @@ const AppLayout = ({ children }) => {
     { name: 'Resources', href: '/resources', icon: Folder },
     { name: 'Motivation', href: '/motivation', icon: Trophy },
     { name: 'Rewards', href: '/rewards', icon: Award },
+    { name: 'Activity Logger', href: '/activity-logger', icon: Activity },
     { name: 'Reports', href: '/reports', icon: BarChart3 },
     { name: 'Profile', href: '/profile', icon: User },
     // Admin link - only shown to admin users

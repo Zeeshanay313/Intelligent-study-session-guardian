@@ -24,6 +24,7 @@ import Reports from './pages/Reports/Reports'
 import ProfileSettings from './pages/Settings/ProfileSettings'
 import Schedule from './pages/Schedule/Schedule'
 import Motivation from './pages/Motivation/Motivation'
+import ActivityLogger from './pages/ActivityLogger/ActivityLogger'
 
 // Admin Pages
 import { AdminDashboard, AdminUsers } from './pages/Admin'
@@ -188,6 +189,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <Reports />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/activity-logger"
+          element={
+            <ProtectedRoute>
+              <ActivityLogger />
             </ProtectedRoute>
           }
         />

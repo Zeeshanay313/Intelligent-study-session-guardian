@@ -17,6 +17,7 @@ const SessionEndModal = ({
 }) => {
   const [suggestion, setSuggestion] = useState(null)
   const [loadingSuggestion, setLoadingSuggestion] = useState(true)
+  const activitySummary = sessionData?.activitySummary || null
 
   useEffect(() => {
     if (isOpen) {
@@ -172,6 +173,38 @@ const SessionEndModal = ({
                 🔥 {suggestion.streak}
               </div>
             </div>
+          )}
+
+          {activitySummary && (
+            <>
+              <div>
+                <div className="text-sm text-gray-500 dark:text-gray-400 flex items-center">
+                  <Clock className="w-4 h-4 mr-1" />
+                  Active Time
+                </div>
+                <div className="text-lg font-bold text-gray-900 dark:text-white">
+                  {formatDuration(activitySummary.activeSeconds || 0)}
+                </div>
+              </div>
+              <div>
+                <div className="text-sm text-gray-500 dark:text-gray-400 flex items-center">
+                  <Clock className="w-4 h-4 mr-1" />
+                  Idle Time
+                </div>
+                <div className="text-lg font-bold text-gray-900 dark:text-white">
+                  {formatDuration(activitySummary.idleSeconds || 0)}
+                </div>
+              </div>
+              <div>
+                <div className="text-sm text-gray-500 dark:text-gray-400 flex items-center">
+                  <TrendingUp className="w-4 h-4 mr-1" />
+                  Productivity
+                </div>
+                <div className="text-lg font-bold text-gray-900 dark:text-white">
+                  {Math.round(activitySummary.productivityScore || 0)}%
+                </div>
+              </div>
+            </>
           )}
         </div>
       </div>

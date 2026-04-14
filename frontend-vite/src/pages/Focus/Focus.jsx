@@ -11,7 +11,7 @@
  * - Progress tracking
  */
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   Play,
   Pause,
@@ -23,7 +23,8 @@ import {
   Layers,
   Plus,
   Target,
-  BookOpen
+  BookOpen,
+  Activity
 } from 'lucide-react'
 import api from '../../services/api'
 import Button from '../../components/UI/Button'
@@ -32,8 +33,11 @@ import SessionEndModal from '../../components/Timer/SessionEndModal'
 import GoalSelectionModal from '../../components/Timer/GoalSelectionModal'
 import ResourceSelectionModal from '../../components/Timer/ResourceSelectionModal'
 import SessionResourcesPanel from '../../components/Timer/SessionResourcesPanel'
+import ActivityTimeline from '../../components/Activity/ActivityTimeline'
+import useSessionActivityTracker from '../../hooks/useSessionActivityTracker'
 import { useNotification } from '../../contexts/NotificationContext'
 import { useAchievementToast } from '../../components/UI/AchievementToast'
+import Modal from '../../components/UI/Modal'
 
 const Focus = () => {
   const { success, info } = useNotification()
@@ -68,6 +72,11 @@ const Focus = () => {
   const [showResourceSelection, setShowResourceSelection] = useState(false)
   const [selectedResources, setSelectedResources] = useState([])
   const [showResourcesPanel, setShowResourcesPanel] = useState(false)
+  const [activityNotice, setActivityNotice] = useState(null)
+  const [showIdleConfirm, setShowIdleConfirm] = useState(false)
+  const [idleConfirmSeconds, setIdleConfirmSeconds] = useState(0)
+  const [autoPaused, setAutoPaused] = useState(false)
+  const idleConfirmTimeoutRef = useRef(null)
   
   // Settings state
   const [customDurations, setCustomDurations] = useState({
@@ -75,6 +84,91 @@ const Focus = () => {
     'short-break': 5,
     'long-break': 15,
   })
+
+  const {
+    summary: activitySummary,
+    timeline: activityTimeline,
+    isIdle,
+    confirmActive,
+    endTracking
+  } = useSessionActivityTracker({
+    sessionId,
+    goalId: selectedGoal?._id || selectedGoal?.id || null,
+    sessionSource: 'timer',
+    enabled: Boolean(sessionId),
+    isRunning: isRunning || autoPaused,
+    idleThresholdSeconds: 30,
+    nudgeThresholdSeconds: 30,
+    onNudge: ({ idleSeconds }) => {
+      if (autoPaused || !isRunning) return
+      const message = 'No activity detected for 30 seconds. Are you still active?'
+      setActivityNotice(message)
+      setIdleConfirmSeconds(idleSeconds)
+      setShowIdleConfirm(true)
+      setAutoPaused(true)
+      setIsRunning(false)
+      info(message)
+    }
+  })
+
+  useEffect(() => {
+    if (!isIdle && !autoPaused) {
+      setActivityNotice(null)
+      setShowIdleConfirm(false)
+    }
+  }, [isIdle, autoPaused])
+
+  useEffect(() => {
+    if (!sessionId) {
+      setShowIdleConfirm(false)
+      return
+    }
+    if (!isRunning && !autoPaused) {
+      setShowIdleConfirm(false)
+    }
+  }, [sessionId, isRunning, autoPaused])
+
+  const handleIdleConfirmActive = () => {
+    if (idleConfirmTimeoutRef.current) {
+      clearTimeout(idleConfirmTimeoutRef.current)
+      idleConfirmTimeoutRef.current = null
+    }
+    confirmActive()
+    setAutoPaused(false)
+    setIsRunning(true)
+    setShowIdleConfirm(false)
+    setActivityNotice(null)
+  }
+
+  const handleIdleConfirmIdle = () => {
+    if (idleConfirmTimeoutRef.current) {
+      clearTimeout(idleConfirmTimeoutRef.current)
+      idleConfirmTimeoutRef.current = null
+    }
+    setShowIdleConfirm(false)
+  }
+
+  useEffect(() => {
+    if (!showIdleConfirm) {
+      if (idleConfirmTimeoutRef.current) {
+        clearTimeout(idleConfirmTimeoutRef.current)
+        idleConfirmTimeoutRef.current = null
+      }
+      return
+    }
+
+    idleConfirmTimeoutRef.current = setTimeout(() => {
+      setShowIdleConfirm(false)
+      setActivityNotice('Marked idle due to no response.')
+    }, 60000)
+
+    return () => {
+      if (idleConfirmTimeoutRef.current) {
+        clearTimeout(idleConfirmTimeoutRef.current)
+        idleConfirmTimeoutRef.current = null
+      }
+    }
+  }, [showIdleConfirm])
 
   // Load presets
   useEffect(() => {
@@ -161,6 +255,11 @@ const Focus = () => {
 
   const handlePlayPause = async () => {
     if (!isRunning) {
+      if (autoPaused) {
+        confirmActive()
+        setAutoPaused(false)
+        setShowIdleConfirm(false)
+      }
       // If starting fresh (no session), show goal selection
       if (!sessionId && sessionType === 'focus') {
         setShowGoalSelection(true)
@@ -185,12 +284,16 @@ const Focus = () => {
           goalId: selectedGoal?._id || selectedGoal?.id || null,
         })
         if (response.success) {
-          setSessionId(response.data.id)
+          const nextSessionId = response.data?.sessionId || response.data?.id || response.data?._id
+          if (nextSessionId) {
+            setSessionId(nextSessionId)
+          }
         }
       } catch (error) {
         console.error('Failed to start session:', error)
       }
     }
+    setAutoPaused(false)
     setIsRunning(true)
     setPendingStart(false)
   }
@@ -243,7 +346,11 @@ const Focus = () => {
   const handleStop = async () => {
     if (sessionId) {
       try {
-        const actualDuration = duration - timeLeft
+        const finalSummary = await endTracking()
+        const productiveSeconds = finalSummary?.activeSeconds
+        const actualDuration = productiveSeconds && productiveSeconds > 0
+          ? productiveSeconds
+          : (duration - timeLeft)
         await api.sessions.end(sessionId, {
           actualDuration: actualDuration,
           completed: false,
@@ -254,7 +361,7 @@ const Focus = () => {
         console.error('Failed to end session:', error)
       }
     }
-    
+    setAutoPaused(false)
     setIsRunning(false)
     setTimeLeft(duration)
     setSessionId(null)
@@ -276,8 +383,14 @@ const Focus = () => {
     let sessionResponse = null
     if (sessionId) {
       try {
+        const finalSummary = await endTracking()
+        completedSessionData.activitySummary = finalSummary
+        const productiveSeconds = finalSummary?.activeSeconds
+        const actualDuration = productiveSeconds && productiveSeconds > 0
+          ? productiveSeconds
+          : duration
         sessionResponse = await api.sessions.end(sessionId, {
-          actualDuration: duration,
+          actualDuration: actualDuration,
           completed: true,
           goalId: selectedGoal?._id || selectedGoal?.id || null,
         })
@@ -320,6 +433,7 @@ const Focus = () => {
     }
     
     setIsRunning(false)
+    setAutoPaused(false)
     setSessionId(null)
     setSessionData(completedSessionData)
     setShowSessionEnd(true)
@@ -633,6 +747,11 @@ const Focus = () => {
 
       {/* Main Timer Card */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-12 border border-gray-200 dark:border-gray-700">
+        {activityNotice && (
+          <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-200">
+            {activityNotice}
+          </div>
+        )}
         {/* Selected Goal Display */}
         {selectedGoal && (
           <div className="mb-6 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
@@ -716,6 +835,43 @@ const Focus = () => {
             {formatTime(timeLeft)}
           </div>
         </div>
+
+          <div className="mt-6 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white/70 dark:bg-gray-900/40 p-5">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-100 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400">
+                <Activity className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Activity logger</p>
+                <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                  {isRunning ? (isIdle ? 'Idle detected' : 'Tracking live activity') : 'Waiting for next session'}
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3 text-sm text-gray-600 dark:text-gray-300">
+              <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
+                <div className="text-xs uppercase text-gray-500 dark:text-gray-400">Active</div>
+                <div className="mt-1 text-xl font-semibold text-gray-900 dark:text-white">
+                  {formatTime(activitySummary.activeSeconds || 0)}
+                </div>
+              </div>
+              <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
+                <div className="text-xs uppercase text-gray-500 dark:text-gray-400">Idle</div>
+                <div className="mt-1 text-xl font-semibold text-gray-900 dark:text-white">
+                  {formatTime(activitySummary.idleSeconds || 0)}
+                </div>
+              </div>
+              <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
+                <div className="text-xs uppercase text-gray-500 dark:text-gray-400">Productivity</div>
+                <div className="mt-1 text-xl font-semibold text-gray-900 dark:text-white">
+                  {Math.round(activitySummary.productivityScore || 0)}%
+                </div>
+              </div>
+            </div>
+            <div className="mt-4">
+              <ActivityTimeline timeline={activityTimeline} />
+            </div>
+          </div>
 
         {/* Progress Bar */}
         <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mb-8">
@@ -816,6 +972,23 @@ const Focus = () => {
         sessionData={sessionData}
         onAcceptSuggestion={handleAcceptBreakSuggestion}
       />
+
+      <Modal
+        isOpen={showIdleConfirm}
+        onClose={handleIdleConfirmIdle}
+        title="Are you active?"
+        description={`No mouse or keyboard activity for ${idleConfirmSeconds || 30}s. Auto-marking idle in 60s.`}
+        footer={(
+          <>
+            <Button variant="outline" onClick={handleIdleConfirmIdle}>I'm idle</Button>
+            <Button onClick={handleIdleConfirmActive}>I'm active</Button>
+          </>
+        )}
+      >
+        <p className="text-sm text-gray-600 dark:text-gray-300">
+          Activity tracking will mark this time as idle unless you confirm.
+        </p>
+      </Modal>
     </div>
   )
 }
