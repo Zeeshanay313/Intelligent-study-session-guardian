@@ -381,7 +381,7 @@ const Goals = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+          <h1 className="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight">
             Goals
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
@@ -396,14 +396,14 @@ const Goals = () => {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800/60 rounded-2xl p-6 border border-gray-100 dark:border-gray-700/40 shadow-card">
           <div className="flex items-center space-x-3 mb-2">
             <Target className="w-5 h-5 text-primary-600 dark:text-primary-400" />
             <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Goals</span>
           </div>
           <p className="text-3xl font-bold text-gray-900 dark:text-white">{goals.length}</p>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800/60 rounded-2xl p-6 border border-gray-100 dark:border-gray-700/40 shadow-card">
           <div className="flex items-center space-x-3 mb-2">
             <TrendingUp className="w-5 h-5 text-green-600 dark:text-green-400" />
             <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Active</span>
@@ -412,7 +412,7 @@ const Goals = () => {
             {goals.filter(g => g.status === 'active').length}
           </p>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800/60 rounded-2xl p-6 border border-gray-100 dark:border-gray-700/40 shadow-card">
           <div className="flex items-center space-x-3 mb-2">
             <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />
             <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Completed</span>
@@ -497,7 +497,7 @@ const Goals = () => {
             return (
               <div
                 key={goalId}
-                className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-shadow"
+                className="bg-white dark:bg-gray-800/60 rounded-2xl p-6 border border-gray-100 dark:border-gray-700/40 shadow-card hover:shadow-card-hover transition-shadow"
               >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
@@ -509,7 +509,7 @@ const Goals = () => {
                       <CheckCircle2 className="w-5 h-5 text-green-600" />
                     )}
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+                  <h3 className="text-\[17px\] font-semibold text-gray-900 dark:text-white mb-1">
                     {goal.title}
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -619,7 +619,7 @@ const Goals = () => {
 
               {/* Milestones */}
               {goal.milestones && Array.isArray(goal.milestones) && goal.milestones.length > 0 && (
-                <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
+                <div className="pt-3 border-t border-gray-100 dark:border-gray-700/40">
                   <button
                     onClick={() => toggleGoalExpand(goalId)}
                     className="w-full flex items-center justify-between text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 hover:text-primary-600 dark:hover:text-primary-400"
@@ -691,7 +691,7 @@ const Goals = () => {
       {!loading && !error && goals.length === 0 && (
         <div className="text-center py-12">
           <Target className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+          <h3 className="text-\[17px\] font-semibold text-gray-900 dark:text-white mb-2">
             No goals yet
           </h3>
           <p className="text-gray-600 dark:text-gray-400 mb-4">

@@ -15,7 +15,7 @@ const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
   import.meta.env.VITE_API_URL ||
   'http://localhost:5004'
-const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API === 'true'
+const USE_MOCK_API = false
 const DEBUG = import.meta.env.VITE_DEBUG === 'true'
 
 // Create axios instance
@@ -93,27 +93,19 @@ axiosInstance.interceptors.response.use(
 )
 
 // Helper to decide whether to use mock API
-const shouldUseMockApi = () => {
-  return USE_MOCK_API
-}
+const shouldUseMockApi = () => false
 
 // Helper to handle API call - NO MORE FALLBACK, REAL API ONLY
 const apiCall = async (realApiCall, mockApiCall) => {
   if (shouldUseMockApi()) {
-    try {
-      return await mockApiCall()
-    } catch (error) {
-      if (DEBUG) console.error('Mock API Error:', error.message)
-      throw error
-    }
+    if (DEBUG) console.error('Mock API usage is disabled for deployment readiness.')
+    throw new Error('Mock API usage is disabled.')
   }
-  
-  // Use real API only - no fallback to mock
+
   try {
     const response = await realApiCall()
     return response.data
   } catch (error) {
-    // Log detailed error for debugging
     if (DEBUG) {
       console.error('=== API ERROR ===')
       console.error('Status:', error.response?.status)
@@ -231,6 +223,13 @@ export const api = {
       return apiCall(
         () => axiosInstance.get('/api/sessions', { params: filters }),
         () => mockApi.sessions.list(filters)
+      )
+    },
+
+    timerHistory: async (filters = {}) => {
+      return apiCall(
+        () => axiosInstance.get('/api/timers/sessions', { params: filters }),
+        () => Promise.resolve({ success: false })
       )
     },
     
@@ -575,19 +574,92 @@ export const api = {
 
   // ==================== REPORTS ====================
   reports: {
-    getSessionReport: async (filters = {}) => {
+    generate: async (sessionId, force = false) => {
       return apiCall(
-        () => axiosInstance.get('/api/reports/sessions', { params: filters }),
-        () => mockApi.reports.getSessionReport(filters)
+        () => axiosInstance.post('/api/reports/generate', { sessionId, force }),
+        () => Promise.resolve({ success: false })
       )
     },
-    
-    getUserReport: async () => {
+
+    getSession: async (sessionId) => {
       return apiCall(
-        () => axiosInstance.get('/api/reports/user'),
-        () => mockApi.reports.getUserReport()
+        () => axiosInstance.get(`/api/reports/session/${sessionId}`),
+        () => Promise.resolve({ success: false })
       )
     },
+
+    getGoal: async (goalId) => {
+      return apiCall(
+        () => axiosInstance.get(`/api/reports/goal/${goalId}`),
+        () => Promise.resolve({ success: false })
+      )
+    },
+
+    getUser: async (userId, filters = {}) => {
+      return apiCall(
+        () => axiosInstance.get(`/api/reports/user/${userId}`, { params: filters }),
+        () => Promise.resolve({ success: false })
+      )
+    },
+
+    compare: async (sessionId) => {
+      return apiCall(
+        () => axiosInstance.get(`/api/reports/compare/${sessionId}`),
+        () => Promise.resolve({ success: false })
+      )
+    },
+
+    addComment: async (sessionId, text) => {
+      return apiCall(
+        () => axiosInstance.post('/api/reports/comment', { sessionId, text }),
+        () => Promise.resolve({ success: false })
+      )
+    },
+  },
+
+  // ==================== DISTRACTION ====================
+  distraction: {
+    getSettings: async () => {
+      return apiCall(
+        () => axiosInstance.get('/api/distraction/settings'),
+        () => mockApi.distraction.getSettings()
+      )
+    },
+
+    getStatus: async () => {
+      return apiCall(
+        () => axiosInstance.get('/api/distraction/status'),
+        () => Promise.resolve({ success: true, data: { blockingActive: false, scheduleActive: false, sessionActive: false, blockedSites: [], blockedKeywords: [] } })
+      )
+    },
+
+    updateSettings: async (payload) => {
+      return apiCall(
+        () => axiosInstance.post('/api/distraction/settings', payload),
+        () => mockApi.distraction.updateSettings(payload)
+      )
+    },
+
+    logEvent: async (payload) => {
+      return apiCall(
+        () => axiosInstance.post('/api/distraction/log', payload),
+        () => mockApi.distraction.logEvent(payload)
+      )
+    },
+
+    getSession: async (sessionId) => {
+      return apiCall(
+        () => axiosInstance.get(`/api/distraction/session/${sessionId}`),
+        () => mockApi.distraction.getSession(sessionId)
+      )
+    },
+
+    getGoal: async (goalId) => {
+      return apiCall(
+        () => axiosInstance.get(`/api/distraction/goal/${goalId}`),
+        () => mockApi.distraction.getGoal(goalId)
+      )
+    }
   },
 
   // ==================== BLOCKER ====================

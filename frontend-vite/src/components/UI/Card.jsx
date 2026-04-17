@@ -15,7 +15,7 @@ const Card = ({
     <div
       className={clsx(
         'card',
-        hover && 'hover:shadow-lg cursor-pointer',
+        hover && 'hover:shadow-card-hover cursor-pointer',
         !padding && 'p-0',
         className
       )}
@@ -25,7 +25,7 @@ const Card = ({
         <div className="flex items-start justify-between mb-4">
           <div>
             {title && (
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              <h3 className="text-[17px] font-semibold text-gray-900 dark:text-gray-100">
                 {title}
               </h3>
             )}

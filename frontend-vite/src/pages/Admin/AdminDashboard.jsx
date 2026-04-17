@@ -164,7 +164,7 @@ const AdminDashboard = () => {
           return (
             <div
               key={index}
-              className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md transition-shadow"
+              className="bg-white dark:bg-gray-800/60 rounded-2xl shadow-card border border-gray-100 dark:border-gray-700/40 p-6 hover:shadow-md transition-shadow"
             >
               <div className="flex items-center justify-between mb-4">
                 <div className={`p-3 rounded-lg ${colorClasses[card.color]}`}>
@@ -197,8 +197,8 @@ const AdminDashboard = () => {
       </div>
 
       {/* Quick Actions */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+      <div className="bg-white dark:bg-gray-800/60 rounded-2xl shadow-card border border-gray-100 dark:border-gray-700/40 p-6">
+        <h2 className="text-\[17px\] font-semibold text-gray-900 dark:text-white mb-4">
           Quick Actions
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -238,8 +238,8 @@ const AdminDashboard = () => {
       </div>
 
       {/* Recent Activity - Placeholder */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+      <div className="bg-white dark:bg-gray-800/60 rounded-2xl shadow-card border border-gray-100 dark:border-gray-700/40 p-6">
+        <h2 className="text-\[17px\] font-semibold text-gray-900 dark:text-white mb-4">
           System Status
         </h2>
         <div className="flex items-center gap-3 p-4 rounded-lg bg-green-50 dark:bg-green-900/20">
@@ -253,8 +253,8 @@ const AdminDashboard = () => {
       {/* Top Users & Recent Users Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Top Users by Points */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+        <div className="bg-white dark:bg-gray-800/60 rounded-2xl shadow-card border border-gray-100 dark:border-gray-700/40 p-6">
+          <h2 className="text-\[17px\] font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
             <Award className="w-5 h-5 text-yellow-500" />
             Top Users by Points
           </h2>
@@ -294,8 +294,8 @@ const AdminDashboard = () => {
         </div>
 
         {/* Recent Users */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+        <div className="bg-white dark:bg-gray-800/60 rounded-2xl shadow-card border border-gray-100 dark:border-gray-700/40 p-6">
+          <h2 className="text-\[17px\] font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
             <Users className="w-5 h-5 text-blue-500" />
             Recent Users
           </h2>

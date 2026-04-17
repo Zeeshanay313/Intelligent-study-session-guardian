@@ -168,7 +168,9 @@ router.get('/sessions', async (req, res) => {
   try {
     const limit = Number(req.query.limit || 10);
     const goalId = req.query.goalId || null;
-    const sessions = await listSessions({ userId: req.user._id, goalId, limit });
+    const sessionSource = req.query.sessionSource || null;
+    const sessionType = req.query.sessionType || null;
+    const sessions = await listSessions({ userId: req.user._id, goalId, limit, sessionSource, sessionType });
     return res.json({ success: true, data: sessions });
   } catch (error) {
     console.error('List activity sessions error:', error);

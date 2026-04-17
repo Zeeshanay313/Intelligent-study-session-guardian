@@ -21,6 +21,7 @@ const ActivityLogger = () => {
   const [sessions, setSessions] = useState([])
   const [selectedSessionId, setSelectedSessionId] = useState(null)
   const [selectedDetails, setSelectedDetails] = useState(null)
+  const [distractionSummary, setDistractionSummary] = useState(null)
   const [loading, setLoading] = useState(true)
   const [detailsLoading, setDetailsLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -70,6 +71,7 @@ const ActivityLogger = () => {
         if (nextSessions.length === 0) {
           setSelectedSessionId(null)
           setSelectedDetails(null)
+          setDistractionSummary(null)
         } else if (!nextSessions.some((session) => String(session.sessionId) === String(selectedSessionId))) {
           setSelectedSessionId(nextSessions[0].sessionId)
         }
@@ -97,6 +99,18 @@ const ActivityLogger = () => {
     }
   }, [])
 
+  const loadDistractionSummary = useCallback(async (sessionId) => {
+    if (!sessionId) return
+    try {
+      const response = await api.distraction.getSession(sessionId)
+      if (response.success) {
+        setDistractionSummary(response.data?.summary || null)
+      }
+    } catch (error) {
+      console.error('Failed to load distraction summary:', error)
+    }
+  }, [])
+
   useEffect(() => {
     loadGoals()
   }, [loadGoals])
@@ -108,8 +122,9 @@ const ActivityLogger = () => {
   useEffect(() => {
     if (selectedSessionId) {
       loadSessionDetails(selectedSessionId)
+      loadDistractionSummary(selectedSessionId)
     }
-  }, [selectedSessionId, loadSessionDetails])
+  }, [selectedSessionId, loadSessionDetails, loadDistractionSummary])
 
   useEffect(() => {
     if (!userId) return
@@ -121,6 +136,7 @@ const ActivityLogger = () => {
       loadSessions(selectedGoalId)
       if (payload.sessionId && String(payload.sessionId) === String(selectedSessionId)) {
         loadSessionDetails(payload.sessionId)
+        loadDistractionSummary(payload.sessionId)
       }
     }
 
@@ -149,12 +165,13 @@ const ActivityLogger = () => {
 
   const selectedSummary = selectedDetails?.summary
   const selectedTimeline = selectedDetails?.timeline || []
+  const distractionStats = distractionSummary || null
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Activity Logger</h1>
+          <h1 className="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight">Activity Logger</h1>
           <p className="text-gray-600 dark:text-gray-400">
             Track focus engagement from keyboard and mouse activity during sessions.
           </p>
@@ -164,7 +181,7 @@ const ActivityLogger = () => {
         </Button>
       </div>
 
-      <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5">
+      <div className="rounded-2xl border border-gray-100 dark:border-gray-700/40 bg-white dark:bg-gray-800/60 p-5">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Quick links</p>
@@ -193,28 +210,28 @@ const ActivityLogger = () => {
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800/60 rounded-2xl p-6 border border-gray-100 dark:border-gray-700/40 shadow-card">
           <div className="flex items-center space-x-3 mb-2">
             <Clock className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
             <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Active Time</span>
           </div>
           <p className="text-3xl font-bold text-gray-900 dark:text-white">{formatSeconds(totals.activeSeconds)}</p>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800/60 rounded-2xl p-6 border border-gray-100 dark:border-gray-700/40 shadow-card">
           <div className="flex items-center space-x-3 mb-2">
             <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
             <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Idle Time</span>
           </div>
           <p className="text-3xl font-bold text-gray-900 dark:text-white">{formatSeconds(totals.idleSeconds)}</p>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800/60 rounded-2xl p-6 border border-gray-100 dark:border-gray-700/40 shadow-card">
           <div className="flex items-center space-x-3 mb-2">
             <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Avg Productivity</span>
           </div>
           <p className="text-3xl font-bold text-gray-900 dark:text-white">{totals.avgProductivity}%</p>
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800/60 rounded-2xl p-6 border border-gray-100 dark:border-gray-700/40 shadow-card">
           <div className="flex items-center space-x-3 mb-2">
             <Activity className="w-5 h-5 text-purple-600 dark:text-purple-400" />
             <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Avg Engagement</span>
@@ -223,14 +240,14 @@ const ActivityLogger = () => {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+      <div className="bg-white dark:bg-gray-800/60 rounded-2xl p-6 border border-gray-100 dark:border-gray-700/40 shadow-card">
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex flex-col gap-2">
             <label className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Goal</label>
             <select
               value={selectedGoalId}
               onChange={(event) => setSelectedGoalId(event.target.value)}
-              className="min-w-[220px] rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-700 dark:text-gray-200"
+              className="min-w-[220px] rounded-lg border border-gray-100 dark:border-gray-700/40 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-700 dark:text-gray-200"
             >
               <option value="all">All goals</option>
               {goals.map((goal) => {
@@ -248,7 +265,7 @@ const ActivityLogger = () => {
             <select
               value={selectedSessionId || ''}
               onChange={(event) => setSelectedSessionId(event.target.value || null)}
-              className="min-w-[220px] rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-700 dark:text-gray-200"
+              className="min-w-[220px] rounded-lg border border-gray-100 dark:border-gray-700/40 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-700 dark:text-gray-200"
               disabled={sessions.length === 0}
             >
               <option value="">Select session</option>
@@ -263,9 +280,9 @@ const ActivityLogger = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800/60 rounded-2xl p-6 border border-gray-100 dark:border-gray-700/40 shadow-card">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Selected Session</h3>
+            <h3 className="text-\[17px\] font-semibold text-gray-900 dark:text-white">Selected Session</h3>
             {detailsLoading && (
               <span className="text-xs text-gray-500 dark:text-gray-400">Loading details...</span>
             )}
@@ -295,23 +312,35 @@ const ActivityLogger = () => {
                 <div className="text-xs uppercase text-gray-500 dark:text-gray-400">Idle</div>
                 <div className="mt-1 text-xl font-semibold">{formatSeconds(selectedSummary.idleSeconds)}</div>
               </div>
+              {distractionStats && (
+                <>
+                  <div className="rounded-lg bg-gray-50 dark:bg-gray-900/40 p-3">
+                    <div className="text-xs uppercase text-gray-500 dark:text-gray-400">Distraction Score</div>
+                    <div className="mt-1 text-xl font-semibold">{distractionStats.distractionScore}%</div>
+                  </div>
+                  <div className="rounded-lg bg-gray-50 dark:bg-gray-900/40 p-3">
+                    <div className="text-xs uppercase text-gray-500 dark:text-gray-400">Blocked Attempts</div>
+                    <div className="mt-1 text-xl font-semibold">{distractionStats.blocked}</div>
+                  </div>
+                </>
+              )}
             </div>
           ) : (
-            <div className="rounded-lg border border-dashed border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 p-4 text-sm text-gray-500 dark:text-gray-400">
+            <div className="rounded-lg border border-dashed border-gray-100 dark:border-gray-700/40 bg-gray-50 dark:bg-gray-900/40 p-4 text-sm text-gray-500 dark:text-gray-400">
               Select a session to see details.
             </div>
           )}
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Activity Timeline</h3>
+        <div className="bg-white dark:bg-gray-800/60 rounded-2xl p-6 border border-gray-100 dark:border-gray-700/40 shadow-card">
+          <h3 className="text-\[17px\] font-semibold text-gray-900 dark:text-white mb-4">Activity Timeline</h3>
           <ActivityTimeline timeline={selectedTimeline} />
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Sessions</h3>
+      <div className="bg-white dark:bg-gray-800/60 rounded-2xl border border-gray-100 dark:border-gray-700/40 overflow-hidden">
+        <div className="p-6 border-b border-gray-100 dark:border-gray-700/40">
+          <h3 className="text-\[17px\] font-semibold text-gray-900 dark:text-white">Recent Sessions</h3>
           <p className="text-sm text-gray-500 dark:text-gray-400">Select a session to review engagement.</p>
         </div>
         <div className="overflow-x-auto">

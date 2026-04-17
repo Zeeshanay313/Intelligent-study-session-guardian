@@ -30,7 +30,7 @@ const SocialLoginSection = ({ className = '', mode = 'signin' }) => {
           <div className="w-full border-t border-gray-300 dark:border-gray-600" />
         </div>
         <div className="relative flex justify-center text-xs">
-          <span className="px-3 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 font-medium">
+          <span className="px-3 bg-white dark:bg-gray-800/60 text-gray-600 dark:text-gray-400 font-medium">
             Or continue with
           </span>
         </div>
@@ -42,7 +42,7 @@ const SocialLoginSection = ({ className = '', mode = 'signin' }) => {
         <button
           type="button"
           onClick={handleGoogleLogin}
-          className="w-full flex items-center justify-center px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium shadow-sm"
+          className="w-full flex items-center justify-center px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800/60 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium shadow-sm"
         >
           <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
             <path

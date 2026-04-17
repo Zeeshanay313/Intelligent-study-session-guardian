@@ -99,7 +99,7 @@ const GoalSelectionModal = ({ isOpen, onClose, onSelectGoal, onSkip }) => {
                   className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
                     isSelected
                       ? 'border-primary-600 bg-primary-50 dark:bg-primary-900/30'
-                      : 'border-gray-200 dark:border-gray-700 hover:border-primary-300 dark:hover:border-primary-600 bg-white dark:bg-gray-800'
+                      : 'border-gray-100 dark:border-gray-700/40 hover:border-primary-300 dark:hover:border-primary-600 bg-white dark:bg-gray-800/60'
                   }`}
                 >
                   <div className="flex items-start justify-between">
@@ -143,7 +143,7 @@ const GoalSelectionModal = ({ isOpen, onClose, onSelectGoal, onSkip }) => {
           </div>
         )}
 
-        <div className="flex justify-between items-center pt-4 border-t border-gray-200 dark:border-gray-700">
+        <div className="flex justify-between items-center pt-4 border-t border-gray-100 dark:border-gray-700/40">
           <button
             onClick={handleSkip}
             className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 text-sm"

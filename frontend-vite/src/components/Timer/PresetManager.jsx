@@ -236,7 +236,7 @@ const PresetManager = ({ isOpen, onClose, onPresetsChange }) => {
                 return (
                   <div
                     key={presetId}
-                    className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                    className="flex items-center justify-between p-4 border border-gray-100 dark:border-gray-700/40 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                     style={{ borderLeftColor: preset.color, borderLeftWidth: '4px' }}
                   >
                     <div className="flex items-center space-x-3 flex-1">

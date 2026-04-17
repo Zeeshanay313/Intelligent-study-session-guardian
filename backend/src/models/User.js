@@ -126,7 +126,7 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['user', 'admin'],
+    enum: ['user', 'admin', 'teacher', 'coach'],
     default: 'user'
   },
   // Third-party integrations

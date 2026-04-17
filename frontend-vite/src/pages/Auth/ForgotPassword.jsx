@@ -50,7 +50,7 @@ const ForgotPassword = () => {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-primary-600 to-primary-700 rounded-2xl mb-4">
             <span className="text-white font-bold text-2xl">SG</span>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+          <h1 className="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight">
             Reset Your Password
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
@@ -59,7 +59,7 @@ const ForgotPassword = () => {
         </div>
 
         {/* Form */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
+        <div className="bg-white dark:bg-gray-800/60 rounded-2xl shadow-xl p-8">
           {error && (
             <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start space-x-3">
               <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />

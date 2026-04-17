@@ -27,7 +27,7 @@ const ActivityTimeline = ({ timeline = [] }) => {
 
   if (segments.length === 0 || totalDuration === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 p-4 text-sm text-gray-500 dark:text-gray-400">
+      <div className="rounded-xl border border-dashed border-gray-100 dark:border-gray-700/40 bg-gray-50 dark:bg-gray-900/40 p-4 text-sm text-gray-500 dark:text-gray-400">
         No activity timeline recorded yet.
       </div>
     )

@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "Intelligent Study Session Blocker",
+  "version": "1.0.0",
+  "description": "Blocks distracting sites during study sessions using your webapp blocklist.",
+  "permissions": ["storage", "alarms", "declarativeNetRequest"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://localhost:5173/*",
+        "http://localhost:4173/*",
+        "http://localhost:3000/*"
+      ],
+      "js": ["contentScript.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "options_page": "options.html",
+  "action": {
+    "default_title": "Study Session Blocker"
+  }
+}

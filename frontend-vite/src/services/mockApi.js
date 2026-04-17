@@ -251,6 +251,17 @@ let mockDb = {
       createdAt: '2024-11-15T00:00:00Z'
     }
   ],
+  distractionSettings: {
+    userId: 1,
+    blockedSites: ['youtube.com', 'facebook.com'],
+    blockedKeywords: ['shorts', 'reels'],
+    strictnessLevel: 'soft',
+    strictnessIntensity: 'medium',
+    schedule: [],
+    enabled: true,
+    updatedAt: new Date().toISOString()
+  },
+  distractionLogs: [],
   activityLogs: [
     {
       id: 1,
@@ -1004,6 +1015,112 @@ export const mockApi = {
           badgesEarned: 8,
           joinedDate: '2024-01-01T00:00:00Z'
         }
+      }
+    }
+  },
+
+  // ==================== DISTRACTION ====================
+  distraction: {
+    async getSettings() {
+      await delay(150)
+      if (!isAuthenticated) throw new Error('Not authenticated')
+
+      return {
+        success: true,
+        data: mockDb.distractionSettings
+      }
+    },
+
+    async updateSettings(payload) {
+      await delay(150)
+      if (!isAuthenticated) throw new Error('Not authenticated')
+
+      mockDb.distractionSettings = {
+        ...mockDb.distractionSettings,
+        ...payload,
+        updatedAt: new Date().toISOString()
+      }
+
+      return {
+        success: true,
+        data: mockDb.distractionSettings
+      }
+    },
+
+    async logEvent(payload) {
+      await delay(80)
+      if (!isAuthenticated) throw new Error('Not authenticated')
+
+      const log = {
+        id: mockDb.distractionLogs.length + 1,
+        userId: 1,
+        sessionId: payload.sessionId || null,
+        goalId: payload.goalId || null,
+        site: payload.site,
+        action: payload.action,
+        overrideType: payload.overrideType || null,
+        timestamp: payload.timestamp || new Date().toISOString(),
+        duration: payload.duration || 0,
+        source: payload.source || 'timer'
+      }
+
+      mockDb.distractionLogs.push(log)
+
+      return {
+        success: true,
+        data: log
+      }
+    },
+
+    async getSession(sessionId) {
+      await delay(120)
+      if (!isAuthenticated) throw new Error('Not authenticated')
+
+      const logs = mockDb.distractionLogs.filter(log => String(log.sessionId) === String(sessionId))
+      const summary = this.buildSummary(logs)
+
+      return {
+        success: true,
+        data: { summary, logs }
+      }
+    },
+
+    async getGoal(goalId) {
+      await delay(120)
+      if (!isAuthenticated) throw new Error('Not authenticated')
+
+      const logs = mockDb.distractionLogs.filter(log => String(log.goalId) === String(goalId))
+      const summary = this.buildSummary(logs)
+
+      return {
+        success: true,
+        data: { summary, logs }
+      }
+    },
+
+    buildSummary(logs = []) {
+      const totalAttempts = logs.length
+      const blocked = logs.filter(log => log.action === 'blocked').length
+      const overrides = logs.filter(log => log.action === 'override').length
+      const siteCounts = logs.reduce((acc, log) => {
+        const site = log.site || 'unknown'
+        acc[site] = (acc[site] || 0) + 1
+        return acc
+      }, {})
+
+      const mostDistractingSite = Object.keys(siteCounts).reduce((top, site) => {
+        if (!top) return site
+        return siteCounts[site] > siteCounts[top] ? site : top
+      }, null)
+
+      const distractionScore = Math.min(100, Math.round((blocked * 10) + (overrides * 20)))
+
+      return {
+        totalAttempts,
+        blocked,
+        overrides,
+        mostDistractingSite,
+        distractionScore
       }
     }
   },

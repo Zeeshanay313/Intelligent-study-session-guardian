@@ -25,10 +25,8 @@ const validateIntegratedSession = [
 ];
 
 // Start integrated study session
-router.post('/start', validateIntegratedSession, async (req, res) => {
+router.post('/start', authenticate, validateIntegratedSession, async (req, res) => {
   try {
-    // Add fake user for development
-    req.user = { _id: '507f1f77bcf86cd799439011' };
 
     const errors = validationResult(req);
     if (!errors.isEmpty()) {

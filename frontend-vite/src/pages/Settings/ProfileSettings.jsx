@@ -194,14 +194,14 @@ const ProfileSettings = () => {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Settings</h1>
+        <h1 className="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight">Settings</h1>
         <p className="text-gray-600 dark:text-gray-400">
           Manage your account settings and preferences
         </p>
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200 dark:border-gray-700">
+      <div className="border-b border-gray-100 dark:border-gray-700/40">
         <nav className="flex space-x-8" aria-label="Settings tabs">
           {tabs.map((tab) => {
             const Icon = tab.icon
@@ -224,12 +224,12 @@ const ProfileSettings = () => {
       </div>
 
       {/* Tab Content */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+      <div className="bg-white dark:bg-gray-800/60 rounded-2xl p-6 border border-gray-100 dark:border-gray-700/40 shadow-card">
         {/* Profile Tab */}
         {activeTab === 'profile' && (
           <div className="space-y-6">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              <h2 className="text-\[17px\] font-semibold text-gray-900 dark:text-white mb-2">
                 Profile Information
               </h2>
               <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -297,7 +297,7 @@ const ProfileSettings = () => {
         {activeTab === 'privacy' && (
           <div className="space-y-6">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              <h2 className="text-\[17px\] font-semibold text-gray-900 dark:text-white mb-2">
                 Privacy Settings
               </h2>
               <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -323,7 +323,7 @@ const ProfileSettings = () => {
                 />
               </div>
 
-              <div className="flex items-center justify-between py-3 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between py-3 border-t border-gray-100 dark:border-gray-700/40">
                 <div className="flex-1">
                   <h3 className="text-sm font-medium text-gray-900 dark:text-white">
                     Guardian Sharing
@@ -343,7 +343,7 @@ const ProfileSettings = () => {
                 />
               </div>
 
-              <div className="flex items-center justify-between py-3 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between py-3 border-t border-gray-100 dark:border-gray-700/40">
                 <div className="flex-1">
                   <h3 className="text-sm font-medium text-gray-900 dark:text-white">
                     Show Progress Publicly
@@ -360,7 +360,7 @@ const ProfileSettings = () => {
                 />
               </div>
 
-              <div className="flex items-center justify-between py-3 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between py-3 border-t border-gray-100 dark:border-gray-700/40">
                 <div className="flex-1">
                   <h3 className="text-sm font-medium text-gray-900 dark:text-white">
                     Share Statistics
@@ -389,7 +389,7 @@ const ProfileSettings = () => {
         {activeTab === 'notifications' && (
           <div className="space-y-6">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              <h2 className="text-\[17px\] font-semibold text-gray-900 dark:text-white mb-2">
                 Notification Preferences
               </h2>
               <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -401,7 +401,7 @@ const ProfileSettings = () => {
               {Object.entries(notificationSettings).map(([key, value]) => (
                 <div
                   key={key}
-                  className="flex items-center justify-between py-3 border-t border-gray-200 dark:border-gray-700 first:border-t-0"
+                  className="flex items-center justify-between py-3 border-t border-gray-100 dark:border-gray-700/40 first:border-t-0"
                 >
                   <div className="flex-1">
                     <h3 className="text-sm font-medium text-gray-900 dark:text-white">
@@ -430,7 +430,7 @@ const ProfileSettings = () => {
         {activeTab === 'data' && (
           <div className="space-y-6">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              <h2 className="text-\[17px\] font-semibold text-gray-900 dark:text-white mb-2">
                 Data Management
               </h2>
               <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -445,7 +445,7 @@ const ProfileSettings = () => {
                   <Download className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                  <h3 className="text-\[17px\] font-semibold text-gray-900 dark:text-white mb-2">
                     Export Your Data
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
@@ -466,7 +466,7 @@ const ProfileSettings = () => {
                   <Trash2 className="w-6 h-6 text-red-600 dark:text-red-400" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                  <h3 className="text-\[17px\] font-semibold text-gray-900 dark:text-white mb-2">
                     Delete Account
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">

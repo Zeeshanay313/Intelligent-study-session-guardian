@@ -33,7 +33,7 @@ const Modal = ({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-black bg-opacity-50" />
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" />
         </Transition.Child>
 
         <div className="fixed inset-0 overflow-y-auto">
@@ -49,7 +49,7 @@ const Modal = ({
             >
               <Dialog.Panel
                 className={clsx(
-                  'w-full transform overflow-hidden rounded-2xl bg-white dark:bg-gray-800 p-6 text-left align-middle shadow-xl transition-all',
+                  'w-full transform overflow-hidden rounded-2xl bg-white dark:bg-gray-800/60 p-6 text-left align-middle shadow-xl transition-all',
                   sizes[size]
                 )}
               >

@@ -4,8 +4,12 @@ import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { NotificationProvider } from './contexts/NotificationContext'
 import { GoalTrackerProvider } from './contexts/GoalTrackerContext'
+import { DistractionProvider } from './contexts/DistractionContext'
+import { TimerProvider } from './contexts/TimerContext'
 import { AchievementToastProvider } from './components/UI/AchievementToast'
 import NotificationToast from './components/Shared/NotificationToast'
+import IdleConfirmModal from './components/Timer/IdleConfirmModal'
+import BlockerOverlay from './components/Distraction/BlockerOverlay'
 
 // Layout
 import AppLayout from './components/Layout/AppLayout'
@@ -25,6 +29,7 @@ import ProfileSettings from './pages/Settings/ProfileSettings'
 import Schedule from './pages/Schedule/Schedule'
 import Motivation from './pages/Motivation/Motivation'
 import ActivityLogger from './pages/ActivityLogger/ActivityLogger'
+import DistractionBlocker from './pages/Distraction/DistractionBlocker'
 
 // Admin Pages
 import { AdminDashboard, AdminUsers } from './pages/Admin'
@@ -193,6 +198,14 @@ function AppRoutes() {
           }
         />
         <Route
+          path="/distraction"
+          element={
+            <ProtectedRoute>
+              <DistractionBlocker />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/activity-logger"
           element={
             <ProtectedRoute>
@@ -249,8 +262,14 @@ function App() {
         <NotificationProvider>
           <AchievementToastProvider>
             <GoalTrackerProvider>
-              <AppRoutes />
-              <NotificationToast />
+              <DistractionProvider>
+                <TimerProvider>
+                  <AppRoutes />
+                  <NotificationToast />
+                  <IdleConfirmModal />
+                  <BlockerOverlay />
+                </TimerProvider>
+              </DistractionProvider>
             </GoalTrackerProvider>
           </AchievementToastProvider>
         </NotificationProvider>

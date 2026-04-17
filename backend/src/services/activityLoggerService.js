@@ -103,11 +103,17 @@ const getSessionSummary = async ({ userId, sessionId }) => {
   return { summary, timeline, logs };
 };
 
-const listSessions = async ({ userId, goalId = null, limit = 10 }) => {
+const listSessions = async ({ userId, goalId = null, limit = 10, sessionSource = null, sessionType = null }) => {
   const matchUserId = mongoose.Types.ObjectId.createFromHexString(String(userId));
   const matchStage = { userId: matchUserId };
   if (goalId && mongoose.Types.ObjectId.isValid(goalId)) {
     matchStage.goalId = mongoose.Types.ObjectId.createFromHexString(String(goalId));
+  }
+  if (sessionSource) {
+    matchStage.sessionSource = sessionSource;
+  }
+  if (sessionType) {
+    matchStage['details.sessionType'] = sessionType;
   }
 
   const summaries = await ActivityLog.aggregate([

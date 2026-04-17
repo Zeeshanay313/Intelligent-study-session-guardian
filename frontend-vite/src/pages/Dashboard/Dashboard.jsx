@@ -103,6 +103,9 @@ const Dashboard = () => {
   // Refresh goal progress data without full reload
   const refreshGoalProgress = async () => {
     try {
+      const getSessionTime = (s) => new Date(s.startedAt || s.startTime || s.createdAt)
+      const getSessionDuration = (s) => s.durationSeconds || s.totalDurationSec || s.actualDuration || 0
+
       // Refresh session data for weekly chart and metrics
       const sessionsResponse = await api.sessions.list()
       if (sessionsResponse.success) {
@@ -111,15 +114,15 @@ const Dashboard = () => {
         // Calculate total focus time (this week)
         const oneWeekAgo = new Date()
         oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
-        const weekSessions = sessions.filter(s => new Date(s.startTime) >= oneWeekAgo)
-        const totalMinutes = weekSessions.reduce((sum, s) => sum + (s.actualDuration / 60), 0)
+        const weekSessions = sessions.filter(s => getSessionTime(s) >= oneWeekAgo)
+        const totalMinutes = weekSessions.reduce((sum, s) => sum + (getSessionDuration(s) / 60), 0)
         
         // Calculate avg session length
         const avgMinutes = weekSessions.length > 0 ? totalMinutes / weekSessions.length : 0
         
         // Count today's sessions
         const today = new Date().toDateString()
-        const todaySessions = sessions.filter(s => new Date(s.startTime).toDateString() === today)
+        const todaySessions = sessions.filter(s => getSessionTime(s).toDateString() === today)
         
         setMetrics(prev => ({
           ...prev,
@@ -134,10 +137,10 @@ const Dashboard = () => {
           const date = new Date()
           date.setDate(date.getDate() - (6 - index))
           const daySessions = sessions.filter(s => {
-            const sessionDate = new Date(s.startTime)
+            const sessionDate = getSessionTime(s)
             return sessionDate.toDateString() === date.toDateString()
           })
-          const minutes = daySessions.reduce((sum, s) => sum + (s.actualDuration / 60), 0)
+          const minutes = daySessions.reduce((sum, s) => sum + (getSessionDuration(s) / 60), 0)
           return { day: days[date.getDay()], minutes: Math.round(minutes) }
         })
         setWeeklyData(weekData)
@@ -200,6 +203,10 @@ const Dashboard = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true)
+
+      // Helper to normalize session fields from either SessionLog or Session model
+      const getSessionTime = (s) => new Date(s.startedAt || s.startTime || s.createdAt)
+      const getSessionDuration = (s) => s.durationSeconds || s.totalDurationSec || s.actualDuration || 0
       
       // Fetch sessions and calculate metrics
       const sessionsResponse = await api.sessions.list()
@@ -209,21 +216,32 @@ const Dashboard = () => {
         // Calculate total focus time (this week)
         const oneWeekAgo = new Date()
         oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
-        const weekSessions = sessions.filter(s => new Date(s.startTime) >= oneWeekAgo)
-        const totalMinutes = weekSessions.reduce((sum, s) => sum + (s.actualDuration / 60), 0)
+        const weekSessions = sessions.filter(s => getSessionTime(s) >= oneWeekAgo)
+        const totalMinutes = weekSessions.reduce((sum, s) => sum + (getSessionDuration(s) / 60), 0)
         
         // Calculate avg session length
         const avgMinutes = weekSessions.length > 0 ? totalMinutes / weekSessions.length : 0
         
         // Count today's sessions
         const today = new Date().toDateString()
-        const todaySessions = sessions.filter(s => new Date(s.startTime).toDateString() === today)
+        const todaySessions = sessions.filter(s => getSessionTime(s).toDateString() === today)
         
+        // Fetch streak from rewards API
+        let currentStreak = 0
+        try {
+          const streakRes = await api.rewards.getStreak()
+          if (streakRes.success) {
+            currentStreak = streakRes.data?.currentStreak || streakRes.currentStreak || 0
+          }
+        } catch (e) {
+          // streak endpoint may not be available
+        }
+
         setMetrics({
           totalFocusTime: Math.round(totalMinutes),
           avgSessionLength: Math.round(avgMinutes),
           sessionsToday: todaySessions.length,
-          currentStreak: 7, // This would come from API
+          currentStreak,
         })
         
         // Build weekly data
@@ -232,10 +250,10 @@ const Dashboard = () => {
           const date = new Date()
           date.setDate(date.getDate() - (6 - index))
           const daySessions = sessions.filter(s => {
-            const sessionDate = new Date(s.startTime)
+            const sessionDate = getSessionTime(s)
             return sessionDate.toDateString() === date.toDateString()
           })
-          const minutes = daySessions.reduce((sum, s) => sum + (s.actualDuration / 60), 0)
+          const minutes = daySessions.reduce((sum, s) => sum + (getSessionDuration(s) / 60), 0)
           return { day: days[date.getDay()], minutes: Math.round(minutes) }
         })
         setWeeklyData(weekData)
@@ -344,29 +362,31 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-primary-600 to-accent-600 rounded-2xl p-8 text-white shadow-lg">
-        <div className="max-w-3xl">
-          <h1 className="text-3xl font-bold mb-2">
-            {getGreeting()}, {user?.profile?.displayName || user?.user?.email?.split('@')[0] || 'Student'}! 👋
+      <div className="relative overflow-hidden bg-gradient-to-br from-primary-600 via-primary-700 to-accent-600 rounded-2xl p-7 sm:p-8 text-white shadow-lg">
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImciIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjA2KSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3QgZmlsbD0idXJsKCNnKSIgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIvPjwvc3ZnPg==')] opacity-50" />
+        <div className="relative max-w-3xl">
+          <p className="text-primary-200 text-sm font-medium mb-1">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+          <h1 className="text-2xl sm:text-3xl font-extrabold mb-2 tracking-tight">
+            {getGreeting()}, {user?.profile?.displayName || user?.user?.email?.split('@')[0] || 'Student'}!
           </h1>
-          <p className="text-primary-100 mb-6">
-            You're doing great! Ready to make today productive?
+          <p className="text-primary-100 text-[15px] mb-6">
+            Ready to make today productive? Start a focus session or check your goals.
           </p>
-          <div className="flex flex-wrap gap-4">
+          <div className="flex flex-wrap gap-3">
             <Link
               to="/focus"
-              className="inline-flex items-center space-x-2 px-6 py-3 bg-white text-primary-700 rounded-lg font-medium hover:bg-primary-50 transition-colors shadow-md"
+              className="inline-flex items-center space-x-2 px-5 py-2.5 bg-white text-primary-700 rounded-xl font-semibold text-sm hover:bg-primary-50 transition-colors shadow-md"
             >
-              <Play className="w-5 h-5" />
-              <span>Start Focus Session</span>
+              <Play className="w-4 h-4" />
+              <span>Start Session</span>
             </Link>
             <Link
               to="/goals"
-              className="inline-flex items-center space-x-2 px-6 py-3 bg-primary-700/50 backdrop-blur-sm text-white rounded-lg font-medium hover:bg-primary-700/70 transition-colors border border-white/20"
+              className="inline-flex items-center space-x-2 px-5 py-2.5 bg-white/10 backdrop-blur-sm text-white rounded-xl font-semibold text-sm hover:bg-white/20 transition-colors border border-white/20"
             >
-              <Target className="w-5 h-5" />
+              <Target className="w-4 h-4" />
               <span>View Goals</span>
             </Link>
           </div>
@@ -375,156 +395,123 @@ const Dashboard = () => {
 
       {/* Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Focus Time */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-primary-100 dark:bg-primary-900/30 rounded-lg flex items-center justify-center">
-              <Clock className="w-6 h-6 text-primary-600 dark:text-primary-400" />
+        {[
+          {
+            icon: Clock,
+            label: 'Total Focus Time',
+            value: formatTime(metrics.totalFocusTime),
+            progress: getFocusTimeProgress(),
+            accent: 'primary',
+            iconBg: 'bg-primary-50 dark:bg-primary-900/20',
+            iconColor: 'text-primary-600 dark:text-primary-400',
+            barColor: 'bg-primary-500',
+          },
+          {
+            icon: TrendingUp,
+            label: 'Avg Session',
+            value: `${metrics.avgSessionLength} min`,
+            progress: getAvgSessionProgress(),
+            accent: 'accent',
+            iconBg: 'bg-accent-50 dark:bg-accent-900/20',
+            iconColor: 'text-accent-600 dark:text-accent-400',
+            barColor: 'bg-accent-500',
+          },
+          {
+            icon: Calendar,
+            label: 'Sessions Today',
+            value: metrics.sessionsToday,
+            progress: getSessionsProgress(),
+            accent: 'green',
+            iconBg: 'bg-green-50 dark:bg-green-900/20',
+            iconColor: 'text-green-600 dark:text-green-400',
+            barColor: 'bg-green-500',
+          },
+          {
+            icon: Flame,
+            label: 'Current Streak',
+            value: `${metrics.currentStreak} days`,
+            progress: getStreakProgress(),
+            accent: 'orange',
+            iconBg: 'bg-orange-50 dark:bg-orange-900/20',
+            iconColor: 'text-orange-600 dark:text-orange-400',
+            barColor: 'bg-orange-500',
+          },
+        ].map((metric, i) => (
+          <div key={i} className="bg-white dark:bg-gray-800/60 rounded-2xl p-5 border border-gray-100 dark:border-gray-700/40 shadow-card hover:shadow-card-hover transition-shadow">
+            <div className="flex items-center justify-between mb-3">
+              <div className={`w-10 h-10 ${metric.iconBg} rounded-xl flex items-center justify-center`}>
+                <metric.icon className={`w-5 h-5 ${metric.iconColor}`} />
+              </div>
+              <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50 px-2 py-1 rounded-lg">
+                {metric.progress}%
+              </span>
             </div>
-            <span className="text-xs font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-2 py-1 rounded-full">
-              {getFocusTimeProgress()}%
-            </span>
-          </div>
-          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-            {formatTime(metrics.totalFocusTime)}
-          </h3>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Total Focus Time
-          </p>
-          <div className="mt-4 h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-primary-600 dark:bg-primary-500 transition-all duration-500 ease-out" 
-              style={{ width: `${getFocusTimeProgress()}%` }} 
-            />
-          </div>
-        </div>
-
-        {/* Avg Session Length */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-accent-100 dark:bg-accent-900/30 rounded-lg flex items-center justify-center">
-              <TrendingUp className="w-6 h-6 text-accent-600 dark:text-accent-400" />
+            <h3 className="text-2xl font-extrabold text-gray-900 dark:text-white mb-0.5 tracking-tight">
+              {metric.value}
+            </h3>
+            <p className="text-[13px] text-gray-500 dark:text-gray-400">
+              {metric.label}
+            </p>
+            <div className="mt-3 h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+              <div 
+                className={`h-full ${metric.barColor} transition-all duration-700 ease-out rounded-full`} 
+                style={{ width: `${metric.progress}%` }} 
+              />
             </div>
-            <span className="text-xs font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-2 py-1 rounded-full">
-              {getAvgSessionProgress()}%
-            </span>
           </div>
-          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-            {metrics.avgSessionLength} min
-          </h3>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Avg Session Length
-          </p>
-          <div className="mt-4 h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-accent-600 dark:bg-accent-500 transition-all duration-500 ease-out" 
-              style={{ width: `${getAvgSessionProgress()}%` }} 
-            />
-          </div>
-        </div>
-
-        {/* Sessions Today */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
-              <Calendar className="w-6 h-6 text-green-600 dark:text-green-400" />
-            </div>
-            <span className="text-xs font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-2 py-1 rounded-full">
-              {getSessionsProgress()}%
-            </span>
-          </div>
-          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-            {metrics.sessionsToday}
-          </h3>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Sessions Today
-          </p>
-          <div className="mt-4 h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-green-600 dark:bg-green-500 transition-all duration-500 ease-out" 
-              style={{ width: `${getSessionsProgress()}%` }} 
-            />
-          </div>
-        </div>
-
-        {/* Current Streak */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center">
-              <Flame className="w-6 h-6 text-orange-600 dark:text-orange-400" />
-            </div>
-            <span className="text-xs font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-2 py-1 rounded-full">
-              🔥 {getStreakProgress()}%
-            </span>
-          </div>
-          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-            {metrics.currentStreak} days
-          </h3>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Current Streak
-          </p>
-          <div className="mt-4 h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-orange-600 dark:bg-orange-500 transition-all duration-500 ease-out" 
-              style={{ width: `${getStreakProgress()}%` }} 
-            />
-          </div>
-        </div>
+        ))}
       </div>
 
       {/* Active Goals Progress Section */}
       {activeGoals.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-6">
+        <div className="bg-white dark:bg-gray-800/60 rounded-2xl p-6 border border-gray-100 dark:border-gray-700/40 shadow-card">
+          <div className="flex items-center justify-between mb-5">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Active Goals Progress
+              <h2 className="text-[17px] font-semibold text-gray-900 dark:text-white">
+                Active Goals
               </h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                Real-time progress on your current goals ({getOverallGoalCompletion()}% overall)
+              <p className="text-[13px] text-gray-500 dark:text-gray-400 mt-0.5">
+                {getOverallGoalCompletion()}% overall completion
               </p>
             </div>
             <Link
               to="/goals"
-              className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 flex items-center space-x-1"
+              className="text-[13px] font-semibold text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 flex items-center space-x-1 transition-colors"
             >
               <span>View All</span>
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
-          <div className="space-y-4">
+          <div className="space-y-3">
             {activeGoals.slice(0, 5).map((goal) => {
               const progress = getGoalProgress(goal)
               const current = formatNumber(goal?.currentValue ?? goal?.currentProgress ?? 0)
               const target = formatNumber(goal?.targetValue ?? goal?.target ?? 1)
-              const progressColor = progress >= 75 ? 'bg-green-500' : progress >= 50 ? 'bg-yellow-500' : progress >= 25 ? 'bg-orange-500' : 'bg-red-500'
+              const progressColor = progress >= 75 ? 'bg-accent-500' : progress >= 50 ? 'bg-amber-500' : progress >= 25 ? 'bg-orange-500' : 'bg-red-400'
               
               return (
-                <div key={goal._id || goal.id} className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center space-x-3">
-                      <Target className="w-5 h-5 text-primary-600 dark:text-primary-400" />
-                      <div>
-                        <h3 className="font-medium text-gray-900 dark:text-white">
+                <div key={goal._id || goal.id} className="p-4 bg-gray-50 dark:bg-gray-700/30 rounded-xl">
+                  <div className="flex items-center justify-between mb-2.5">
+                    <div className="flex items-center space-x-3 min-w-0">
+                      <div className="w-8 h-8 bg-primary-50 dark:bg-primary-900/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Target className="w-4 h-4 text-primary-600 dark:text-primary-400" />
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate">
                           {goal.title}
                         </h3>
                         <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {goal.category || 'General'} • {goal.type || 'Custom'}
+                          {goal.category || 'General'} &middot; {current}/{target} {goal.progressUnit || goal.type || 'units'}
                         </p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <span className="text-sm font-bold text-gray-900 dark:text-white">
-                        {progress}%
-                      </span>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {current} / {target} {goal.progressUnit || goal.type || 'units'}
-                      </p>
-                    </div>
+                    <span className="text-sm font-bold text-gray-900 dark:text-white ml-3 flex-shrink-0">
+                      {progress}%
+                    </span>
                   </div>
-                  <div className="h-3 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
+                  <div className="h-2 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
                     <div 
-                      className={`h-full ${progressColor} transition-all duration-700 ease-out`}
+                      className={`h-full ${progressColor} transition-all duration-700 ease-out rounded-full`}
                       style={{ width: `${progress}%` }}
                     />
                   </div>
@@ -536,74 +523,80 @@ const Dashboard = () => {
       )}
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Weekly Focus Chart */}
-        <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-6">
+        <div className="lg:col-span-2 bg-white dark:bg-gray-800/60 rounded-2xl p-6 border border-gray-100 dark:border-gray-700/40 shadow-card">
+          <div className="flex items-center justify-between mb-5">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              <h2 className="text-[17px] font-semibold text-gray-900 dark:text-white">
                 Weekly Focus Time
               </h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                Your focus time over the past 7 days
+              <p className="text-[13px] text-gray-500 dark:text-gray-400 mt-0.5">
+                Past 7 days overview
               </p>
             </div>
             <Link
               to="/reports"
-              className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 flex items-center space-x-1"
+              className="text-[13px] font-semibold text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 flex items-center space-x-1 transition-colors"
             >
               <span>Details</span>
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={weeklyData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" className="dark:stroke-gray-700" />
+          <ResponsiveContainer width="100%" height={240}>
+            <BarChart data={weeklyData} barCategoryGap="20%">
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" className="dark:stroke-gray-700" vertical={false} />
               <XAxis
                 dataKey="day"
                 stroke="#9ca3af"
                 style={{ fontSize: '12px' }}
+                tickLine={false}
+                axisLine={false}
               />
               <YAxis
                 stroke="#9ca3af"
                 style={{ fontSize: '12px' }}
-                label={{ value: 'Minutes', angle: -90, position: 'insideLeft' }}
+                tickLine={false}
+                axisLine={false}
+                label={{ value: 'Minutes', angle: -90, position: 'insideLeft', style: { fontSize: '11px', fill: '#9ca3af' } }}
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: '#ffffff',
+                  backgroundColor: 'rgba(255,255,255,0.95)',
+                  backdropFilter: 'blur(8px)',
                   border: '1px solid #e5e7eb',
-                  borderRadius: '8px',
+                  borderRadius: '12px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                  fontSize: '13px',
                 }}
                 formatter={(value) => [`${Math.round(value)} min`, 'Focus Time']}
               />
-              <Bar dataKey="minutes" fill="#0ea5e9" radius={[8, 8, 0, 0]} />
+              <Bar dataKey="minutes" fill="#0ea5e9" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
         {/* Goal Progress Pie Chart */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Goal Progress
-              </h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                Your achievement status
-              </p>
-            </div>
+        <div className="bg-white dark:bg-gray-800/60 rounded-2xl p-6 border border-gray-100 dark:border-gray-700/40 shadow-card">
+          <div className="mb-5">
+            <h2 className="text-[17px] font-semibold text-gray-900 dark:text-white">
+              Goal Progress
+            </h2>
+            <p className="text-[13px] text-gray-500 dark:text-gray-400 mt-0.5">
+              Achievement status
+            </p>
           </div>
-          <ResponsiveContainer width="100%" height={200}>
+          <ResponsiveContainer width="100%" height={180}>
             <PieChart>
               <Pie
                 data={goalsData}
                 cx="50%"
                 cy="50%"
-                innerRadius={50}
-                outerRadius={80}
-                paddingAngle={2}
+                innerRadius={45}
+                outerRadius={75}
+                paddingAngle={3}
                 dataKey="value"
+                strokeWidth={0}
               >
                 {goalsData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
@@ -612,17 +605,17 @@ const Dashboard = () => {
               <Tooltip formatter={(value) => `${value}%`} />
             </PieChart>
           </ResponsiveContainer>
-          <div className="mt-4 space-y-2">
+          <div className="mt-4 space-y-2.5">
             {goalsData.map((item, index) => (
-              <div key={index} className="flex items-center justify-between text-sm">
-                <div className="flex items-center space-x-2">
+              <div key={index} className="flex items-center justify-between">
+                <div className="flex items-center space-x-2.5">
                   <div
-                    className="w-3 h-3 rounded-full"
+                    className="w-2.5 h-2.5 rounded-full"
                     style={{ backgroundColor: item.color }}
                   />
-                  <span className="text-gray-700 dark:text-gray-300">{item.name}</span>
+                  <span className="text-[13px] text-gray-600 dark:text-gray-300">{item.name}</span>
                 </div>
-                <span className="font-medium text-gray-900 dark:text-white">
+                <span className="text-[13px] font-semibold text-gray-900 dark:text-white">
                   {item.value}%
                 </span>
               </div>
@@ -632,45 +625,45 @@ const Dashboard = () => {
       </div>
 
       {/* Recent Activity */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+      <div className="bg-white dark:bg-gray-800/60 rounded-2xl p-6 border border-gray-100 dark:border-gray-700/40 shadow-card">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-[17px] font-semibold text-gray-900 dark:text-white">
             Recent Activity
           </h2>
           <Link
             to="/reports"
-            className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
+            className="text-[13px] font-semibold text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
           >
             View all
           </Link>
         </div>
-        <div className="space-y-4">
+        <div className="space-y-1">
           {recentActivity.map((activity) => (
             <div
               key={activity.id}
-              className="flex items-start space-x-4 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+              className="flex items-center space-x-4 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
             >
               <div className={`
-                w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0
-                ${activity.type === 'session' ? 'bg-primary-100 dark:bg-primary-900/30' : ''}
-                ${activity.type === 'goal' ? 'bg-green-100 dark:bg-green-900/30' : ''}
-                ${activity.type === 'reward' ? 'bg-orange-100 dark:bg-orange-900/30' : ''}
+                w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0
+                ${activity.type === 'session' ? 'bg-primary-50 dark:bg-primary-900/20' : ''}
+                ${activity.type === 'goal' ? 'bg-accent-50 dark:bg-accent-900/20' : ''}
+                ${activity.type === 'reward' ? 'bg-amber-50 dark:bg-amber-900/20' : ''}
               `}>
-                {activity.type === 'session' && <Clock className="w-5 h-5 text-primary-600 dark:text-primary-400" />}
-                {activity.type === 'goal' && <Target className="w-5 h-5 text-green-600 dark:text-green-400" />}
-                {activity.type === 'reward' && <Award className="w-5 h-5 text-orange-600 dark:text-orange-400" />}
+                {activity.type === 'session' && <Clock className="w-4 h-4 text-primary-600 dark:text-primary-400" />}
+                {activity.type === 'goal' && <Target className="w-4 h-4 text-accent-600 dark:text-accent-400" />}
+                {activity.type === 'reward' && <Award className="w-4 h-4 text-amber-600 dark:text-amber-400" />}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 dark:text-white">
                   {activity.title}
                 </p>
-                <div className="flex items-center space-x-2 mt-1">
+                <div className="flex items-center space-x-2 mt-0.5">
                   {activity.duration && (
-                    <span className="text-xs text-gray-600 dark:text-gray-400">
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
                       {activity.duration}
                     </span>
                   )}
-                  <span className="text-xs text-gray-500 dark:text-gray-500">
+                  <span className="text-xs text-gray-400 dark:text-gray-500">
                     {activity.time}
                   </span>
                 </div>

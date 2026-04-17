@@ -49,7 +49,7 @@ const ShareAchievementModal = ({ achievement, onClose, onShare }) => {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-md w-full">
+      <div className="bg-white dark:bg-gray-800/60 rounded-2xl p-6 max-w-md w-full">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center">
             <Share2 className="w-5 h-5 mr-2" />
@@ -241,13 +241,13 @@ const StudySuggestions = ({ suggestions }) => {
       case 'critical': return 'border-red-500 bg-red-50 dark:bg-red-900/20'
       case 'high': return 'border-orange-500 bg-orange-50 dark:bg-orange-900/20'
       case 'medium': return 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20'
-      default: return 'border-gray-300 bg-gray-50 dark:bg-gray-800'
+      default: return 'border-gray-300 bg-gray-50 dark:bg-gray-800/60'
     }
   }
 
   return (
     <div className="space-y-3">
-      <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+      <h3 className="text-\[17px\] font-semibold text-gray-900 dark:text-white flex items-center">
         <Lightbulb className="w-5 h-5 mr-2 text-yellow-500" />
         Study Suggestions
       </h3>
@@ -415,7 +415,7 @@ const Rewards = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Rewards & Achievements</h1>
+        <h1 className="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight">Rewards & Achievements</h1>
         <p className="text-gray-600 dark:text-gray-400">Track your progress, earn badges, and celebrate your achievements</p>
       </div>
 
@@ -466,7 +466,7 @@ const Rewards = () => {
 
       {suggestions.length > 0 && <StudySuggestions suggestions={suggestions} />}
 
-      <div className="flex space-x-2 border-b border-gray-200 dark:border-gray-700">
+      <div className="flex space-x-2 border-b border-gray-100 dark:border-gray-700/40">
         {['badges', 'progress', 'leaderboard'].map((tab) => (
           <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 font-medium transition-colors capitalize ${activeTab === tab ? 'text-primary-600 dark:text-primary-400 border-b-2 border-primary-600' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}>
             {tab}
@@ -489,7 +489,7 @@ const Rewards = () => {
               const rarityBadge = getRarityBadge(badge.rarity)
 
               return (
-                <div key={badge.id || badge._id} className={`relative bg-white dark:bg-gray-800 rounded-xl p-5 border-2 transition-all ${rarityStyle} ${isEarned ? 'shadow-lg' : 'opacity-70'}`}>
+                <div key={badge.id || badge._id} className={`relative bg-white dark:bg-gray-800/60 rounded-2xl p-5 border-2 transition-all ${rarityStyle} ${isEarned ? 'shadow-lg' : 'opacity-70'}`}>
                   <span className={`absolute top-3 right-3 text-xs px-2 py-0.5 rounded-full font-medium ${rarityBadge.bg}`}>{rarityBadge.label}</span>
                   <div className={`w-14 h-14 rounded-full flex items-center justify-center mb-3 ${isEarned ? 'text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-400'}`} style={isEarned ? { backgroundColor: badge.color || '#6B7280' } : {}}>
                     {isEarned ? <Icon className="w-7 h-7" /> : <Lock className="w-6 h-6" />}
@@ -527,7 +527,7 @@ const Rewards = () => {
             progress.slice(0, 10).map((item, index) => {
               const Icon = getBadgeIcon(item.reward?.icon)
               return (
-                <div key={item.reward?._id || index} className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                <div key={item.reward?._id || index} className="bg-white dark:bg-gray-800/60 rounded-lg p-4 border border-gray-100 dark:border-gray-700/40">
                   <div className="flex items-center space-x-4">
                     <div className="w-12 h-12 rounded-full flex items-center justify-center text-white" style={{ backgroundColor: item.reward?.color || '#6B7280' }}>
                       <Icon className="w-6 h-6" />
@@ -569,8 +569,8 @@ const Rewards = () => {
           </div>
 
           {/* Leaderboard */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="bg-white dark:bg-gray-800/60 rounded-2xl border border-gray-100 dark:border-gray-700/40 overflow-hidden">
+            <div className="p-4 border-b border-gray-100 dark:border-gray-700/40">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <div className="w-10 h-10 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center">
@@ -612,7 +612,7 @@ const Rewards = () => {
                       index === 0 ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
                       index === 1 ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300' :
                       index === 2 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
-                      'bg-gray-50 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                      'bg-gray-50 text-gray-600 dark:bg-gray-800/60 dark:text-gray-400'
                     }`}>
                       {index + 1}
                     </div>

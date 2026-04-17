@@ -25,6 +25,15 @@ const validateStartSession = [
     .optional()
     .isMongoId()
     .withMessage('Invalid preset ID'),
+  body('goalId')
+    .optional()
+    .isMongoId()
+    .withMessage('Invalid goal ID'),
+  body('subject')
+    .optional()
+    .isString()
+    .isLength({ max: 200 })
+    .withMessage('Subject must be less than 200 characters'),
   body('customDurations')
     .optional()
     .isObject()

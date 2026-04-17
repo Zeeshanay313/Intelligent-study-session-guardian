@@ -30,6 +30,8 @@ const useSessionActivityTracker = ({
   sessionId,
   goalId = null,
   sessionSource = 'timer',
+  sessionType = null,
+  sessionSubject = null,
   enabled = false,
   isRunning = false,
   idleThresholdSeconds = DEFAULT_IDLE_THRESHOLD_SECONDS,
@@ -153,7 +155,9 @@ const useSessionActivityTracker = ({
       scrolls: countsRef.current.scrolls,
       details: {
         idleThresholdSeconds,
-        nudgeThresholdSeconds
+        nudgeThresholdSeconds,
+        sessionType: sessionType || null,
+        sessionSubject: sessionSubject || null
       }
     }
 
@@ -171,7 +175,7 @@ const useSessionActivityTracker = ({
       console.error('Failed to flush activity:', error)
       return null
     }
-  }, [enabled, sessionId, goalId, sessionSource, idleThresholdSeconds, nudgeThresholdSeconds, buildSummary, logDebug])
+  }, [enabled, sessionId, goalId, sessionSource, sessionType, sessionSubject, idleThresholdSeconds, nudgeThresholdSeconds, buildSummary, logDebug])
 
   const endTracking = useCallback(async () => {
     if (endedRef.current || !sessionId) return buildSummary()

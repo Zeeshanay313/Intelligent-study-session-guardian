@@ -32,7 +32,7 @@ const RewardsWidget = () => {
 
   if (loading) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+      <div className="bg-white dark:bg-gray-800/60 rounded-2xl p-6 border border-gray-100 dark:border-gray-700/40 shadow-card">
         <div className="animate-pulse">
           <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-4"></div>
           <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded"></div>
@@ -71,7 +71,7 @@ const RewardsWidget = () => {
 
   return (
     <div
-      className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-xl p-6 border border-purple-200 dark:border-purple-800 cursor-pointer hover:shadow-lg transition-shadow"
+      className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-xl p-6 border border-purple-200 dark:border-purple-800 cursor-pointer hover:shadow-card-hover transition-shadow"
       onClick={() => navigate('/rewards')}
     >
       {/* Header */}
@@ -131,7 +131,7 @@ const RewardsWidget = () => {
             {badges.slice(-5).map((badge, index) => (
               <div
                 key={index}
-                className="w-8 h-8 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center text-lg border border-gray-200 dark:border-gray-700 shadow-sm"
+                className="w-8 h-8 bg-white dark:bg-gray-800/60 rounded-full flex items-center justify-center text-lg border border-gray-100 dark:border-gray-700/40 shadow-sm"
                 title={badge.name}
               >
                 {badge.icon || '🏅'}

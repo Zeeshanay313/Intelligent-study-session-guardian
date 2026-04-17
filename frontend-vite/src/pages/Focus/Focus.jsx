@@ -11,7 +11,7 @@
  * - Progress tracking
  */
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Play,
   Pause,
@@ -19,7 +19,6 @@ import {
   Settings,
   Coffee,
   Brain,
-  Clock,
   Layers,
   Plus,
   Target,
@@ -34,14 +33,39 @@ import GoalSelectionModal from '../../components/Timer/GoalSelectionModal'
 import ResourceSelectionModal from '../../components/Timer/ResourceSelectionModal'
 import SessionResourcesPanel from '../../components/Timer/SessionResourcesPanel'
 import ActivityTimeline from '../../components/Activity/ActivityTimeline'
-import useSessionActivityTracker from '../../hooks/useSessionActivityTracker'
 import { useNotification } from '../../contexts/NotificationContext'
-import { useAchievementToast } from '../../components/UI/AchievementToast'
-import Modal from '../../components/UI/Modal'
+import { useTimer } from '../../contexts/TimerContext'
 
 const Focus = () => {
   const { success, info } = useNotification()
-  const achievementToast = useAchievementToast()
+  const {
+    sessionType,
+    duration,
+    timeLeft,
+    isRunning,
+    sessionId,
+    goalMeta,
+    activitySummary,
+    activityTimeline,
+    isIdle,
+    activityNotice,
+    autoPaused,
+    sessionData,
+    showSessionEnd,
+    setSessionType,
+    setDuration,
+    setTimeLeft,
+    setGoalMeta,
+    setPresetName,
+    setSessionSubject,
+    startSession,
+    pauseSession,
+    resumeSession,
+    stopSession,
+    closeSessionEnd,
+    applyBreakSuggestion,
+    confirmStillActive
+  } = useTimer()
   
   // Session types with default durations
   const sessionTypes = {
@@ -50,33 +74,18 @@ const Focus = () => {
     'long-break': { name: 'Long Break', duration: 15 * 60, icon: Coffee, color: 'blue' },
   }
 
-  // Timer state
-  const [sessionType, setSessionType] = useState('focus')
-  const [duration, setDuration] = useState(sessionTypes.focus.duration)
-  const [timeLeft, setTimeLeft] = useState(sessionTypes.focus.duration)
-  const [isRunning, setIsRunning] = useState(false)
-  const [sessionId, setSessionId] = useState(null)
   const [showSettings, setShowSettings] = useState(false)
   const [showPresets, setShowPresets] = useState(false)
-  const [showSessionEnd, setShowSessionEnd] = useState(false)
-  const [sessionData, setSessionData] = useState(null)
   const [presets, setPresets] = useState([])
   const [selectedPreset, setSelectedPreset] = useState(null)
   
   // Goal tracking state
   const [showGoalSelection, setShowGoalSelection] = useState(false)
-  const [selectedGoal, setSelectedGoal] = useState(null)
-  const [pendingStart, setPendingStart] = useState(false)
   
   // Resource selection state
   const [showResourceSelection, setShowResourceSelection] = useState(false)
   const [selectedResources, setSelectedResources] = useState([])
   const [showResourcesPanel, setShowResourcesPanel] = useState(false)
-  const [activityNotice, setActivityNotice] = useState(null)
-  const [showIdleConfirm, setShowIdleConfirm] = useState(false)
-  const [idleConfirmSeconds, setIdleConfirmSeconds] = useState(0)
-  const [autoPaused, setAutoPaused] = useState(false)
-  const idleConfirmTimeoutRef = useRef(null)
   
   // Settings state
   const [customDurations, setCustomDurations] = useState({
@@ -85,90 +94,6 @@ const Focus = () => {
     'long-break': 15,
   })
 
-  const {
-    summary: activitySummary,
-    timeline: activityTimeline,
-    isIdle,
-    confirmActive,
-    endTracking
-  } = useSessionActivityTracker({
-    sessionId,
-    goalId: selectedGoal?._id || selectedGoal?.id || null,
-    sessionSource: 'timer',
-    enabled: Boolean(sessionId),
-    isRunning: isRunning || autoPaused,
-    idleThresholdSeconds: 30,
-    nudgeThresholdSeconds: 30,
-    onNudge: ({ idleSeconds }) => {
-      if (autoPaused || !isRunning) return
-      const message = 'No activity detected for 30 seconds. Are you still active?'
-      setActivityNotice(message)
-      setIdleConfirmSeconds(idleSeconds)
-      setShowIdleConfirm(true)
-      setAutoPaused(true)
-      setIsRunning(false)
-      info(message)
-    }
-  })
-
-  useEffect(() => {
-    if (!isIdle && !autoPaused) {
-      setActivityNotice(null)
-      setShowIdleConfirm(false)
-    }
-  }, [isIdle, autoPaused])
-
-  useEffect(() => {
-    if (!sessionId) {
-      setShowIdleConfirm(false)
-      return
-    }
-    if (!isRunning && !autoPaused) {
-      setShowIdleConfirm(false)
-    }
-  }, [sessionId, isRunning, autoPaused])
-
-  const handleIdleConfirmActive = () => {
-    if (idleConfirmTimeoutRef.current) {
-      clearTimeout(idleConfirmTimeoutRef.current)
-      idleConfirmTimeoutRef.current = null
-    }
-    confirmActive()
-    setAutoPaused(false)
-    setIsRunning(true)
-    setShowIdleConfirm(false)
-    setActivityNotice(null)
-  }
-
-  const handleIdleConfirmIdle = () => {
-    if (idleConfirmTimeoutRef.current) {
-      clearTimeout(idleConfirmTimeoutRef.current)
-      idleConfirmTimeoutRef.current = null
-    }
-    setShowIdleConfirm(false)
-  }
-
-  useEffect(() => {
-    if (!showIdleConfirm) {
-      if (idleConfirmTimeoutRef.current) {
-        clearTimeout(idleConfirmTimeoutRef.current)
-        idleConfirmTimeoutRef.current = null
-      }
-      return
-    }
-
-    idleConfirmTimeoutRef.current = setTimeout(() => {
-      setShowIdleConfirm(false)
-      setActivityNotice('Marked idle due to no response.')
-    }, 60000)
-
-    return () => {
-      if (idleConfirmTimeoutRef.current) {
-        clearTimeout(idleConfirmTimeoutRef.current)
-        idleConfirmTimeoutRef.current = null
-      }
-    }
-  }, [showIdleConfirm])
 
   // Load presets
   useEffect(() => {
@@ -213,29 +138,6 @@ const Focus = () => {
     }
   }
 
-  // Timer countdown logic
-  useEffect(() => {
-    let interval = null
-    
-    if (isRunning && timeLeft > 0) {
-      interval = setInterval(() => {
-        setTimeLeft((prevTime) => {
-          if (prevTime <= 1) {
-            handleSessionComplete()
-            return 0
-          }
-          return prevTime - 1
-        })
-      }, 1000)
-    } else if (timeLeft === 0) {
-      setIsRunning(false)
-    }
-    
-    return () => {
-      if (interval) clearInterval(interval)
-    }
-  }, [isRunning, timeLeft])
-
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (e) => {
@@ -253,54 +155,46 @@ const Focus = () => {
     return () => window.removeEventListener('keydown', handleKeyPress)
   }, [isRunning, showSettings])
 
+  useEffect(() => {
+    if (showSessionEnd) {
+      setSelectedResources([])
+      setShowResourcesPanel(false)
+    }
+  }, [showSessionEnd])
+
   const handlePlayPause = async () => {
     if (!isRunning) {
       if (autoPaused) {
-        confirmActive()
-        setAutoPaused(false)
-        setShowIdleConfirm(false)
+        confirmStillActive()
+        return
       }
       // If starting fresh (no session), show goal selection
       if (!sessionId && sessionType === 'focus') {
         setShowGoalSelection(true)
-        setPendingStart(true)
         return
       }
       // Resume or start without goal
-      await startSession()
+      if (sessionId) {
+        resumeSession()
+      } else {
+        await startSession({
+          sessionType,
+          duration,
+          goalId: goalMeta?.id || null,
+          goalTitle: goalMeta?.title || null,
+          presetName: selectedPreset?.name || null
+        })
+      }
     } else {
       // Pause session
-      setIsRunning(false)
+      pauseSession()
     }
-  }
-
-  // Actually start the timer session
-  const startSession = async () => {
-    if (!sessionId) {
-      try {
-        const response = await api.sessions.start({
-          type: sessionType,
-          duration: duration,
-          goalId: selectedGoal?._id || selectedGoal?.id || null,
-        })
-        if (response.success) {
-          const nextSessionId = response.data?.sessionId || response.data?.id || response.data?._id
-          if (nextSessionId) {
-            setSessionId(nextSessionId)
-          }
-        }
-      } catch (error) {
-        console.error('Failed to start session:', error)
-      }
-    }
-    setAutoPaused(false)
-    setIsRunning(true)
-    setPendingStart(false)
   }
 
   // Handle goal selection from modal
   const handleGoalSelected = (goal) => {
-    setSelectedGoal(goal)
+    const goalId = goal?._id || goal?.id || null
+    setGoalMeta({ id: goalId, title: goal?.title || null })
     setShowGoalSelection(false)
     // Show resource selection next
     setShowResourceSelection(true)
@@ -308,7 +202,7 @@ const Focus = () => {
 
   // Handle skipping goal selection
   const handleSkipGoalSelection = () => {
-    setSelectedGoal(null)
+    setGoalMeta({ id: null, title: null })
     setShowGoalSelection(false)
     // Show resource selection next
     setShowResourceSelection(true)
@@ -322,7 +216,15 @@ const Focus = () => {
       setShowResourcesPanel(true)
     }
     // Auto-start after selection
-    setTimeout(() => startSession(), 100)
+    setTimeout(() => {
+      startSession({
+        sessionType,
+        duration,
+        goalId: goalMeta?.id || null,
+        goalTitle: goalMeta?.title || null,
+        presetName: selectedPreset?.name || null
+      })
+    }, 100)
   }
 
   // Handle skipping resource selection
@@ -330,7 +232,15 @@ const Focus = () => {
     setSelectedResources([])
     setShowResourceSelection(false)
     // Auto-start after skip
-    setTimeout(() => startSession(), 100)
+    setTimeout(() => {
+      startSession({
+        sessionType,
+        duration,
+        goalId: goalMeta?.id || null,
+        goalTitle: goalMeta?.title || null,
+        presetName: selectedPreset?.name || null
+      })
+    }, 100)
   }
 
   // Remove a resource from the session
@@ -344,172 +254,27 @@ const Focus = () => {
   }
 
   const handleStop = async () => {
-    if (sessionId) {
-      try {
-        const finalSummary = await endTracking()
-        const productiveSeconds = finalSummary?.activeSeconds
-        const actualDuration = productiveSeconds && productiveSeconds > 0
-          ? productiveSeconds
-          : (duration - timeLeft)
-        await api.sessions.end(sessionId, {
-          actualDuration: actualDuration,
-          completed: false,
-          goalId: selectedGoal?._id || selectedGoal?.id || null,
-        })
-        info('Session stopped')
-      } catch (error) {
-        console.error('Failed to end session:', error)
-      }
-    }
-    setAutoPaused(false)
-    setIsRunning(false)
-    setTimeLeft(duration)
-    setSessionId(null)
-    setSelectedGoal(null)
+    await stopSession()
     setSelectedResources([])
     setShowResourcesPanel(false)
-  }
-
-  const handleSessionComplete = async () => {
-    let completedSessionData = {
-      durationSeconds: duration,
-      presetName: selectedPreset?.name || sessionTypes[sessionType].name,
-      todayCount: 1,
-      streak: 0,
-      goalUpdated: false,
-      goalTitle: selectedGoal?.title || null,
-    }
-
-    let sessionResponse = null
-    if (sessionId) {
-      try {
-        const finalSummary = await endTracking()
-        completedSessionData.activitySummary = finalSummary
-        const productiveSeconds = finalSummary?.activeSeconds
-        const actualDuration = productiveSeconds && productiveSeconds > 0
-          ? productiveSeconds
-          : duration
-        sessionResponse = await api.sessions.end(sessionId, {
-          actualDuration: actualDuration,
-          completed: true,
-          goalId: selectedGoal?._id || selectedGoal?.id || null,
-        })
-        if (sessionResponse.success && sessionResponse.data) {
-          completedSessionData = { ...completedSessionData, ...sessionResponse.data }
-        }
-      } catch (error) {
-        console.error('Failed to complete session:', error)
-      }
-    }
-    
-    // Update goal progress if a goal was selected
-    if (selectedGoal) {
-      try {
-        const hoursCompleted = duration / 3600 // Convert seconds to hours
-        const progressResponse = await api.goals.addProgress(selectedGoal._id || selectedGoal.id, hoursCompleted)
-        completedSessionData.goalUpdated = true
-        completedSessionData.hoursAdded = hoursCompleted
-        success(`Added ${hoursCompleted.toFixed(2)} hours to "${selectedGoal.title}"!`)
-        
-        // Check if goal was completed and celebrate
-        if (progressResponse.goal?.status === 'completed' && progressResponse.rewardResult) {
-          setTimeout(() => {
-            achievementToast.showPoints(
-              progressResponse.rewardResult.pointsAwarded, 
-              `Goal Complete: ${selectedGoal.title}`
-            )
-          }, 2000)
-          
-          // Show level up if applicable
-          if (progressResponse.rewardResult.levelUp?.didLevelUp) {
-            setTimeout(() => {
-              achievementToast.showLevelUp(progressResponse.rewardResult.levelUp.newLevel)
-            }, 3500)
-          }
-        }
-      } catch (error) {
-        console.error('Failed to update goal progress:', error)
-      }
-    }
-    
-    setIsRunning(false)
-    setAutoPaused(false)
-    setSessionId(null)
-    setSessionData(completedSessionData)
-    setShowSessionEnd(true)
-    
-    // Show achievement toast for session completion with actual points from server
-    const sessionMinutes = Math.round(duration / 60)
-    const pointsEarned = sessionResponse?.rewards?.pointsAwarded || sessionMinutes * 2
-    achievementToast.showPoints(pointsEarned, `${sessionMinutes}-minute study session completed!`)
-    
-    // Check for level up from session
-    if (sessionResponse?.rewards?.levelUp?.leveledUp) {
-      setTimeout(() => {
-        achievementToast.showLevelUp(sessionResponse.rewards.levelUp.newLevel || sessionResponse.rewards.currentLevel)
-      }, 1500)
-    }
-    
-    // Check for streak milestone celebration
-    if (completedSessionData.streak && completedSessionData.streak >= 7) {
-      setTimeout(() => {
-        achievementToast.showStreak(completedSessionData.streak, 'Keep your streak going!')
-      }, sessionResponse?.rewards?.levelUp?.leveledUp ? 3000 : 1500)
-    }
-    
-    // Show challenge completion celebrations
-    if (sessionResponse?.challenges && sessionResponse.challenges.length > 0) {
-      const completedChallenges = sessionResponse.challenges.filter(c => c.completed)
-      completedChallenges.forEach((challenge, index) => {
-        setTimeout(() => {
-          achievementToast.showAchievement(
-            '🏆',
-            `Challenge Complete!`,
-            challenge.title,
-          )
-          if (challenge.rewardResult?.pointsAwarded) {
-            setTimeout(() => {
-              achievementToast.showPoints(challenge.rewardResult.pointsAwarded, `Bonus for ${challenge.title}`)
-            }, 1000)
-          }
-        }, 2000 + (index * 2500))
-      })
-    }
-    
-    success('Session completed! 🎉')
-    
-    // Clear selected goal and resources after session
-    setSelectedGoal(null)
-    setSelectedResources([])
-    setShowResourcesPanel(false)
-    
-    // Play notification sound (if browser supports it)
-    if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification('Session Complete!', {
-        body: `Your ${sessionTypes[sessionType].name} is complete.${completedSessionData.goalUpdated ? ` Progress added to "${completedSessionData.goalTitle}".` : ''}`,
-        icon: '/vite.svg',
-      })
-    }
   }
 
   const handleAcceptBreakSuggestion = (breakMinutes) => {
-    setSessionType('short-break')
-    const newDuration = breakMinutes * 60
-    setDuration(newDuration)
-    setTimeLeft(newDuration)
-    setShowSessionEnd(false)
+    applyBreakSuggestion(breakMinutes)
     info(`Starting ${breakMinutes}-minute break`)
   }
 
-  const handleApplyPreset = (preset) => {
+  const handleApplyPreset = async (preset) => {
     if (isRunning) {
       if (!confirm('This will end your current session. Continue?')) {
         return
       }
-      handleStop()
+      await handleStop()
     }
 
     setSelectedPreset(preset)
+    setPresetName(preset?.name || null)
+    setSessionSubject(preset?.subject || null)
     setSessionType('focus')
     const newDuration = preset.workDuration
     setDuration(newDuration)
@@ -526,6 +291,9 @@ const Focus = () => {
       handleStop()
     }
     
+    setSelectedPreset(null)
+    setPresetName(null)
+    setSessionSubject(null)
     setSessionType(type)
     const newDuration = customDurations[type] * 60
     setDuration(newDuration)
@@ -560,87 +328,67 @@ const Focus = () => {
   const Icon = currentSession.icon
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+          <h1 className="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight">
             Focus Timer
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Stay focused and productive with Pomodoro technique
+          <p className="text-[15px] text-gray-500 dark:text-gray-400 mt-0.5">
+            Stay focused with the Pomodoro technique
           </p>
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-1.5">
           <button
             onClick={() => setShowPresets(true)}
-            className="relative p-3 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/20 text-primary-600 dark:text-primary-400 transition-colors"
+            className="relative p-2.5 rounded-xl hover:bg-primary-50 dark:hover:bg-primary-900/20 text-primary-600 dark:text-primary-400 transition-colors"
             aria-label="Timer Presets"
             title={`Manage Presets (${presets.length})`}
           >
-            <Layers className="w-6 h-6" />
+            <Layers className="w-5 h-5" />
             {presets.length > 0 && (
-              <span className="absolute -top-1 -right-1 bg-primary-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+              <span className="absolute -top-0.5 -right-0.5 bg-primary-600 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
                 {presets.length}
               </span>
             )}
           </button>
           <button
             onClick={() => setShowSettings(!showSettings)}
-            className="p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 transition-colors"
+            className="p-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
             aria-label="Settings"
           >
-            <Settings className="w-6 h-6" />
+            <Settings className="w-5 h-5" />
           </button>
         </div>
       </div>
 
       {/* Settings Panel */}
       {showSettings && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700 mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+        <div className="bg-white dark:bg-gray-800/60 rounded-2xl p-6 border border-gray-100 dark:border-gray-700/40 shadow-card mb-5 animate-slide-down">
+          <h3 className="text-[15px] font-semibold text-gray-900 dark:text-white mb-4">
             Timer Settings
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Focus Duration (minutes)
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="60"
-                value={customDurations.focus}
-                onChange={(e) => setCustomDurations({ ...customDurations, focus: parseInt(e.target.value) })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Short Break (minutes)
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="30"
-                value={customDurations['short-break']}
-                onChange={(e) => setCustomDurations({ ...customDurations, 'short-break': parseInt(e.target.value) })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Long Break (minutes)
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="60"
-                value={customDurations['long-break']}
-                onChange={(e) => setCustomDurations({ ...customDurations, 'long-break': parseInt(e.target.value) })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              />
-            </div>
+            {[
+              { key: 'focus', label: 'Focus Duration', max: 60, suffix: 'min' },
+              { key: 'short-break', label: 'Short Break', max: 30, suffix: 'min' },
+              { key: 'long-break', label: 'Long Break', max: 60, suffix: 'min' },
+            ].map(({ key, label, max }) => (
+              <div key={key}>
+                <label className="block text-[13px] font-medium text-gray-500 dark:text-gray-400 mb-1.5">
+                  {label}
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max={max}
+                  value={customDurations[key]}
+                  onChange={(e) => setCustomDurations({ ...customDurations, [key]: parseInt(e.target.value) })}
+                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all"
+                />
+              </div>
+            ))}
           </div>
           <button
             onClick={() => {
@@ -651,7 +399,7 @@ const Focus = () => {
               }
               setShowSettings(false)
             }}
-            className="mt-4 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+            className="mt-4 px-4 py-2 bg-primary-600 text-white rounded-xl text-sm font-semibold hover:bg-primary-700 transition-colors"
           >
             Apply Settings
           </button>
@@ -659,7 +407,7 @@ const Focus = () => {
       )}
 
       {/* Session Type Selector */}
-      <div className="flex flex-wrap gap-3 mb-6">
+      <div className="flex flex-wrap gap-2 mb-5">
         {Object.entries(sessionTypes).map(([key, type]) => {
           const TypeIcon = type.icon
           return (
@@ -667,14 +415,14 @@ const Focus = () => {
               key={key}
               onClick={() => handleSessionTypeChange(key)}
               className={`
-                flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all
+                flex items-center space-x-2 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all
                 ${sessionType === key
-                  ? 'bg-primary-600 text-white shadow-lg'
-                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-primary-300 dark:hover:border-primary-700'
+                  ? 'bg-primary-600 text-white shadow-lg shadow-primary-500/25'
+                  : 'bg-white dark:bg-gray-800/60 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700/40 hover:border-primary-300 dark:hover:border-primary-700'
                 }
               `}
             >
-              <TypeIcon className="w-5 h-5" />
+              <TypeIcon className="w-4 h-4" />
               <span>{type.name}</span>
             </button>
           )
@@ -682,16 +430,16 @@ const Focus = () => {
       </div>
 
       {/* Custom Presets Selector */}
-      <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-xl p-4 border border-blue-200 dark:border-blue-800 mb-8">
+      <div className="bg-gray-50 dark:bg-gray-800/30 rounded-2xl p-4 border border-gray-100 dark:border-gray-700/30 mb-6">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
-            Custom Presets {presets.length > 0 && `(${presets.length})`}
+          <h3 className="text-[13px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+            Presets {presets.length > 0 && `(${presets.length})`}
           </h3>
           <button
             onClick={() => setShowPresets(true)}
-            className="text-xs text-primary-600 dark:text-primary-400 hover:underline"
+            className="text-[13px] font-semibold text-primary-600 dark:text-primary-400 hover:text-primary-700 transition-colors"
           >
-            Manage Presets
+            Manage
           </button>
         </div>
         
@@ -705,24 +453,24 @@ const Focus = () => {
                   key={presetId}
                   onClick={() => handleApplyPreset(preset)}
                   disabled={isRunning}
-                  className={`p-3 rounded-lg border-2 transition-all text-left ${
+                  className={`p-3 rounded-xl border transition-all text-left ${
                     isSelected
-                      ? 'border-primary-600 bg-primary-50 dark:bg-primary-900/30 shadow-md'
-                      : 'border-gray-200 dark:border-gray-700 hover:border-primary-300 dark:hover:border-primary-700 bg-white dark:bg-gray-800'
+                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 shadow-md ring-1 ring-primary-500/20'
+                      : 'border-gray-200 dark:border-gray-700/40 hover:border-primary-300 dark:hover:border-primary-700 bg-white dark:bg-gray-800/60'
                   } ${isRunning ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:shadow-sm'}`}
                 >
                   <div className="flex items-center space-x-2 mb-1">
-                    <span className="text-2xl">{preset.icon}</span>
-                    <span className="text-sm font-medium text-gray-900 dark:text-white truncate flex-1">
+                    <span className="text-lg">{preset.icon}</span>
+                    <span className="text-[13px] font-semibold text-gray-900 dark:text-white truncate flex-1">
                       {preset.name}
                     </span>
                   </div>
-                  <div className="text-xs text-gray-600 dark:text-gray-400">
-                    {Math.round(preset.workDuration / 60)}m work · {Math.round(preset.breakDuration / 60)}m break
+                  <div className="text-[11px] text-gray-500 dark:text-gray-400">
+                    {Math.round(preset.workDuration / 60)}m work &middot; {Math.round(preset.breakDuration / 60)}m break
                   </div>
                   {isSelected && (
-                    <div className="mt-1 text-xs text-primary-600 dark:text-primary-400 font-medium">
-                      ✓ Active
+                    <div className="mt-1 text-[11px] text-primary-600 dark:text-primary-400 font-semibold">
+                      &#10003; Active
                     </div>
                   )}
                 </button>
@@ -731,59 +479,59 @@ const Focus = () => {
           </div>
         ) : (
           <div className="text-center py-6">
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-              No custom presets yet. Create one to get started!
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+              No custom presets yet
             </p>
             <button
               onClick={() => setShowPresets(true)}
-              className="inline-flex items-center px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors"
+              className="inline-flex items-center px-4 py-2 bg-primary-600 text-white text-sm font-semibold rounded-xl hover:bg-primary-700 transition-colors"
             >
               <Plus className="w-4 h-4 mr-2" />
-              Create Your First Preset
+              Create Preset
             </button>
           </div>
         )}
       </div>
 
       {/* Main Timer Card */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-12 border border-gray-200 dark:border-gray-700">
+      <div className="bg-white dark:bg-gray-800/60 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700/40 p-8 sm:p-12">
         {activityNotice && (
-          <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-200">
+          <div className="mb-6 rounded-xl border border-amber-200 dark:border-amber-800/40 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-sm text-amber-700 dark:text-amber-200">
             {activityNotice}
           </div>
         )}
         {/* Selected Goal Display */}
-        {selectedGoal && (
-          <div className="mb-6 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+        {goalMeta?.title && (
+          <div className="mb-6 p-3.5 bg-accent-50 dark:bg-accent-900/20 border border-accent-200 dark:border-accent-800/40 rounded-xl">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <Target className="w-5 h-5 text-green-600 dark:text-green-400" />
-                <span className="text-sm font-medium text-green-800 dark:text-green-200">
-                  Tracking: {selectedGoal.title}
+                <Target className="w-4 h-4 text-accent-600 dark:text-accent-400" />
+                <span className="text-sm font-semibold text-accent-800 dark:text-accent-200">
+                  {goalMeta.title}
                 </span>
               </div>
               {!isRunning && (
                 <button
-                  onClick={() => setSelectedGoal(null)}
-                  className="text-xs text-green-600 dark:text-green-400 hover:underline"
+                  onClick={() => setGoalMeta({ id: null, title: null })}
+                  className="text-xs font-medium text-accent-600 dark:text-accent-400 hover:underline"
                 >
                   Remove
                 </button>
               )}
             </div>
-            <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-              Session time will be added to this goal's progress
+            <p className="text-xs text-accent-600 dark:text-accent-400 mt-1">
+              Session time will be tracked toward this goal
             </p>
           </div>
         )}
 
         {/* Selected Resources Display */}
         {selectedResources.length > 0 && (
-          <div className="mb-6 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <div className="mb-6 p-3.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/40 rounded-xl">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <BookOpen className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                <BookOpen className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <span className="text-sm font-semibold text-blue-800 dark:text-blue-200">
                   {selectedResources.length} Resource{selectedResources.length !== 1 ? 's' : ''} Ready
                 </span>
               </div>
@@ -791,9 +539,9 @@ const Focus = () => {
                 {!showResourcesPanel && (
                   <button
                     onClick={() => setShowResourcesPanel(true)}
-                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                    className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"
                   >
-                    Show Panel
+                    Show
                   </button>
                 )}
                 {!isRunning && (
@@ -802,25 +550,22 @@ const Focus = () => {
                       setSelectedResources([])
                       setShowResourcesPanel(false)
                     }}
-                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                    className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"
                   >
                     Clear
                   </button>
                 )}
               </div>
             </div>
-            <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-              Access your study materials from the floating panel
-            </p>
           </div>
         )}
 
         {/* Session Icon and Name */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-primary-100 dark:bg-primary-900/30 rounded-full mb-4">
-            <Icon className="w-10 h-10 text-primary-600 dark:text-primary-400" />
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-50 dark:bg-primary-900/20 rounded-2xl mb-3">
+            <Icon className="w-8 h-8 text-primary-600 dark:text-primary-400" />
           </div>
-          <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
+          <h2 className="text-\[17px\] font-semibold text-gray-900 dark:text-white">
             {currentSession.name}
           </h2>
         </div>
@@ -828,7 +573,7 @@ const Focus = () => {
         {/* Timer Display */}
         <div className="text-center mb-8">
           <div className={`
-            text-8xl font-bold tabular-nums
+            text-7xl sm:text-8xl font-extrabold tabular-nums tracking-tight
             ${isRunning ? 'text-primary-600 dark:text-primary-400' : 'text-gray-900 dark:text-white'}
             transition-colors duration-300
           `}>
@@ -836,57 +581,51 @@ const Focus = () => {
           </div>
         </div>
 
-          <div className="mt-6 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white/70 dark:bg-gray-900/40 p-5">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-100 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400">
-                <Activity className="h-5 w-5" />
+          <div className="rounded-2xl border border-gray-100 dark:border-gray-700/40 bg-gray-50 dark:bg-gray-900/30 p-5 mb-8">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50 dark:bg-primary-900/20">
+                <Activity className="h-4 w-4 text-primary-600 dark:text-primary-400" />
               </div>
               <div>
-                <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Activity logger</p>
-                <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                  {isRunning ? (isIdle ? 'Idle detected' : 'Tracking live activity') : 'Waiting for next session'}
+                <p className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500 font-semibold">Activity</p>
+                <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                  {isRunning
+                    ? (isIdle ? 'Idle detected' : 'Tracking live')
+                    : (autoPaused ? 'Paused on idle' : (sessionId ? 'Paused' : 'Waiting'))}
                 </p>
               </div>
             </div>
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3 text-sm text-gray-600 dark:text-gray-300">
-              <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
-                <div className="text-xs uppercase text-gray-500 dark:text-gray-400">Active</div>
-                <div className="mt-1 text-xl font-semibold text-gray-900 dark:text-white">
-                  {formatTime(activitySummary.activeSeconds || 0)}
+            <div className="grid grid-cols-3 gap-3 text-sm">
+              {[
+                { label: 'Active', value: formatTime(activitySummary.activeSeconds || 0) },
+                { label: 'Idle', value: formatTime(activitySummary.idleSeconds || 0) },
+                { label: 'Score', value: `${Math.round(activitySummary.productivityScore || 0)}%` },
+              ].map((stat, i) => (
+                <div key={i} className="rounded-xl border border-gray-200 dark:border-gray-700/40 bg-white dark:bg-gray-800/60 p-3">
+                  <div className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500 font-medium">{stat.label}</div>
+                  <div className="mt-0.5 text-lg font-bold text-gray-900 dark:text-white">{stat.value}</div>
                 </div>
-              </div>
-              <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
-                <div className="text-xs uppercase text-gray-500 dark:text-gray-400">Idle</div>
-                <div className="mt-1 text-xl font-semibold text-gray-900 dark:text-white">
-                  {formatTime(activitySummary.idleSeconds || 0)}
-                </div>
-              </div>
-              <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
-                <div className="text-xs uppercase text-gray-500 dark:text-gray-400">Productivity</div>
-                <div className="mt-1 text-xl font-semibold text-gray-900 dark:text-white">
-                  {Math.round(activitySummary.productivityScore || 0)}%
-                </div>
-              </div>
+              ))}
             </div>
-            <div className="mt-4">
+            <div className="mt-3">
               <ActivityTimeline timeline={activityTimeline} />
             </div>
           </div>
 
         {/* Progress Bar */}
-        <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mb-8">
+        <div className="w-full h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden mb-8">
           <div
-            className="h-full bg-primary-600 dark:bg-primary-500 transition-all duration-1000 ease-linear"
+            className="h-full bg-gradient-to-r from-primary-500 to-primary-600 transition-all duration-1000 ease-linear rounded-full"
             style={{ width: `${getProgress()}%` }}
           />
         </div>
 
         {/* Control Buttons */}
-        <div className="flex items-center justify-center space-x-4">
+        <div className="flex items-center justify-center space-x-3">
           <Button
             onClick={handlePlayPause}
             size="lg"
-            className="px-8"
+            className="px-8 rounded-xl shadow-lg shadow-primary-500/20"
           >
             {isRunning ? (
               <>
@@ -906,6 +645,7 @@ const Focus = () => {
               onClick={handleStop}
               variant="danger"
               size="lg"
+              className="rounded-xl"
             >
               <Square className="w-5 h-5 mr-2" />
               Stop
@@ -914,14 +654,17 @@ const Focus = () => {
         </div>
 
         {/* Keyboard Shortcuts Hint */}
-        <div className="mt-8 text-center text-sm text-gray-500 dark:text-gray-400">
-          <p>Keyboard shortcuts: <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded">Space</kbd> to start/pause, <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded">Esc</kbd> to stop</p>
+        <div className="mt-6 text-center text-[13px] text-gray-400 dark:text-gray-500">
+          <kbd className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-[11px] font-mono">Space</kbd>
+          {' '}start/pause &nbsp;&middot;&nbsp;{' '}
+          <kbd className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-[11px] font-mono">Esc</kbd>
+          {' '}stop
         </div>
       </div>
 
       {/* Motivational Quote */}
-      <div className="mt-8 text-center">
-        <p className="text-lg italic text-gray-600 dark:text-gray-400">
+      <div className="mt-6 text-center">
+        <p className="text-[15px] italic text-gray-400 dark:text-gray-500">
           "Focus is the gateway to thinking, feeling, and learning."
         </p>
       </div>
@@ -938,7 +681,6 @@ const Focus = () => {
         isOpen={showGoalSelection}
         onClose={() => {
           setShowGoalSelection(false)
-          setPendingStart(false)
         }}
         onSelectGoal={handleGoalSelected}
         onSkip={handleSkipGoalSelection}
@@ -949,7 +691,6 @@ const Focus = () => {
         isOpen={showResourceSelection}
         onClose={() => {
           setShowResourceSelection(false)
-          setPendingStart(false)
         }}
         onSelectResources={handleResourcesSelected}
         onSkip={handleSkipResourceSelection}
@@ -968,27 +709,10 @@ const Focus = () => {
       {/* Session End Modal */}
       <SessionEndModal
         isOpen={showSessionEnd}
-        onClose={() => setShowSessionEnd(false)}
+        onClose={closeSessionEnd}
         sessionData={sessionData}
         onAcceptSuggestion={handleAcceptBreakSuggestion}
       />
-
-      <Modal
-        isOpen={showIdleConfirm}
-        onClose={handleIdleConfirmIdle}
-        title="Are you active?"
-        description={`No mouse or keyboard activity for ${idleConfirmSeconds || 30}s. Auto-marking idle in 60s.`}
-        footer={(
-          <>
-            <Button variant="outline" onClick={handleIdleConfirmIdle}>I'm idle</Button>
-            <Button onClick={handleIdleConfirmActive}>I'm active</Button>
-          </>
-        )}
-      >
-        <p className="text-sm text-gray-600 dark:text-gray-300">
-          Activity tracking will mark this time as idle unless you confirm.
-        </p>
-      </Modal>
     </div>
   )
 }

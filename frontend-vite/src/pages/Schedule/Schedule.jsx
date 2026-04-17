@@ -204,7 +204,7 @@ const Schedule = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+          <h1 className="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight">
             Study Schedule
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
@@ -220,7 +220,7 @@ const Schedule = () => {
       {/* Statistics */}
       {schedule && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+          <div className="bg-white dark:bg-gray-800/60 rounded-2xl p-4 border border-gray-100 dark:border-gray-700/40 shadow-card">
             <div className="flex items-center space-x-3">
               <div className="w-12 h-12 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
                 <Calendar className="w-6 h-6 text-blue-600 dark:text-blue-400" />
@@ -234,7 +234,7 @@ const Schedule = () => {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+          <div className="bg-white dark:bg-gray-800/60 rounded-2xl p-4 border border-gray-100 dark:border-gray-700/40 shadow-card">
             <div className="flex items-center space-x-3">
               <div className="w-12 h-12 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
                 <Clock className="w-6 h-6 text-green-600 dark:text-green-400" />
@@ -248,7 +248,7 @@ const Schedule = () => {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+          <div className="bg-white dark:bg-gray-800/60 rounded-2xl p-4 border border-gray-100 dark:border-gray-700/40 shadow-card">
             <div className="flex items-center space-x-3">
               <div className="w-12 h-12 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
                 <AlertCircle className="w-6 h-6 text-purple-600 dark:text-purple-400" />
@@ -265,12 +265,12 @@ const Schedule = () => {
       )}
 
       {/* Weekly Calendar View */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <div className="grid grid-cols-7 border-b border-gray-200 dark:border-gray-700">
+      <div className="bg-white dark:bg-gray-800/60 rounded-2xl border border-gray-100 dark:border-gray-700/40 overflow-hidden">
+        <div className="grid grid-cols-7 border-b border-gray-100 dark:border-gray-700/40">
           {DAYS_OF_WEEK.map((day) => (
             <div
               key={day.value}
-              className="p-4 text-center font-semibold text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-700 last:border-r-0"
+              className="p-4 text-center font-semibold text-gray-900 dark:text-white border-r border-gray-100 dark:border-gray-700/40 last:border-r-0"
             >
               <div className="hidden md:block">{day.label}</div>
               <div className="md:hidden">{day.short}</div>
@@ -284,7 +284,7 @@ const Schedule = () => {
             return (
               <div
                 key={day.value}
-                className="min-h-[300px] p-2 border-r border-gray-200 dark:border-gray-700 last:border-r-0"
+                className="min-h-[300px] p-2 border-r border-gray-100 dark:border-gray-700/40 last:border-r-0"
               >
                 <div className="space-y-2">
                   {entries.length === 0 ? (

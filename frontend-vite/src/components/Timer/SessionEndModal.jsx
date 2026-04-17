@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react'
-import { CheckCircle2, Trophy, Flame, Clock, TrendingUp, X } from 'lucide-react'
+import { CheckCircle2, Trophy, Flame, Clock, TrendingUp, X, AlertCircle } from 'lucide-react'
 import Button from '../UI/Button'
 import Modal from '../UI/Modal'
 
@@ -18,6 +18,7 @@ const SessionEndModal = ({
   const [suggestion, setSuggestion] = useState(null)
   const [loadingSuggestion, setLoadingSuggestion] = useState(true)
   const activitySummary = sessionData?.activitySummary || null
+  const distractionSummary = sessionData?.distractionSummary || null
 
   useEffect(() => {
     if (isOpen) {
@@ -202,6 +203,29 @@ const SessionEndModal = ({
                 </div>
                 <div className="text-lg font-bold text-gray-900 dark:text-white">
                   {Math.round(activitySummary.productivityScore || 0)}%
+                </div>
+              </div>
+            </>
+          )}
+
+          {distractionSummary && (
+            <>
+              <div>
+                <div className="text-sm text-gray-500 dark:text-gray-400 flex items-center">
+                  <AlertCircle className="w-4 h-4 mr-1" />
+                  Distraction Score
+                </div>
+                <div className="text-lg font-bold text-gray-900 dark:text-white">
+                  {Math.round(distractionSummary.distractionScore || 0)}%
+                </div>
+              </div>
+              <div>
+                <div className="text-sm text-gray-500 dark:text-gray-400 flex items-center">
+                  <AlertCircle className="w-4 h-4 mr-1" />
+                  Overrides
+                </div>
+                <div className="text-lg font-bold text-gray-900 dark:text-white">
+                  {distractionSummary.overrides || 0}
                 </div>
               </div>
             </>

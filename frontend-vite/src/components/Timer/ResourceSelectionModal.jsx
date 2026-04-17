@@ -150,7 +150,7 @@ const ResourceSelectionModal = ({ isOpen, onClose, onSelectResources, onSkip, se
                   className={`w-full p-3 rounded-lg border-2 transition-all text-left ${
                     isSelected
                       ? 'border-primary-600 bg-primary-50 dark:bg-primary-900/30'
-                      : 'border-gray-200 dark:border-gray-700 hover:border-primary-300 dark:hover:border-primary-700'
+                      : 'border-gray-100 dark:border-gray-700/40 hover:border-primary-300 dark:hover:border-primary-700'
                   }`}
                 >
                   <div className="flex items-start space-x-3">
@@ -212,7 +212,7 @@ const ResourceSelectionModal = ({ isOpen, onClose, onSelectResources, onSkip, se
         )}
 
         {/* Action Buttons */}
-        <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+        <div className="flex justify-end space-x-3 pt-4 border-t border-gray-100 dark:border-gray-700/40">
           <Button variant="ghost" onClick={handleSkip}>
             Skip
           </Button>

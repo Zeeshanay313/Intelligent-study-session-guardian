@@ -105,9 +105,9 @@ const UserFormModal = ({ isOpen, onClose, user, onSave, mode }) => {
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white dark:bg-gray-800/60 rounded-2xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-gray-700/40">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
             {mode === 'create' ? 'Create New User' : 'Edit User'}
           </h2>
@@ -273,7 +273,7 @@ const DeleteModal = ({ isOpen, onClose, user, onConfirm, permanent }) => {
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full p-6">
+      <div className="bg-white dark:bg-gray-800/60 rounded-2xl shadow-xl max-w-md w-full p-6">
         <div className="text-center">
           <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
             <Trash2 className="w-8 h-8 text-red-600 dark:text-red-400" />
@@ -532,7 +532,7 @@ const AdminUsers = () => {
       </div>
 
       {/* Search & Filters */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+      <div className="bg-white dark:bg-gray-800/60 rounded-2xl shadow-card border border-gray-100 dark:border-gray-700/40 p-4">
         <form onSubmit={handleSearch} className="flex gap-4">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -575,7 +575,7 @@ const AdminUsers = () => {
       )}
 
       {/* Users Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="bg-white dark:bg-gray-800/60 rounded-2xl shadow-card border border-gray-100 dark:border-gray-700/40 overflow-hidden">
         {loading ? (
           <div className="p-12 text-center">
             <RefreshCw className="w-8 h-8 animate-spin text-primary-600 mx-auto mb-4" />
@@ -701,7 +701,7 @@ const AdminUsers = () => {
 
             {/* Pagination */}
             {pagination.totalPages > 1 && (
-              <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-700/40 flex items-center justify-between">
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} users
                 </p>

@@ -42,7 +42,7 @@ const PersonalRecordsCard = ({ records }) => {
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
       {stats.map((stat, index) => (
-        <div key={index} className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+        <div key={index} className="bg-white dark:bg-gray-800/60 rounded-2xl p-4 border border-gray-100 dark:border-gray-700/40 shadow-card">
           <div className="flex items-center space-x-3">
             <stat.icon className={`w-8 h-8 ${stat.color}`} />
             <div>
@@ -108,7 +108,7 @@ const ChallengeCard = ({ challenge, onJoin, getDifficultyColor, getDaysRemaining
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-lg transition-shadow">
+    <div className="bg-white dark:bg-gray-800/60 rounded-2xl border border-gray-100 dark:border-gray-700/40 overflow-hidden hover:shadow-card-hover transition-shadow">
       <div className="p-6">
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
@@ -310,7 +310,7 @@ const Motivation = () => {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+        <h1 className="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight">
           Motivation & Challenges
         </h1>
         <p className="text-gray-600 dark:text-gray-400">
@@ -355,7 +355,7 @@ const Motivation = () => {
         </div>
 
         {/* Tabs */}
-        <div className="flex space-x-2 border-b border-gray-200 dark:border-gray-700 mb-6">
+        <div className="flex space-x-2 border-b border-gray-100 dark:border-gray-700/40 mb-6">
           {[
             { id: 'active', label: 'Active', count: challenges.filter(c => c.status === 'active').length },
             { id: 'my', label: 'My Challenges', count: challenges.filter(c => c.isParticipating).length },
@@ -386,7 +386,7 @@ const Motivation = () => {
 
         {/* Challenges Grid */}
         {filteredChallenges.length === 0 ? (
-          <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+          <div className="text-center py-12 bg-white dark:bg-gray-800/60 rounded-2xl border border-gray-100 dark:border-gray-700/40">
             <Trophy className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
             <p className="text-gray-600 dark:text-gray-400 text-lg mb-2">
               {activeTab === 'my' ? 'You haven\'t joined any challenges yet' : 'No challenges found'}

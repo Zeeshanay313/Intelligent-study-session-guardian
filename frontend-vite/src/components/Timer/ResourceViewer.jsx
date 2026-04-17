@@ -128,7 +128,7 @@ const TextFileViewer = ({ url, title, description }) => {
         <p className="text-gray-600 dark:text-gray-400 mb-4 italic">{description}</p>
       )}
       <div className="prose dark:prose-invert max-w-none">
-        <pre className="whitespace-pre-wrap text-gray-800 dark:text-gray-200 leading-relaxed font-mono text-sm bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+        <pre className="whitespace-pre-wrap text-gray-800 dark:text-gray-200 leading-relaxed font-mono text-sm bg-gray-50 dark:bg-gray-800/60 p-4 rounded-lg">
           {content}
         </pre>
       </div>
@@ -262,7 +262,7 @@ const DocumentViewer = ({ resource }) => {
             frameBorder="0"
           />
         </div>
-        <div className="p-3 bg-gray-200 dark:bg-gray-800 border-t border-gray-300 dark:border-gray-700 flex items-center justify-between">
+        <div className="p-3 bg-gray-200 dark:bg-gray-800/60 border-t border-gray-300 dark:border-gray-700 flex items-center justify-between">
           <span className="text-sm text-gray-600 dark:text-gray-400">
             {fileName || 'PDF Document'}
           </span>
@@ -385,7 +385,7 @@ const ArticleViewer = ({ resource }) => {
           }}
         />
       </div>
-      <div className="p-3 bg-gray-100 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+      <div className="p-3 bg-gray-100 dark:bg-gray-800/60 border-t border-gray-100 dark:border-gray-700/40">
         <div className="flex items-center justify-between">
           <span className="text-sm text-gray-600 dark:text-gray-400 truncate flex-1 mr-4">
             {url}
@@ -444,7 +444,7 @@ const ResourceViewer = ({ resource, onClose, onBack }) => {
   const Icon = resourceTypeIcons[resourceType] || resourceTypeIcons.default
 
   return (
-    <div className={`flex flex-col bg-white dark:bg-gray-800 ${
+    <div className={`flex flex-col bg-white dark:bg-gray-800/60 ${
       isFullscreen 
         ? 'fixed inset-0 z-50' 
         : 'h-full rounded-lg overflow-hidden'

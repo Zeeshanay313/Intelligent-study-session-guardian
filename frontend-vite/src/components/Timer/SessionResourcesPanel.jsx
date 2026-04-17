@@ -114,7 +114,7 @@ const SessionResourcesPanel = ({ resources = [], onRemoveResource, onClose }) =>
           ? 'inset-4 md:inset-8 lg:inset-12' 
           : 'bottom-4 right-4 w-[600px] h-[450px]'
       } transition-all duration-300`}>
-        <div className="w-full h-full rounded-xl overflow-hidden shadow-2xl border border-gray-200 dark:border-gray-700">
+        <div className="w-full h-full rounded-xl overflow-hidden shadow-2xl border border-gray-100 dark:border-gray-700/40">
           <ResourceViewer
             resource={viewingResource}
             onClose={closeViewer}
@@ -124,7 +124,7 @@ const SessionResourcesPanel = ({ resources = [], onRemoveResource, onClose }) =>
         
         {/* Resource list sidebar when viewing */}
         {isViewerFullscreen && resources.length > 1 && (
-          <div className="absolute left-0 top-0 bottom-0 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 shadow-lg transform -translate-x-full hover:translate-x-0 transition-transform duration-300 rounded-l-xl overflow-hidden">
+          <div className="absolute left-0 top-0 bottom-0 w-64 bg-white dark:bg-gray-800/60 border-r border-gray-100 dark:border-gray-700/40 shadow-lg transform -translate-x-full hover:translate-x-0 transition-transform duration-300 rounded-l-xl overflow-hidden">
             <div className="p-3 bg-gray-100 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
               <h3 className="font-semibold text-gray-900 dark:text-white text-sm">Other Resources</h3>
             </div>
@@ -152,7 +152,7 @@ const SessionResourcesPanel = ({ resources = [], onRemoveResource, onClose }) =>
 
   // Normal panel state
   return (
-    <div className={`fixed bottom-4 right-4 z-40 w-80 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden transition-all ${
+    <div className={`fixed bottom-4 right-4 z-40 w-80 bg-white dark:bg-gray-800/60 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700/40 overflow-hidden transition-all ${
       isExpanded ? 'max-h-[500px]' : 'max-h-96'
     }`}>
       {/* Header */}

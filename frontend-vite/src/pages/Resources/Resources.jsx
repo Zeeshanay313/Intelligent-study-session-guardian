@@ -126,7 +126,6 @@ const Resources = () => {
       document: BookOpen,
       note: FileText,
       file: File,
-      note: FileText,
     }
     return icons[type] || FileText
   }
@@ -314,7 +313,7 @@ const Resources = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+          <h1 className="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight">
             Study Resources
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
@@ -335,7 +334,7 @@ const Resources = () => {
           placeholder="Search resources..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+          className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700/40 rounded-xl text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
         />
       </div>
 
@@ -350,7 +349,7 @@ const Resources = () => {
               className={`inline-flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all ${
                 selectedType === type.value
                   ? 'bg-primary-600 text-white shadow-md'
-                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  : 'bg-white dark:bg-gray-800/60 text-gray-700 dark:text-gray-300 border border-gray-100 dark:border-gray-700/40 hover:bg-gray-50 dark:hover:bg-gray-700'
               }`}
             >
               <Icon className="w-4 h-4" />
@@ -399,7 +398,7 @@ const Resources = () => {
               <Sparkles className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              <h3 className="text-\[17px\] font-semibold text-gray-900 dark:text-white">
                 Recommended Resources
               </h3>
               <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -473,7 +472,7 @@ const Resources = () => {
 
       {/* Your Resources Heading */}
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Your Resources</h3>
+        <h3 className="text-\[17px\] font-semibold text-gray-900 dark:text-white">Your Resources</h3>
         <span className="text-sm text-gray-500 dark:text-gray-400">{filteredResources.length} items</span>
       </div>
 
@@ -486,7 +485,7 @@ const Resources = () => {
           return (
             <div
               key={resource.id}
-              className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-all group"
+              className="bg-white dark:bg-gray-800/60 rounded-2xl p-5 border border-gray-100 dark:border-gray-700/40 shadow-card hover:shadow-lg transition-all group"
             >
               <div className="flex items-start justify-between mb-4">
                 <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${colorClass}`}>
@@ -520,7 +519,7 @@ const Resources = () => {
                 </div>
               </div>
 
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2 group-hover:text-primary-600 dark:group-hover:text-primary-400">
+              <h3 className="text-\[17px\] font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2 group-hover:text-primary-600 dark:group-hover:text-primary-400">
                 {resource.title}
               </h3>
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">
@@ -594,7 +593,7 @@ const Resources = () => {
       {filteredResources.length === 0 && !loading && (
         <div className="text-center py-12">
           <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+          <h3 className="text-\[17px\] font-semibold text-gray-900 dark:text-white mb-2">
             No resources found
           </h3>
           <p className="text-gray-600 dark:text-gray-400 mb-4">
@@ -817,7 +816,7 @@ const Resources = () => {
       {viewingResource && (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-gray-900 rounded-xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-700/40">
               <div className="flex items-center space-x-3">
                 <span className={`p-2 rounded-lg ${resourceTypes.find(t => t.value === viewingResource.type)?.color || 'bg-gray-100'}`}>
                   {React.createElement(resourceTypes.find(t => t.value === viewingResource.type)?.icon || FileText, { className: 'w-5 h-5' })}
