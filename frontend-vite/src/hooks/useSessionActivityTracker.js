@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import api from '../services/api'
 
-const DEFAULT_IDLE_THRESHOLD_SECONDS = 30
-const DEFAULT_NUDGE_THRESHOLD_SECONDS = 30
+const DEFAULT_IDLE_THRESHOLD_SECONDS = 15
+const DEFAULT_NUDGE_THRESHOLD_SECONDS = 15
 const FLUSH_INTERVAL_MS = 10000
 const MOUSE_THROTTLE_MS = 200
 const DEBUG = import.meta.env.VITE_DEBUG === 'true'
@@ -305,6 +305,12 @@ const useSessionActivityTracker = ({
       const idleNow = idleForSeconds >= idleThresholdSeconds
 
       if (idleNow) {
+        if (!isIdleRef.current) {
+          // Just crossed the threshold — retroactively credit the full detection window as idle
+          const retroactive = idleThresholdSeconds
+          idleSecondsRef.current += retroactive
+          activeSecondsRef.current = Math.max(0, activeSecondsRef.current - retroactive)
+        }
         idleSecondsRef.current += deltaSeconds
       } else {
         activeSecondsRef.current += deltaSeconds

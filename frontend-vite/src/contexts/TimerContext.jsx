@@ -56,11 +56,11 @@ export const TimerProvider = ({ children }) => {
     sessionSubject,
     enabled: Boolean(sessionId),
     isRunning: isRunning || autoPaused,
-    idleThresholdSeconds: 30,
-    nudgeThresholdSeconds: 30,
+    idleThresholdSeconds: 15,
+    nudgeThresholdSeconds: 15,
     onNudge: ({ idleSeconds }) => {
       if (autoPaused || !isRunning) return
-      const message = 'No activity detected for 30 seconds. Are you still active?'
+      const message = 'No activity detected for 15 seconds. Are you still active?'
       pauseSession()
       setActivityNotice(message)
       setIdlePrompt({ show: true, idleSeconds })
