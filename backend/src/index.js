@@ -43,6 +43,9 @@ const adminRoutes = require('./routes/admin');
 const activityRoutes = require('./routes/activity');
 const distractionRoutes = require('./routes/distraction');
 const reportsRoutes = require('./routes/reports');
+const securityRoutes = require('./routes/security');
+const presenceRoutes = require('./routes/presence');
+const insightsRoutes = require('./routes/insights');
 
 const app = express();
 
@@ -173,6 +176,9 @@ app.use('/api/admin', adminRoutes); // Admin routes - requires admin role
 app.use('/api/activity', activityRoutes);
 app.use('/api/distraction', distractionRoutes);
 app.use('/api/reports', reportsRoutes);
+app.use('/api/security', securityRoutes);
+app.use('/api/presence', presenceRoutes);
+app.use('/api/insights', insightsRoutes);
 app.use('/api', oauthTestRoutes);
 
 // Root endpoint

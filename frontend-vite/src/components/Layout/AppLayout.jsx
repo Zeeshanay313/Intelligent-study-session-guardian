@@ -32,7 +32,9 @@ import {
   Shield,
   Activity,
   Eye,
-  Sparkles
+  Sparkles,
+  Camera,
+  LineChart
 } from 'lucide-react'
 
 const AppLayout = ({ children }) => {
@@ -57,6 +59,9 @@ const AppLayout = ({ children }) => {
     { name: 'Blocker', href: '/distraction', icon: Eye },
     { name: 'Activity', href: '/activity-logger', icon: Activity },
     { name: 'Reports', href: '/reports', icon: BarChart3 },
+    { name: 'Insights', href: '/insights', icon: LineChart },
+    { name: 'Presence', href: '/presence', icon: Camera },
+    { name: 'Security', href: '/security', icon: Shield },
     { name: 'Settings', href: '/profile', icon: User },
     ...(isAdmin ? [{ name: 'Admin', href: '/admin', icon: Shield, adminOnly: true }] : []),
   ]

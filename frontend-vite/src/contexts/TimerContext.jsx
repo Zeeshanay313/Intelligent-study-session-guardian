@@ -42,6 +42,22 @@ export const TimerProvider = ({ children }) => {
   const idleTimeoutRef = useRef(null)
   const completingRef = useRef(false)
 
+  // Face-detection bridge — set by PresenceContext via notifyFacePresence()
+  const faceDetectedRef    = useRef(false)
+  const confirmActiveRef   = useRef(null)  // filled after useSessionActivityTracker
+
+  /**
+   * Called by PresenceContext on every detection frame.
+   *   isPresent = true  → reset idle timer (face counts as activity)
+   *   isPresent = false → let the normal idle countdown proceed
+   */
+  const notifyFacePresence = useCallback((isPresent) => {
+    faceDetectedRef.current = isPresent
+    if (isPresent && confirmActiveRef.current) {
+      confirmActiveRef.current()
+    }
+  }, [])
+
   const {
     summary: activitySummary,
     timeline: activityTimeline,
@@ -60,6 +76,12 @@ export const TimerProvider = ({ children }) => {
     nudgeThresholdSeconds: 15,
     onNudge: ({ idleSeconds }) => {
       if (autoPaused || !isRunning) return
+      // Face is visible → treat as active, reset idle timer, do NOT pause
+      if (faceDetectedRef.current) {
+        confirmActiveRef.current?.()
+        return
+      }
+      // No face AND no keyboard/mouse activity for 15 s → show idle warning
       const message = 'No activity detected for 15 seconds. Are you still active?'
       pauseSession()
       setActivityNotice(message)
@@ -68,6 +90,9 @@ export const TimerProvider = ({ children }) => {
       info(message)
     }
   })
+
+  // Keep confirmActiveRef pointing at the latest confirmActive callback
+  useEffect(() => { confirmActiveRef.current = confirmActive }, [confirmActive])
 
   useEffect(() => {
     setTimerContext({
@@ -407,7 +432,8 @@ export const TimerProvider = ({ children }) => {
     confirmIdle,
     confirmStillActive,
     closeSessionEnd,
-    applyBreakSuggestion
+    applyBreakSuggestion,
+    notifyFacePresence
   }), [
     sessionType,
     duration,
@@ -428,7 +454,8 @@ export const TimerProvider = ({ children }) => {
     startSession,
     pauseSession,
     resumeSession,
-    stopSession
+    stopSession,
+    notifyFacePresence
   ])
 
   return (

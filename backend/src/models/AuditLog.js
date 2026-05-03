@@ -46,7 +46,16 @@ const auditLogSchema = new mongoose.Schema({
       'ADMIN_USER_UPDATE_FAILED',
       'ADMIN_USER_DELETE_FAILED',
       'ADMIN_USER_CREATE_FAILED',
-      'ADMIN_USER_RESTORE_FAILED'
+      'ADMIN_USER_RESTORE_FAILED',
+      // Security module actions
+      'CONSENT_UPDATED',
+      'ACCESS_SHARED',
+      'ACCESS_REVOKED',
+      'DATA_DELETED',
+      'RETENTION_UPDATED',
+      'PRESENCE_SESSION_STARTED',
+      'PRESENCE_SESSION_ENDED',
+      'INSIGHTS_EXPORTED'
     ]
   },
   details: {

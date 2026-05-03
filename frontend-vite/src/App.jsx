@@ -6,6 +6,7 @@ import { NotificationProvider } from './contexts/NotificationContext'
 import { GoalTrackerProvider } from './contexts/GoalTrackerContext'
 import { DistractionProvider } from './contexts/DistractionContext'
 import { TimerProvider } from './contexts/TimerContext'
+import { PresenceProvider } from './contexts/PresenceContext'
 import { AchievementToastProvider } from './components/UI/AchievementToast'
 import NotificationToast from './components/Shared/NotificationToast'
 import IdleConfirmModal from './components/Timer/IdleConfirmModal'
@@ -30,6 +31,9 @@ import Schedule from './pages/Schedule/Schedule'
 import Motivation from './pages/Motivation/Motivation'
 import ActivityLogger from './pages/ActivityLogger/ActivityLogger'
 import DistractionBlocker from './pages/Distraction/DistractionBlocker'
+import DataSecurity from './pages/Security/DataSecurity'
+import PresenceDetection from './pages/Presence/PresenceDetection'
+import InsightsDashboard from './pages/Insights/InsightsDashboard'
 
 // Admin Pages
 import { AdminDashboard, AdminUsers } from './pages/Admin'
@@ -221,6 +225,30 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/security"
+          element={
+            <ProtectedRoute>
+              <DataSecurity />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/presence"
+          element={
+            <ProtectedRoute>
+              <PresenceDetection />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/insights"
+          element={
+            <ProtectedRoute>
+              <InsightsDashboard />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Admin routes - requires admin role */}
         <Route
@@ -264,10 +292,12 @@ function App() {
             <GoalTrackerProvider>
               <DistractionProvider>
                 <TimerProvider>
-                  <AppRoutes />
-                  <NotificationToast />
-                  <IdleConfirmModal />
-                  <BlockerOverlay />
+                  <PresenceProvider>
+                    <AppRoutes />
+                    <NotificationToast />
+                    <IdleConfirmModal />
+                    <BlockerOverlay />
+                  </PresenceProvider>
                 </TimerProvider>
               </DistractionProvider>
             </GoalTrackerProvider>
