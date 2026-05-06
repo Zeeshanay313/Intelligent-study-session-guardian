@@ -31,7 +31,7 @@
     "googleapis": "^126.0.1",
     "helmet": "^7.0.0",
     "jsonwebtoken": "^9.0.2",
-    "mongoose": "^7.5.0",
+    "mongoose": "^8.23.1",
     "multer": "^2.0.2",
     "node-cron": "^4.2.1",
     "nodemailer": "^8.0.7",
@@ -60,7 +60,9 @@
   ],
   "jest": {
     "testEnvironment": "node",
-    "setupFilesAfterEnv": ["./jest.setup.js"],
+    "setupFilesAfterEnv": [
+      "./jest.setup.js"
+    ],
     "collectCoverageFrom": [
       "src/**/*.js",
       "!src/index.js",
@@ -72,7 +74,11 @@
       "**/?(*.)+(spec|test).js"
     ],
     "coverageDirectory": "coverage",
-    "coverageReporters": ["text", "lcov", "html"]
+    "coverageReporters": [
+      "text",
+      "lcov",
+      "html"
+    ]
   },
   "author": "Study Guardian Team",
   "license": "MIT"
