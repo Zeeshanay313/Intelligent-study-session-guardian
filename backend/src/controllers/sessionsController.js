@@ -1,8 +1,38 @@
 const SessionLog = require('../models/SessionLog');
+const TimerSession = require('../modules/timer/Session');
 const Preset = require('../models/Preset');
 const { getSuggestion } = require('../services/suggestionService');
 const { updateGoalsFromSession } = require('../services/GoalProgressService');
 const { awardSessionPoints, updateChallengesFromSession } = require('../services/RewardsService');
+
+// Normalise a session from either collection into a unified shape
+const normaliseSession = (doc, source) => {
+  const isTimer = source === 'timer';
+  const startTime = isTimer ? doc.startTime : doc.startedAt;
+  const endTime = isTimer ? doc.endTime : doc.endedAt;
+  const durationSeconds = isTimer
+    ? (doc.totalDurationSec || (endTime && startTime ? Math.round((new Date(endTime) - new Date(startTime)) / 1000) : 0))
+    : (doc.durationSeconds || 0);
+  return {
+    _id: doc._id,
+    userId: doc.userId,
+    subject: doc.subject || doc.presetName || 'Focus Session',
+    presetName: doc.presetName || doc.subject || 'Focus Session',
+    goalId: doc.goalId || null,
+    startTime: startTime || null,
+    startedAt: startTime || null,
+    endTime: endTime || null,
+    endedAt: endTime || null,
+    durationSeconds,
+    totalDurationSec: durationSeconds,
+    status: isTimer ? (doc.status || 'completed') : (doc.completedSuccessfully !== false ? 'completed' : 'stopped'),
+    completedSuccessfully: isTimer ? (doc.status === 'completed') : (doc.completedSuccessfully !== false),
+    productiveSeconds: doc.productiveSeconds || Math.round(durationSeconds * 0.8),
+    presencePercent: doc.presencePercent || 0,
+    source,
+    createdAt: doc.createdAt,
+  };
+};
 
 // Complete a session and log it
 const completeSession = async (req, res) => {
@@ -113,58 +143,83 @@ const completeSession = async (req, res) => {
   }
 };
 
-// Get session logs with pagination
+// Get session logs with pagination — aggregates both SessionLog and TimerSession
 const getSessions = async (req, res) => {
   try {
-    const {
-      limit = 20,
-      page = 1,
-      date
-    } = req.query;
+    const { limit = 20, page = 1, date } = req.query;
+    const limitNum = Math.min(parseInt(limit, 10) || 20, 100);
+    const pageNum = Math.max(parseInt(page, 10) || 1, 1);
 
-    const limitNum = parseInt(limit, 10);
-    const pageNum = parseInt(page, 10);
-    const skip = (pageNum - 1) * limitNum;
-
-    const filter = { userId: req.user._id };
-
-    // Filter by specific date if provided
+    const userId = req.user._id;
+    const dateFilter = {};
     if (date) {
       const targetDate = new Date(date);
       const nextDay = new Date(targetDate);
       nextDay.setDate(nextDay.getDate() + 1);
-
-      filter.startedAt = {
-        $gte: targetDate,
-        $lt: nextDay
-      };
+      dateFilter.$gte = targetDate;
+      dateFilter.$lt = nextDay;
     }
 
-    const [sessions, total] = await Promise.all([
-      SessionLog.find(filter)
-        .sort({ startedAt: -1 })
-        .limit(limitNum)
-        .skip(skip)
-        .populate('presetId', 'name workDuration breakDuration'),
-      SessionLog.countDocuments(filter)
+    // Query both collections in parallel
+    const [sessionLogs, timerSessions] = await Promise.all([
+      SessionLog.find({
+        userId,
+        ...(date ? { startedAt: dateFilter } : {})
+      }).sort({ startedAt: -1 }).lean(),
+      TimerSession.find({
+        userId,
+        status: { $in: ['completed', 'stopped'] },
+        endTime: { $ne: null },
+        ...(date ? { startTime: dateFilter } : {})
+      }).sort({ startTime: -1 }).lean()
     ]);
+
+    // Normalise and merge, deduplicate by _id string
+    const seen = new Set();
+    const allSessions = [
+      ...sessionLogs.map(s => normaliseSession(s, 'manual')),
+      ...timerSessions.map(s => normaliseSession(s, 'timer'))
+    ]
+      .filter(s => {
+        const key = String(s._id);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .sort((a, b) => new Date(b.startTime || 0) - new Date(a.startTime || 0));
+
+    const total = allSessions.length;
+    const paginated = allSessions.slice((pageNum - 1) * limitNum, pageNum * limitNum);
 
     res.json({
       success: true,
-      data: sessions,
-      pagination: {
-        total,
-        page: pageNum,
-        limit: limitNum,
-        pages: Math.ceil(total / limitNum)
-      }
+      data: paginated,
+      pagination: { total, page: pageNum, limit: limitNum, pages: Math.ceil(total / limitNum) }
     });
   } catch (error) {
     console.error('Error fetching sessions:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch sessions'
-    });
+    res.status(500).json({ success: false, error: 'Failed to fetch sessions' });
+  }
+};
+
+// Get a single session by ID — searches both collections
+const getSessionById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user._id;
+
+    // Try TimerSession first (most sessions come from here)
+    let doc = await TimerSession.findOne({ _id: id, userId }).lean();
+    if (doc) return res.json({ success: true, data: normaliseSession(doc, 'timer') });
+
+    // Fallback to SessionLog
+    doc = await SessionLog.findOne({ _id: id, userId }).lean();
+    if (doc) return res.json({ success: true, data: normaliseSession(doc, 'manual') });
+
+    return res.status(404).json({ success: false, error: 'Session not found' });
+  } catch (error) {
+    console.error('Error fetching session:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch session' });
   }
 };
 
@@ -192,5 +247,6 @@ const getBreakSuggestion = async (req, res) => {
 module.exports = {
   completeSession,
   getSessions,
+  getSessionById,
   getBreakSuggestion
 };

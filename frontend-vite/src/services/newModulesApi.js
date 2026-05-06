@@ -27,7 +27,7 @@ export const securityApi = {
   getAuditLog: (params) => api.get('/api/security/audit-log', { params }),
   createAuditEntry: (data) => api.post('/api/security/audit-log', data),
 
-  exportData: () => api.post('/api/security/export', {}, { responseType: 'blob' }),
+  exportData: () => api.post('/api/security/export', {}),
   permanentDelete: (confirmEmail) => api.delete('/api/security/permanent-delete', { data: { confirmEmail } }),
 
   getRetention: () => api.get('/api/security/retention'),

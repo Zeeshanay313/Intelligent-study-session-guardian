@@ -1,6 +1,7 @@
 const { validationResult } = require('express-validator');
 const TimerPreset = require('./TimerPreset');
 const Session = require('./Session');
+const SessionLog = require('../../models/SessionLog');
 const ActivityLog = require('../../models/ActivityLog');
 const { generateSessionReport } = require('../../services/sessionReportService');
 const { awardSessionPoints, updateChallengesFromSession } = require('../../services/RewardsService');
@@ -204,6 +205,28 @@ const stopSession = async (req, res) => {
     }
 
     await session.save();
+
+    // Mirror into SessionLog so GET /api/sessions can find this session cross-collection
+    try {
+      await SessionLog.findOneAndUpdate(
+        { timerSessionId: session._id },
+        {
+          $set: {
+            userId: session.userId,
+            timerSessionId: session._id,
+            presetId: session.presetId || null,
+            presetName: session.subject || 'Focus Session',
+            durationSeconds: session.totalDurationSec,
+            startedAt: session.startTime,
+            endedAt: session.endTime,
+            completedSuccessfully: session.status === 'completed',
+          }
+        },
+        { upsert: true, new: true }
+      );
+    } catch (mirrorErr) {
+      console.error('SessionLog mirror failed (non-critical):', mirrorErr.message);
+    }
 
     // Generate session report from real data
     let report = null;

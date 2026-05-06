@@ -5,6 +5,11 @@ const AuditLog = require('../models/AuditLog');
 const User = require('../models/User');
 const StudySession = require('../models/StudySession');
 const Goal = require('../models/Goal');
+const ActivityLog = require('../models/ActivityLog');
+const DistractionLog = require('../models/DistractionLog');
+const PresenceSession = require('../models/PresenceSession');
+const GuardianAccess = require('../models/GuardianAccess');
+const InsightSummary = require('../models/InsightSummary');
 
 // ─── Security Settings ───────────────────────────────────────────────────────
 
@@ -214,6 +219,11 @@ const permanentDelete = async (req, res) => {
     await Promise.all([
       Goal.deleteMany({ userId: req.user._id }),
       StudySession.deleteMany({ userId: req.user._id }),
+      ActivityLog.deleteMany({ userId: req.user._id }),
+      DistractionLog.deleteMany({ userId: req.user._id }),
+      PresenceSession.deleteMany({ userId: req.user._id }),
+      GuardianAccess.deleteMany({ studentId: req.user._id }),
+      InsightSummary.deleteMany({ userId: req.user._id }),
       ConsentRecord.deleteMany({ userId: req.user._id }),
       SecuritySettings.deleteMany({ userId: req.user._id }),
       RetentionPolicy.deleteMany({ userId: req.user._id }),

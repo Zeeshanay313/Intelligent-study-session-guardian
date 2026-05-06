@@ -184,8 +184,18 @@ const ProfileSettings = () => {
   // Show loading state if user is not loaded yet
   if (!user) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      <div className="space-y-5 max-w-2xl">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="animate-pulse bg-white dark:bg-gray-800/60 rounded-2xl p-6 border border-gray-100 dark:border-gray-700/40 shadow-card space-y-4">
+            <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-1/3" />
+            {[...Array(2)].map((_, j) => (
+              <div key={j} className="space-y-1.5">
+                <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/4" />
+                <div className="h-9 bg-gray-200 dark:bg-gray-700 rounded-lg w-full" />
+              </div>
+            ))}
+          </div>
+        ))}
       </div>
     )
   }

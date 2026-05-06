@@ -3,6 +3,10 @@ const GuardianAccess = require('../models/GuardianAccess');
 const SecuritySettings = require('../models/SecuritySettings');
 const PresenceSession = require('../models/PresenceSession');
 const StudySession = require('../models/StudySession');
+const SessionLog = require('../models/SessionLog');           // manual timer completions
+const TimerSession = require('../modules/timer/Session');    // orchestrated timer sessions
+const DistractionLog = require('../models/DistractionLog');
+const UserRewards = require('../models/UserRewards');
 const Goal = require('../models/Goal');
 const User = require('../models/User');
 const AuditLog = require('../models/AuditLog');
@@ -10,47 +14,98 @@ const AuditLog = require('../models/AuditLog');
 // ─── Build Insight Data from DB ───────────────────────────────────────────────
 
 const buildInsightData = async (userId, from, to) => {
-  const dateFilter = {};
-  if (from) dateFilter.$gte = new Date(from);
-  if (to) dateFilter.$lte = new Date(to);
-  else dateFilter.$lte = new Date();
-  if (!from) {
-    const d = new Date();
-    d.setDate(d.getDate() - 30);
-    dateFilter.$gte = d;
-  }
+  const now = new Date();
+  const startDefault = new Date();
+  startDefault.setDate(startDefault.getDate() - 30);
 
-  const sessionFilter = { userId };
-  if (Object.keys(dateFilter).length) sessionFilter.createdAt = dateFilter;
+  const dateFrom = from ? new Date(from) : startDefault;
+  const dateTo = to ? new Date(to) : now;
+  const dateFilter = { $gte: dateFrom, $lte: dateTo };
 
-  // Study sessions
-  const sessions = await StudySession.find(sessionFilter).lean();
-  const totalStudyMinutes = sessions.reduce((sum, s) => sum + (s.duration || 0), 0);
-  const totalSessions = sessions.length;
-  const avgSessionMinutes = totalSessions > 0 ? Math.round(totalStudyMinutes / totalSessions) : 0;
-  const longestSessionMinutes = sessions.reduce((max, s) => Math.max(max, s.duration || 0), 0);
+  // ── Gather sessions from all three stores ──────────────────────────────────
+  // 1. SessionLog — created by sessionsController (manual timer completions)
+  const sessionLogs = await SessionLog.find({
+    userId, startedAt: dateFilter
+  }).lean();
 
-  // Subject breakdown from sessions
-  const subjectMap = {};
-  sessions.forEach(s => {
-    const subj = s.subject || s.type || 'General';
-    if (!subjectMap[subj]) subjectMap[subj] = { subject: subj, minutes: 0, sessions: 0 };
-    subjectMap[subj].minutes += s.duration || 0;
-    subjectMap[subj].sessions += 1;
+  // 2. TimerSession — created by StudySessionOrchestrator (integrated sessions)
+  const timerSessions = await TimerSession.find({
+    userId,
+    startTime: dateFilter,
+    status: { $in: ['completed', 'stopped'] }
+  }).lean();
+
+  // 3. StudySession — externally created or seeded sessions
+  const studySessions = await StudySession.find({
+    userId,
+    startTime: dateFilter,
+    status: { $in: ['completed', 'active'] }
+  }).lean();
+
+  // Compute durations (all normalised to minutes)
+  const toMin = (sec) => Math.round(sec / 60);
+  const sessionLogMins = sessionLogs.map(s => toMin(s.durationSeconds || 0));
+  const timerSessionMins = timerSessions.map(s => toMin(s.totalDurationSec || s.productiveSeconds || 0));
+  const studySessionMins = studySessions.map(s => {
+    const d = s.duration || (s.endTime && s.startTime
+      ? Math.round((new Date(s.endTime) - new Date(s.startTime)) / 60000)
+      : 0);
+    return d;
   });
+
+  const allMins = [...sessionLogMins, ...timerSessionMins, ...studySessionMins];
+  const totalStudyMinutes = allMins.reduce((a, b) => a + b, 0);
+  const totalSessions = allMins.length;
+  const avgSessionMinutes = totalSessions > 0 ? Math.round(totalStudyMinutes / totalSessions) : 0;
+  const longestSessionMinutes = allMins.length > 0 ? Math.max(...allMins) : 0;
+
+  // Subject breakdown — timer + study sessions have a subject field;
+  // SessionLog uses presetName as the label
+  const subjectMap = {};
+  const addSubj = (subj, mins) => {
+    const key = (subj && subj !== 'Quick Session') ? subj : 'General';
+    if (!subjectMap[key]) subjectMap[key] = { subject: key, minutes: 0, sessions: 0 };
+    subjectMap[key].minutes += mins;
+    subjectMap[key].sessions += 1;
+  };
+  timerSessions.forEach((s, i) => addSubj(s.subject, timerSessionMins[i]));
+  studySessions.forEach((s, i) => addSubj(s.subject, studySessionMins[i]));
+  sessionLogs.forEach((s, i) => addSubj(s.presetName, sessionLogMins[i]));
   const subjectBreakdown = Object.values(subjectMap).sort((a, b) => b.minutes - a.minutes);
 
   // Presence data
-  const presenceSessions = await PresenceSession.find({ userId, status: 'ended', createdAt: dateFilter }).lean();
+  const presenceSessions = await PresenceSession.find({
+    userId, status: 'ended', startedAt: dateFilter
+  }).lean();
   const avgPresencePercent = presenceSessions.length > 0
     ? Math.round(presenceSessions.reduce((s, p) => s + (p.presencePercent || 0), 0) / presenceSessions.length)
     : 0;
   const totalAbsenceWarnings = presenceSessions.reduce((s, p) => s + (p.absenceWarnings || 0), 0);
 
+  // Interruptions from DistractionLog
+  const totalInterruptions = await DistractionLog.countDocuments({
+    userId,
+    timestamp: dateFilter
+  });
+
   // Goals
   const goals = await Goal.find({ userId }).lean();
   const goalsCompleted = goals.filter(g => g.status === 'completed').length;
   const goalsInProgress = goals.filter(g => g.status === 'active').length;
+
+  // Points earned in the period from UserRewards
+  let pointsEarned = 0;
+  try {
+    const rewards = await UserRewards.findOne({ userId }).lean();
+    if (rewards && rewards.pointsHistory) {
+      pointsEarned = rewards.pointsHistory
+        .filter(h => {
+          const d = new Date(h.date);
+          return d >= dateFrom && d <= dateTo;
+        })
+        .reduce((sum, h) => sum + (h.amount > 0 ? h.amount : 0), 0);
+    }
+  } catch (_) { /* UserRewards may not exist yet */ }
 
   return {
     totalStudyMinutes,
@@ -59,9 +114,11 @@ const buildInsightData = async (userId, from, to) => {
     longestSessionMinutes,
     avgPresencePercent,
     totalAbsenceWarnings,
+    totalInterruptions,
     subjectBreakdown,
     goalsCompleted,
-    goalsInProgress
+    goalsInProgress,
+    pointsEarned
   };
 };
 
@@ -73,6 +130,7 @@ const filterByConsent = (data, allowedFields) => {
     filtered.totalStudyMinutes = data.totalStudyMinutes;
     filtered.totalSessions = data.totalSessions;
     filtered.avgSessionMinutes = data.avgSessionMinutes;
+    filtered.totalInterruptions = data.totalInterruptions;
   }
   if (allowedFields.sessionDetails) {
     filtered.longestSessionMinutes = data.longestSessionMinutes;
@@ -87,6 +145,9 @@ const filterByConsent = (data, allowedFields) => {
   if (allowedFields.goalProgress) {
     filtered.goalsCompleted = data.goalsCompleted;
     filtered.goalsInProgress = data.goalsInProgress;
+  }
+  if (allowedFields.rewardsData) {
+    filtered.pointsEarned = data.pointsEarned;
   }
   return filtered;
 };

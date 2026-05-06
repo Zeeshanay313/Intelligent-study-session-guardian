@@ -7,6 +7,7 @@ const GoogleCalendarService = require('../modules/calendar/GoogleCalendarService
 const EmailService = require('./EmailService');
 const PushNotificationService = require('./PushNotificationService');
 const { updateGoalsFromSession } = require('./GoalProgressService');
+const AuditLog = require('../models/AuditLog');
 
 class StudySessionOrchestrator {
   constructor(io) {
@@ -308,6 +309,21 @@ class StudySessionOrchestrator {
         message: 'Study session completed successfully!',
         totalTime: sessionData.config.workDuration || 25
       });
+
+      // Create audit log for session completion
+      try {
+        await AuditLog.create({
+          userId,
+          action: 'SESSION_COMPLETED',
+          details: {
+            subject: sessionData.config.subject || 'Study Session',
+            durationMinutes: sessionData.config.workDuration || 25
+          },
+          metadata: { ipAddress: 'internal' }
+        });
+      } catch (auditErr) {
+        console.error('Error creating audit log:', auditErr);
+      }
 
       // Clean up
       this.activeSessions.delete(userId);

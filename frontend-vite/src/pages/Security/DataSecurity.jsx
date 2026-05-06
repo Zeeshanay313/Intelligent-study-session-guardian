@@ -8,10 +8,22 @@ import { securityApi } from '../../services/newModulesApi'
 import { useAuth } from '../../contexts/AuthContext'
 
 // ─── Privacy Info Cards ───────────────────────────────────────────────────────
+const CARD_COLORS = {
+  blue: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800',
+  purple: 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800',
+  green: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800',
+  amber: 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800',
+}
+const ICON_COLORS = {
+  blue: 'bg-blue-100 dark:bg-blue-800/40 text-blue-600 dark:text-blue-400',
+  purple: 'bg-purple-100 dark:bg-purple-800/40 text-purple-600 dark:text-purple-400',
+  green: 'bg-green-100 dark:bg-green-800/40 text-green-600 dark:text-green-400',
+  amber: 'bg-amber-100 dark:bg-amber-800/40 text-amber-600 dark:text-amber-400',
+}
 const PrivacyCard = ({ icon: Icon, title, description, color = 'blue' }) => (
-  <div className={`bg-${color}-50 dark:bg-${color}-900/20 border border-${color}-200 dark:border-${color}-800 rounded-xl p-4 flex gap-3`}>
-    <div className={`flex-shrink-0 p-2 bg-${color}-100 dark:bg-${color}-800/40 rounded-lg`}>
-      <Icon className={`w-5 h-5 text-${color}-600 dark:text-${color}-400`} />
+  <div className={`border rounded-xl p-4 flex gap-3 ${CARD_COLORS[color] || CARD_COLORS.blue}`}>
+    <div className={`flex-shrink-0 p-2 rounded-lg ${ICON_COLORS[color] || ICON_COLORS.blue}`}>
+      <Icon className="w-5 h-5" />
     </div>
     <div>
       <h4 className="font-semibold text-gray-900 dark:text-white text-sm">{title}</h4>
@@ -190,8 +202,19 @@ export default function DataSecurity() {
 
   if (loading) {
     return (
-      <div className="min-h-[400px] flex items-center justify-center">
-        <RefreshCw className="w-8 h-8 text-primary-500 animate-spin" />
+      <div className="max-w-4xl mx-auto space-y-5 p-4 sm:p-6">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="animate-pulse bg-white dark:bg-gray-800/60 rounded-2xl p-6 border border-gray-100 dark:border-gray-700/40 shadow-card space-y-4">
+            <div className="flex items-center space-x-3 mb-2">
+              <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-xl" />
+              <div className="flex-1 space-y-2">
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/3" />
+                <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2" />
+              </div>
+            </div>
+            <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded-xl" />
+          </div>
+        ))}
       </div>
     )
   }

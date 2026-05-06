@@ -55,7 +55,8 @@ const auditLogSchema = new mongoose.Schema({
       'RETENTION_UPDATED',
       'PRESENCE_SESSION_STARTED',
       'PRESENCE_SESSION_ENDED',
-      'INSIGHTS_EXPORTED'
+      'INSIGHTS_EXPORTED',
+      'SESSION_COMPLETED'
     ]
   },
   details: {

@@ -8,6 +8,7 @@ import HeatmapChart from './HeatmapChart'
 import ComparisonInsights from './ComparisonInsights'
 import CommentsSection from './CommentsSection'
 import ExportButtons from './ExportButtons'
+import { SkeletonChart, SkeletonCard, SkeletonMetricCards } from '../UI/Skeleton'
 
 const ReportDashboard = () => {
   const { user } = useAuth()
@@ -237,8 +238,13 @@ const ReportDashboard = () => {
       </div>
 
       {loading && (
-        <div className="flex min-h-[30vh] items-center justify-center">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600"></div>
+        <div className="space-y-5">
+          <SkeletonMetricCards count={4} />
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <SkeletonChart height="h-48" />
+            <SkeletonChart height="h-48" />
+          </div>
+          <SkeletonCard rows={4} />
         </div>
       )}
 

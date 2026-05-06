@@ -36,30 +36,6 @@ import {
 import { useAuth } from '../../contexts/AuthContext'
 import api from '../../services/api'
 
-// Mock data for fallback
-const mockWeeklyData = [
-  { day: 'Mon', minutes: 120 },
-  { day: 'Tue', minutes: 90 },
-  { day: 'Wed', minutes: 150 },
-  { day: 'Thu', minutes: 180 },
-  { day: 'Fri', minutes: 135 },
-  { day: 'Sat', minutes: 60 },
-  { day: 'Sun', minutes: 45 },
-]
-
-const mockGoalsData = [
-  { name: 'Completed', value: 65, color: '#10b981' },
-  { name: 'In Progress', value: 25, color: '#0ea5e9' },
-  { name: 'Not Started', value: 10, color: '#94a3b8' },
-]
-
-const mockRecentActivity = [
-  { id: 1, type: 'session', title: 'Deep Work Session', duration: '45 min', time: '2 hours ago' },
-  { id: 2, type: 'goal', title: 'Completed Math Assignment', time: '5 hours ago' },
-  { id: 3, type: 'reward', title: 'Earned Focus Master Badge', time: '1 day ago' },
-  { id: 4, type: 'session', title: 'Quick Study Break', duration: '15 min', time: '1 day ago' },
-]
-
 const Dashboard = () => {
   const { user, refreshAuth } = useAuth()
   const [metrics, setMetrics] = useState({
@@ -68,9 +44,9 @@ const Dashboard = () => {
     sessionsToday: 0,
     currentStreak: 0,
   })
-  const [weeklyData, setWeeklyData] = useState(mockWeeklyData)
-  const [goalsData, setGoalsData] = useState(mockGoalsData)
-  const [recentActivity, setRecentActivity] = useState(mockRecentActivity)
+  const [weeklyData, setWeeklyData] = useState([])
+  const [goalsData, setGoalsData] = useState([])
+  const [recentActivity, setRecentActivity] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeGoals, setActiveGoals] = useState([])
   const [progressSummary, setProgressSummary] = useState(null)
@@ -257,6 +233,28 @@ const Dashboard = () => {
           return { day: days[date.getDay()], minutes: Math.round(minutes) }
         })
         setWeeklyData(weekData)
+
+        // Build recent activity from real sessions
+        const recent = sessions.slice(0, 8).map((s, i) => {
+          const secs = getSessionDuration(s)
+          const mins = Math.round(secs / 60)
+          const start = getSessionTime(s)
+          const diffMs = Date.now() - start.getTime()
+          const diffMins = Math.floor(diffMs / 60000)
+          const timeAgo = diffMins < 60
+            ? `${diffMins} min ago`
+            : diffMins < 1440
+              ? `${Math.floor(diffMins / 60)} hour${Math.floor(diffMins / 60) !== 1 ? 's' : ''} ago`
+              : `${Math.floor(diffMins / 1440)} day${Math.floor(diffMins / 1440) !== 1 ? 's' : ''} ago`
+          return {
+            id: s._id || i,
+            type: 'session',
+            title: s.subject || s.presetName || 'Focus Session',
+            duration: mins > 0 ? `${mins} min` : null,
+            time: timeAgo,
+          }
+        })
+        setRecentActivity(recent)
       }
       
       // Fetch goals data
@@ -544,6 +542,11 @@ const Dashboard = () => {
             </Link>
           </div>
           <ResponsiveContainer width="100%" height={240}>
+            {weeklyData.length === 0 ? (
+              <div className="flex items-center justify-center h-full">
+                <p className="text-sm text-gray-400 dark:text-gray-500">No session data this week</p>
+              </div>
+            ) : (
             <BarChart data={weeklyData} barCategoryGap="20%">
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" className="dark:stroke-gray-700" vertical={false} />
               <XAxis
@@ -573,6 +576,7 @@ const Dashboard = () => {
               />
               <Bar dataKey="minutes" fill="#0ea5e9" radius={[6, 6, 0, 0]} />
             </BarChart>
+            )}
           </ResponsiveContainer>
         </div>
 
@@ -587,6 +591,11 @@ const Dashboard = () => {
             </p>
           </div>
           <ResponsiveContainer width="100%" height={180}>
+            {goalsData.length === 0 ? (
+              <div className="flex items-center justify-center h-full">
+                <p className="text-sm text-gray-400 dark:text-gray-500">No goals yet</p>
+              </div>
+            ) : (
             <PieChart>
               <Pie
                 data={goalsData}
@@ -604,6 +613,7 @@ const Dashboard = () => {
               </Pie>
               <Tooltip formatter={(value) => `${value}%`} />
             </PieChart>
+            )}
           </ResponsiveContainer>
           <div className="mt-4 space-y-2.5">
             {goalsData.map((item, index) => (
@@ -637,40 +647,66 @@ const Dashboard = () => {
             View all
           </Link>
         </div>
-        <div className="space-y-1">
-          {recentActivity.map((activity) => (
-            <div
-              key={activity.id}
-              className="flex items-center space-x-4 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
-            >
-              <div className={`
-                w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0
-                ${activity.type === 'session' ? 'bg-primary-50 dark:bg-primary-900/20' : ''}
-                ${activity.type === 'goal' ? 'bg-accent-50 dark:bg-accent-900/20' : ''}
-                ${activity.type === 'reward' ? 'bg-amber-50 dark:bg-amber-900/20' : ''}
-              `}>
-                {activity.type === 'session' && <Clock className="w-4 h-4 text-primary-600 dark:text-primary-400" />}
-                {activity.type === 'goal' && <Target className="w-4 h-4 text-accent-600 dark:text-accent-400" />}
-                {activity.type === 'reward' && <Award className="w-4 h-4 text-amber-600 dark:text-amber-400" />}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 dark:text-white">
-                  {activity.title}
-                </p>
-                <div className="flex items-center space-x-2 mt-0.5">
-                  {activity.duration && (
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                      {activity.duration}
-                    </span>
-                  )}
-                  <span className="text-xs text-gray-400 dark:text-gray-500">
-                    {activity.time}
-                  </span>
+        {loading ? (
+          <div className="space-y-3">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="flex items-center space-x-4 p-3 rounded-xl animate-pulse">
+                <div className="w-9 h-9 bg-gray-200 dark:bg-gray-700 rounded-xl flex-shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-3.5 bg-gray-200 dark:bg-gray-700 rounded w-3/5" />
+                  <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/4" />
                 </div>
               </div>
+            ))}
+          </div>
+        ) : recentActivity.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-10 text-center">
+            <div className="w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mb-3">
+              <Clock className="w-6 h-6 text-gray-400" />
             </div>
-          ))}
-        </div>
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">No sessions yet</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Complete a focus session to see activity here</p>
+            <Link to="/focus" className="mt-4 inline-flex items-center space-x-1.5 px-4 py-2 bg-primary-600 text-white text-sm font-semibold rounded-xl hover:bg-primary-700 transition-colors">
+              <Play className="w-3.5 h-3.5" />
+              <span>Start Session</span>
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-1">
+            {recentActivity.map((activity) => (
+              <div
+                key={activity.id}
+                className="flex items-center space-x-4 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
+              >
+                <div className={`
+                  w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0
+                  ${activity.type === 'session' ? 'bg-primary-50 dark:bg-primary-900/20' : ''}
+                  ${activity.type === 'goal' ? 'bg-accent-50 dark:bg-accent-900/20' : ''}
+                  ${activity.type === 'reward' ? 'bg-amber-50 dark:bg-amber-900/20' : ''}
+                `}>
+                  {activity.type === 'session' && <Clock className="w-4 h-4 text-primary-600 dark:text-primary-400" />}
+                  {activity.type === 'goal' && <Target className="w-4 h-4 text-accent-600 dark:text-accent-400" />}
+                  {activity.type === 'reward' && <Award className="w-4 h-4 text-amber-600 dark:text-amber-400" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">
+                    {activity.title}
+                  </p>
+                  <div className="flex items-center space-x-2 mt-0.5">
+                    {activity.duration && (
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        {activity.duration}
+                      </span>
+                    )}
+                    <span className="text-xs text-gray-400 dark:text-gray-500">
+                      {activity.time}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

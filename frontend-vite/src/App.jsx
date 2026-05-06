@@ -37,42 +37,22 @@ import InsightsDashboard from './pages/Insights/InsightsDashboard'
 
 // Admin Pages
 import { AdminDashboard, AdminUsers } from './pages/Admin'
+import AppLoadingScreen from './components/UI/AppLoadingScreen'
 
 // Protected Route wrapper
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth()
   
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-      </div>
-    )
-  }
-  
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />
-  }
-  
+  if (loading) return <AppLoadingScreen />
+  if (!isAuthenticated) return <Navigate to="/login" replace />
   return <AppLayout>{children}</AppLayout>
 }
 
 // Public Route wrapper (redirect to dashboard if already logged in)
 const PublicRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth()
-  
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-      </div>
-    )
-  }
-  
-  if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />
-  }
-  
+  if (loading) return <AppLoadingScreen />
+  if (isAuthenticated) return <Navigate to="/dashboard" replace />
   return children
 }
 

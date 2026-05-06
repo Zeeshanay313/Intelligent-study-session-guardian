@@ -1,4 +1,5 @@
 const Session = require('../modules/timer/Session');
+const SessionLog = require('../models/SessionLog');
 const ActivityLog = require('../models/ActivityLog');
 const DistractionLog = require('../models/DistractionLog');
 const SessionReport = require('../models/SessionReport');
@@ -126,7 +127,26 @@ const generateSessionReport = async ({ sessionId, userId, force = false }) => {
 
   console.log('Report generation started:', { sessionId: String(sessionId), userId: String(userId) });
 
-  const session = await Session.findOne({ _id: sessionId, userId }).lean();
+  // Search both Session (timer) and SessionLog collections
+  let session = await Session.findOne({ _id: sessionId, userId }).lean();
+  if (!session) {
+    const log = await SessionLog.findOne({ _id: sessionId, userId }).lean();
+    if (log) {
+      // Normalise SessionLog to the same shape as Session
+      session = {
+        _id: log._id,
+        userId: log.userId,
+        subject: log.presetName || 'Focus Session',
+        goalId: log.goalId || null,
+        startTime: log.startedAt,
+        endTime: log.endedAt,
+        totalDurationSec: log.durationSeconds || 0,
+        productiveSeconds: log.durationSeconds ? Math.round(log.durationSeconds * 0.8) : 0,
+        presencePercent: 0,
+        status: log.completedSuccessfully !== false ? 'completed' : 'stopped',
+      };
+    }
+  }
   const activitySummary = await ActivityLog.find({ userId, sessionId })
     .sort({ timestamp: 1 })
     .lean();

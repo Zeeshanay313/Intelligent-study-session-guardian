@@ -7,6 +7,13 @@ const sessionLogSchema = new mongoose.Schema({
     required: true,
     index: true
   },
+  // Reference to the corresponding timer Session doc (used by stopSession mirror)
+  timerSessionId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Session',
+    default: null,
+    index: true
+  },
   presetId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Preset',
@@ -18,17 +25,16 @@ const sessionLogSchema = new mongoose.Schema({
   },
   durationSeconds: {
     type: Number,
-    required: true,
-    min: 1
+    default: 0,
+    min: 0
   },
   startedAt: {
     type: Date,
-    required: true,
-    index: true
+    default: null
   },
   endedAt: {
     type: Date,
-    required: true
+    default: null
   },
   completedSuccessfully: {
     type: Boolean,
