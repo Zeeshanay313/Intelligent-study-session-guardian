@@ -3,13 +3,14 @@ import {
   BarChart3, BookOpen, Target, TrendingUp, Download,
   Share2, UserX, CheckCircle, Clock, Zap, Award,
   RefreshCw, ChevronDown, Eye, EyeOff, Bell,
-  ShieldCheck, AlertTriangle, UserCheck
+  ShieldCheck, AlertTriangle, UserCheck,
+  Lock, FileText, Trash2, Archive, KeyRound, ScrollText
 } from 'lucide-react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell
 } from 'recharts'
-import { insightsApi } from '../../services/newModulesApi'
+import { insightsApi, securityApi } from '../../services/newModulesApi'
 import { useAuth } from '../../contexts/AuthContext'
 import jsPDF from 'jspdf'
 
@@ -223,6 +224,422 @@ const RemindersPanel = ({ accesses, onApprove }) => {
           </div>
         </div>
       ))}
+    </div>
+  )
+}
+
+// ─── Privacy & Data Panel ─────────────────────────────────────────────────────
+// Surfaces the platform's compliance & security posture for the student:
+//   • Encryption-in-transit / at-rest transparency
+//   • Role-based access (student / guardian / teacher / admin)
+//   • Consent records (granular, revocable)
+//   • Audit log of privacy-sensitive actions
+//   • Data-retention policy (auto-archival)
+//   • Full data export (GDPR-style portability)
+//   • Permanent account deletion (right to be forgotten)
+const CONSENT_LABELS = {
+  camera_presence:        'Camera presence detection',
+  guardian_sharing:       'Share progress with guardian',
+  teacher_sharing:        'Share progress with teacher',
+  analytics_collection:   'Analytics & usage statistics',
+  email_notifications:    'Email notifications',
+  data_retention_extended:'Extended data retention',
+  third_party_integrations:'Third-party integrations'
+}
+
+const CONSENT_PURPOSES = {
+  camera_presence:        'Used by the focus module to detect presence locally. Frames are analysed in-browser and never uploaded raw.',
+  guardian_sharing:       'Lets a parent/guardian view the fields you explicitly select. Revoke any time.',
+  teacher_sharing:        'Lets a teacher/coach view the fields you explicitly select. Revoke any time.',
+  analytics_collection:   'Aggregated metrics that power your Insights dashboard. No third-party trackers.',
+  email_notifications:    'Reminders, weekly summaries, and account alerts.',
+  data_retention_extended:'Keeps your study data beyond the default retention window for richer long-term insights.',
+  third_party_integrations:'Connect Google Calendar / external services.'
+}
+
+const PRIVACY_IMPACT_COLOR = {
+  none:   'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
+  low:    'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+  medium: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+  high:   'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+}
+
+const PrivacyPanel = ({ user, onSuccess, onError }) => {
+  const [consents, setConsents]   = useState([])
+  const [auditLogs, setAuditLogs] = useState([])
+  const [retention, setRetention] = useState(null)
+  const [loading, setLoading]     = useState(true)
+  const [busy, setBusy]           = useState(false)
+  const [confirmEmail, setConfirmEmail] = useState('')
+  const [showDeleteBox, setShowDeleteBox] = useState(false)
+
+  const userEmail   = user?.user?.email || user?.email || ''
+  const displayRole = user?.user?.role  || user?.role  || 'student'
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const [c, a, r] = await Promise.all([
+        securityApi.getConsents(),
+        securityApi.getAuditLog({ limit: 15 }),
+        securityApi.getRetention()
+      ])
+      setConsents(c.data.consents || [])
+      setAuditLogs(a.data.logs || [])
+      setRetention(r.data.policy || null)
+    } catch (e) {
+      onError && onError('Failed to load privacy data')
+    } finally {
+      setLoading(false)
+    }
+  }, [onError])
+
+  useEffect(() => { load() }, [load])
+
+  const consentMap = consents.reduce((acc, c) => { acc[c.consentType] = c; return acc }, {})
+
+  const toggleConsent = async (type, granted) => {
+    setBusy(true)
+    try {
+      await securityApi.updateConsent(type, granted)
+      await load()
+      onSuccess && onSuccess(`${CONSENT_LABELS[type] || type} ${granted ? 'granted' : 'revoked'}`)
+    } catch (e) {
+      onError && onError('Failed to update consent')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const updateRetention = async (patch) => {
+    setBusy(true)
+    try {
+      const res = await securityApi.updateRetention({ ...retention, ...patch })
+      setRetention(res.data.policy)
+      onSuccess && onSuccess('Retention policy updated')
+    } catch (e) {
+      onError && onError('Failed to update retention policy')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const exportFullArchive = async () => {
+    setBusy(true)
+    try {
+      const res = await securityApi.exportData()
+      const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' })
+      const url  = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `study-guardian-archive-${new Date().toISOString().split('T')[0]}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+      onSuccess && onSuccess('Full data archive downloaded')
+      await load() // refresh audit log – DATA_EXPORTED is recorded server-side
+    } catch (e) {
+      onError && onError('Failed to export archive')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const permanentDelete = async () => {
+    if (confirmEmail.trim().toLowerCase() !== userEmail.toLowerCase()) {
+      onError && onError('Email confirmation does not match')
+      return
+    }
+    if (!window.confirm('This permanently deletes your account and all associated data. This cannot be undone. Continue?')) return
+    setBusy(true)
+    try {
+      await securityApi.permanentDelete(confirmEmail.trim())
+      onSuccess && onSuccess('Account deleted. You will be signed out.')
+      setTimeout(() => {
+        localStorage.removeItem('authToken')
+        window.location.href = '/'
+      }, 1500)
+    } catch (e) {
+      onError && onError(e.response?.data?.error || 'Failed to delete account')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-10 text-center">
+        <RefreshCw className="w-6 h-6 text-gray-400 animate-spin mx-auto" />
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Loading privacy & compliance data…</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-5">
+      {/* Encryption / transport transparency */}
+      <div className="bg-gradient-to-r from-emerald-50 to-indigo-50 dark:from-emerald-900/20 dark:to-indigo-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-5">
+        <div className="flex items-start gap-3">
+          <div className="p-2 bg-emerald-100 dark:bg-emerald-900/40 rounded-xl">
+            <Lock className="w-5 h-5 text-emerald-700 dark:text-emerald-300" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-gray-900 dark:text-white">How your data is protected</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+              We use industry-standard protocols on every layer.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3 text-xs">
+              <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                <span><strong>In transit:</strong> TLS 1.2+ / HTTPS with HSTS (Helmet headers)</span>
+              </div>
+              <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                <span><strong>At rest:</strong> MongoDB encrypted storage + AES-256 disk volume</span>
+              </div>
+              <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                <span><strong>Passwords:</strong> bcrypt one-way hashing (cost 12)</span>
+              </div>
+              <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                <span><strong>Tokens:</strong> Signed JWT, httpOnly refresh cookies</span>
+              </div>
+              <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                <span><strong>Camera frames:</strong> Processed in-browser, never uploaded</span>
+              </div>
+              <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                <span><strong>Backups:</strong> Encrypted, retention-policy aware</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Role-based access */}
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
+        <h3 className="font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+          <KeyRound className="w-4 h-4 text-indigo-500" /> Role-based access
+        </h3>
+        <div className="flex items-center gap-3 mb-4">
+          <span className="text-xs text-gray-500 dark:text-gray-400">You are signed in as</span>
+          <span className="text-sm font-semibold px-2.5 py-1 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 capitalize">
+            {displayRole}
+          </span>
+          <span className="text-xs text-gray-400 dark:text-gray-500 truncate">{userEmail}</span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {[
+            { role: 'Student',  desc: 'Owns their data. Sees full insights, controls all sharing & consent.' },
+            { role: 'Guardian', desc: 'Read-only view of fields the student grants. Cannot send messages without approval.' },
+            { role: 'Teacher',  desc: 'Read-only view of class-relevant fields. Same approval rules as guardians.' }
+          ].map(r => (
+            <div key={r.role} className={`p-3 rounded-xl border text-xs ${
+              displayRole.toLowerCase() === r.role.toLowerCase()
+                ? 'border-indigo-300 bg-indigo-50/60 dark:border-indigo-700 dark:bg-indigo-900/20'
+                : 'border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/30'
+            }`}>
+              <p className="font-semibold text-gray-900 dark:text-white">{r.role}</p>
+              <p className="text-gray-600 dark:text-gray-400 mt-1 leading-relaxed">{r.desc}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Consent records */}
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
+        <h3 className="font-semibold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
+          <FileText className="w-4 h-4 text-indigo-500" /> Consent records
+        </h3>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+          Every grant or revoke is timestamped and version-stamped. Toggle any item below — the change is recorded immediately.
+        </p>
+        <div className="divide-y divide-gray-100 dark:divide-gray-800">
+          {Object.keys(CONSENT_LABELS).map(type => {
+            const c = consentMap[type]
+            const granted = c?.granted === true
+            return (
+              <div key={type} className="py-3 flex items-start gap-4">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">{CONSENT_LABELS[type]}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{CONSENT_PURPOSES[type]}</p>
+                  {c && (
+                    <p className="text-[11px] text-gray-400 dark:text-gray-600 mt-1">
+                      v{c.version} · {granted
+                        ? `Granted ${new Date(c.grantedAt || c.updatedAt).toLocaleString()}`
+                        : c.revokedAt ? `Revoked ${new Date(c.revokedAt).toLocaleString()}` : 'Not granted'}
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={() => toggleConsent(type, !granted)}
+                  disabled={busy}
+                  className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${
+                    granted ? 'bg-indigo-600' : 'bg-gray-300 dark:bg-gray-700'
+                  } disabled:opacity-50`}
+                  title={granted ? 'Revoke consent' : 'Grant consent'}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                    granted ? 'translate-x-5' : ''
+                  }`} />
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Retention policy */}
+      {retention && (
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
+          <h3 className="font-semibold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
+            <Archive className="w-4 h-4 text-indigo-500" /> Data retention & archival
+          </h3>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+            Decide how long each category is kept. When auto-archive is on, older records are moved to cold storage and removed from live queries.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {[
+              ['sessionDataDays',  'Study sessions',     30, 3650],
+              ['activityLogDays',  'Activity log',       30, 3650],
+              ['auditLogDays',     'Audit log',          90, 3650],
+              ['presenceDataDays', 'Presence data',       7, 365],
+              ['insightsDays',     'Insights summaries', 30, 3650]
+            ].map(([key, label, min, max]) => (
+              <label key={key} className="flex items-center justify-between gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/40">
+                <span className="text-xs text-gray-600 dark:text-gray-400 flex-1">{label}</span>
+                <input
+                  type="number"
+                  min={min} max={max}
+                  value={retention[key]}
+                  onChange={e => setRetention({ ...retention, [key]: Number(e.target.value) })}
+                  onBlur={e => updateRetention({ [key]: Number(e.target.value) })}
+                  className="w-20 px-2 py-1 text-sm rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <span className="text-[11px] text-gray-400">days</span>
+              </label>
+            ))}
+          </div>
+          <label className="flex items-center gap-2 mt-4 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={!!retention.autoDeleteEnabled}
+              onChange={e => updateRetention({ autoDeleteEnabled: e.target.checked })}
+              className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
+            />
+            Enable automatic archival when records exceed the retention window
+          </label>
+          <p className="text-[11px] text-gray-400 dark:text-gray-600 mt-2">
+            Last reviewed {new Date(retention.lastReviewedAt).toLocaleDateString()} · Next review {new Date(retention.nextReviewAt).toLocaleDateString()}
+          </p>
+        </div>
+      )}
+
+      {/* Audit log */}
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+        <div className="p-5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+          <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+            <ScrollText className="w-4 h-4 text-indigo-500" /> Audit log
+            <span className="text-xs font-normal text-gray-400">(last {auditLogs.length})</span>
+          </h3>
+          <button
+            onClick={load}
+            className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg"
+            title="Refresh audit log"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
+        </div>
+        {auditLogs.length === 0 ? (
+          <div className="p-8 text-center text-sm text-gray-500 dark:text-gray-400">No audit entries yet.</div>
+        ) : (
+          <div className="divide-y divide-gray-100 dark:divide-gray-800 max-h-96 overflow-y-auto">
+            {auditLogs.map(l => (
+              <div key={l._id} className="p-3 flex items-start gap-3 text-xs">
+                <span className={`px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${PRIVACY_IMPACT_COLOR[l.privacyImpact || 'none']}`}>
+                  {l.privacyImpact || 'none'}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-gray-900 dark:text-white">{l.action.replace(/_/g, ' ')}</p>
+                  {l.dataCategories?.length > 0 && (
+                    <p className="text-gray-500 dark:text-gray-400 mt-0.5">
+                      Categories: {l.dataCategories.join(', ')}
+                    </p>
+                  )}
+                  {l.metadata?.ipAddress && (
+                    <p className="text-gray-400 dark:text-gray-600 truncate">From {l.metadata.ipAddress}</p>
+                  )}
+                </div>
+                <span className="text-gray-400 dark:text-gray-600 flex-shrink-0">
+                  {new Date(l.timestamp).toLocaleString()}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Export & delete */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5">
+          <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+            <Download className="w-4 h-4 text-indigo-500" /> Export your full archive
+          </h3>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 mb-4">
+            Downloads a single JSON file containing your profile, goals, sessions, consents and audit log. Useful for portability or personal records.
+          </p>
+          <button
+            onClick={exportFullArchive}
+            disabled={busy}
+            className="w-full py-2.5 text-sm font-medium rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white transition-colors disabled:opacity-50"
+          >
+            Download archive (JSON)
+          </button>
+        </div>
+
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-red-200 dark:border-red-900/40 p-5">
+          <h3 className="font-semibold text-red-700 dark:text-red-400 flex items-center gap-2">
+            <Trash2 className="w-4 h-4" /> Permanently delete account
+          </h3>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 mb-4">
+            Removes your account and erases all associated study, presence, consent and audit data. This cannot be undone.
+          </p>
+          {!showDeleteBox ? (
+            <button
+              onClick={() => setShowDeleteBox(true)}
+              className="w-full py-2.5 text-sm font-medium rounded-xl border border-red-300 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+            >
+              Begin deletion…
+            </button>
+          ) : (
+            <div className="space-y-2">
+              <input
+                type="email"
+                value={confirmEmail}
+                onChange={e => setConfirmEmail(e.target.value)}
+                placeholder={`Type ${userEmail} to confirm`}
+                className="w-full px-3 py-2 text-sm rounded-xl border border-red-300 dark:border-red-800 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { setShowDeleteBox(false); setConfirmEmail('') }}
+                  className="flex-1 py-2 text-sm rounded-xl border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={permanentDelete}
+                  disabled={busy || !confirmEmail.trim()}
+                  className="flex-1 py-2 text-sm rounded-xl bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
+                >
+                  Delete forever
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
@@ -509,6 +926,11 @@ export default function InsightsDashboard() {
             </span>
           )}
         </Tab>
+        <Tab active={activeTab === 'privacy'} onClick={() => setActiveTab('privacy')}>
+          <span className="inline-flex items-center gap-1.5">
+            <Lock className="w-3.5 h-3.5" /> Privacy &amp; Data
+          </span>
+        </Tab>
       </div>
 
       {/* ── OVERVIEW TAB ── */}
@@ -658,6 +1080,15 @@ export default function InsightsDashboard() {
             onApprove={handleApproveReminder}
           />
         </div>
+      )}
+
+      {/* ── PRIVACY & DATA TAB ── */}
+      {activeTab === 'privacy' && (
+        <PrivacyPanel
+          user={user}
+          onSuccess={showSuccess}
+          onError={showError}
+        />
       )}
     </div>
   )
