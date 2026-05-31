@@ -7,10 +7,11 @@
  * - Responsive content area with max-width container
  */
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useTheme } from '../../contexts/ThemeContext'
+import { insightsApi } from '../../services/newModulesApi'
 import {
   Home,
   Clock,
@@ -48,6 +49,18 @@ const AppLayout = ({ children }) => {
 
   const isAdmin = user?.user?.role === 'admin'
 
+  // Detect if this user is a guardian/teacher for any student so we can show
+  // the Guardian Dashboard nav entry. Silent on failure.
+  const [isGuardian, setIsGuardian] = useState(false)
+  useEffect(() => {
+    let cancelled = false
+    if (!user) { setIsGuardian(false); return }
+    insightsApi.listGuardianStudents()
+      .then(res => { if (!cancelled) setIsGuardian((res.data?.students || []).length > 0) })
+      .catch(() => { if (!cancelled) setIsGuardian(false) })
+    return () => { cancelled = true }
+  }, [user])
+
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
     { name: 'Focus Timer', href: '/focus', icon: Clock },
@@ -63,6 +76,7 @@ const AppLayout = ({ children }) => {
     { name: 'Presence', href: '/presence', icon: Camera },
     { name: 'Security', href: '/security', icon: Shield },
     { name: 'Settings', href: '/profile', icon: User },
+    ...(isGuardian ? [{ name: 'Guardian', href: '/guardian', icon: Sparkles }] : []),
     ...(isAdmin ? [{ name: 'Admin', href: '/admin', icon: Shield, adminOnly: true }] : []),
   ]
 

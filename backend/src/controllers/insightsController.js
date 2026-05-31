@@ -107,6 +107,125 @@ const buildInsightData = async (userId, from, to) => {
     }
   } catch (_) { /* UserRewards may not exist yet */ }
 
+  // ── Build a normalised list of recent sessions (newest first) ─────────────
+  const normalisedSessions = [];
+  sessionLogs.forEach((s, i) => normalisedSessions.push({
+    id: String(s._id),
+    date: s.startedAt || s.createdAt,
+    subject: s.presetName || 'General',
+    minutes: sessionLogMins[i],
+    source: 'manual'
+  }));
+  timerSessions.forEach((s, i) => normalisedSessions.push({
+    id: String(s._id),
+    date: s.startTime,
+    subject: s.subject || 'General',
+    minutes: timerSessionMins[i],
+    source: 'timer'
+  }));
+  studySessions.forEach((s, i) => normalisedSessions.push({
+    id: String(s._id),
+    date: s.startTime,
+    subject: s.subject || 'General',
+    minutes: studySessionMins[i],
+    source: 'session'
+  }));
+  normalisedSessions.sort((a, b) => new Date(b.date) - new Date(a.date));
+  const recentSessions = normalisedSessions.slice(0, 10);
+
+  // ── Daily timeline (per-day minutes across the date range) ────────────────
+  const dayKey = (d) => new Date(d).toISOString().split('T')[0];
+  const timelineMap = {};
+  for (
+    let d = new Date(dateFrom);
+    d <= dateTo;
+    d.setDate(d.getDate() + 1)
+  ) {
+    timelineMap[dayKey(d)] = 0;
+  }
+  normalisedSessions.forEach(s => {
+    const k = dayKey(s.date);
+    if (k in timelineMap) timelineMap[k] += s.minutes;
+  });
+  const timeline = Object.entries(timelineMap).map(([date, minutes]) => ({ date, minutes }));
+
+  // ── Streak (consecutive days ending today with at least one session) ──────
+  let streakDays = 0;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  for (let i = 0; i < 365; i++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const k = dayKey(d);
+    const hadSession = normalisedSessions.some(s => dayKey(s.date) === k);
+    if (hadSession) streakDays++;
+    else break;
+  }
+
+  // ── Weekly study (last 7 days) ────────────────────────────────────────────
+  const weekAgo = new Date();
+  weekAgo.setDate(weekAgo.getDate() - 7);
+  const weeklyMinutes = normalisedSessions
+    .filter(s => new Date(s.date) >= weekAgo)
+    .reduce((a, s) => a + s.minutes, 0);
+
+  // ── Weekly goal progress (% across active goals) ──────────────────────────
+  const activeGoals = goals.filter(g => g.status === 'active');
+  let weeklyGoalProgress = 0;
+  if (activeGoals.length > 0) {
+    const sum = activeGoals.reduce((acc, g) => {
+      const target = g.targetValue || g.target || 0;
+      const current = g.currentValue || g.progress || 0;
+      if (!target) return acc;
+      return acc + Math.min(100, Math.round((current / target) * 100));
+    }, 0);
+    weeklyGoalProgress = Math.round(sum / activeGoals.length);
+  }
+
+  // ── Productivity score (presence-weighted minus interruption penalty) ─────
+  // Score 0–100. Heuristic: presence% × focus factor.
+  const focusFactor = totalSessions > 0
+    ? Math.max(0, 1 - (totalInterruptions / (totalSessions * 5)))
+    : 0;
+  const productivityScore = Math.round(
+    (avgPresencePercent || (totalSessions > 0 ? 80 : 0)) * focusFactor
+  );
+
+  // ── Alerts: behind-on-goal + low presence + heavy interruptions ───────────
+  const alerts = [];
+  activeGoals.forEach(g => {
+    const target = g.targetValue || g.target || 0;
+    const current = g.currentValue || g.progress || 0;
+    if (target && current / target < 0.3 && g.deadline && new Date(g.deadline) < new Date(Date.now() + 7 * 86400000)) {
+      alerts.push({
+        type: 'goal_behind',
+        severity: 'warning',
+        message: `Falling behind on "${g.title || g.name}" — ${Math.round(current / target * 100)}% with deadline approaching.`
+      });
+    }
+  });
+  if (totalSessions > 0 && avgPresencePercent && avgPresencePercent < 50) {
+    alerts.push({
+      type: 'low_presence',
+      severity: 'warning',
+      message: `Average presence is ${avgPresencePercent}% — frequently away during study sessions.`
+    });
+  }
+  if (totalInterruptions > totalSessions * 5 && totalSessions > 0) {
+    alerts.push({
+      type: 'heavy_distractions',
+      severity: 'warning',
+      message: `High distraction count: ${totalInterruptions} interruptions across ${totalSessions} sessions.`
+    });
+  }
+  if (totalSessions === 0) {
+    alerts.push({
+      type: 'no_activity',
+      severity: 'info',
+      message: 'No study sessions recorded for the selected period.'
+    });
+  }
+
   return {
     totalStudyMinutes,
     totalSessions,
@@ -118,22 +237,37 @@ const buildInsightData = async (userId, from, to) => {
     subjectBreakdown,
     goalsCompleted,
     goalsInProgress,
-    pointsEarned
+    pointsEarned,
+    recentSessions,
+    timeline,
+    streakDays,
+    weeklyMinutes,
+    weeklyGoalProgress,
+    productivityScore,
+    alerts
   };
 };
 
 // ─── Apply consent filter to insight data ────────────────────────────────────
 
 const filterByConsent = (data, allowedFields) => {
-  const filtered = {};
+  const filtered = {
+    // Always-safe meta fields (non-PII aggregates)
+    alerts: data.alerts || [],
+    streakDays: data.streakDays || 0,
+    productivityScore: data.productivityScore || 0
+  };
   if (allowedFields.studyHours) {
     filtered.totalStudyMinutes = data.totalStudyMinutes;
     filtered.totalSessions = data.totalSessions;
     filtered.avgSessionMinutes = data.avgSessionMinutes;
     filtered.totalInterruptions = data.totalInterruptions;
+    filtered.weeklyMinutes = data.weeklyMinutes;
+    filtered.timeline = data.timeline;
   }
   if (allowedFields.sessionDetails) {
     filtered.longestSessionMinutes = data.longestSessionMinutes;
+    filtered.recentSessions = data.recentSessions;
   }
   if (allowedFields.presenceData) {
     filtered.avgPresencePercent = data.avgPresencePercent;
@@ -145,6 +279,7 @@ const filterByConsent = (data, allowedFields) => {
   if (allowedFields.goalProgress) {
     filtered.goalsCompleted = data.goalsCompleted;
     filtered.goalsInProgress = data.goalsInProgress;
+    filtered.weeklyGoalProgress = data.weeklyGoalProgress;
   }
   if (allowedFields.rewardsData) {
     filtered.pointsEarned = data.pointsEarned;
@@ -340,24 +475,58 @@ const listAccess = async (req, res) => {
   }
 };
 
+// ─── Guardian: list students this user has access to ─────────────────────────
+const listGuardianStudents = async (req, res) => {
+  try {
+    const accesses = await GuardianAccess.find({
+      guardianEmail: req.user.email.toLowerCase(),
+      status: 'active'
+    })
+      .populate('studentId', 'profile.displayName profile.avatar email')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const students = accesses
+      .filter(a => a.studentId)
+      .map(a => ({
+        accessId: a._id,
+        studentId: a.studentId._id,
+        displayName: a.studentId.profile?.displayName || a.studentId.email,
+        email: a.studentId.email,
+        avatar: a.studentId.profile?.avatar || null,
+        accessType: a.accessType,
+        allowedFields: a.allowedFields,
+        canSendReminders: a.canSendReminders,
+        activatedAt: a.activatedAt
+      }));
+
+    res.json({ success: true, students });
+  } catch (err) {
+    console.error('listGuardianStudents error:', err);
+    res.status(500).json({ error: 'Failed to load guardian students' });
+  }
+};
+
 // ─── Reminder Workflow ────────────────────────────────────────────────────────
 
 const requestReminder = async (req, res) => {
   try {
     const { studentId, message } = req.body;
+    if (!message || !message.trim()) {
+      return res.status(400).json({ error: 'Reminder message is required' });
+    }
 
     const access = await GuardianAccess.findOne({
       studentId,
-      guardianEmail: req.user.email,
-      status: 'active',
-      canSendReminders: true
+      guardianEmail: req.user.email.toLowerCase(),
+      status: 'active'
     });
 
     if (!access) {
-      return res.status(403).json({ error: 'No permission to send reminders for this student' });
+      return res.status(403).json({ error: 'No active access for this student' });
     }
 
-    access.pendingReminderRequests.push({ message, requestedAt: new Date() });
+    access.pendingReminderRequests.push({ message: message.trim(), requestedAt: new Date() });
     await access.save();
 
     res.json({ success: true, message: 'Reminder request submitted for student approval' });
@@ -395,26 +564,49 @@ const approveReminder = async (req, res) => {
 
 // ─── Export ───────────────────────────────────────────────────────────────────
 
+// Resolve who can read this userId's data and what fields they can see.
+// Returns { allowed: true, allowedFields, role: 'self'|'admin'|'guardian'|'teacher' }
+// or { allowed: false }.
+const resolveAccess = async (req, userId) => {
+  if (userId.toString() === req.user._id.toString()) {
+    return { allowed: true, allowedFields: null, role: 'self' };
+  }
+  if (req.user.role === 'admin') {
+    return { allowed: true, allowedFields: null, role: 'admin' };
+  }
+  const access = await GuardianAccess.findOne({
+    studentId: userId,
+    guardianEmail: req.user.email.toLowerCase(),
+    status: 'active'
+  }).lean();
+  if (!access) return { allowed: false };
+  return { allowed: true, allowedFields: access.allowedFields, role: access.accessType };
+};
+
 const exportCSV = async (req, res) => {
   try {
     const userId = req.params.userId || req.user._id;
-    if (userId.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    const access = await resolveAccess(req, userId);
+    if (!access.allowed) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
     const { from, to } = req.query;
     const data = await buildInsightData(userId, from, to);
-    const sessions = await StudySession.find({ userId }).sort({ createdAt: -1 }).limit(500).lean();
+    const sessions = (access.role === 'self' || access.role === 'admin' || access.allowedFields?.sessionDetails)
+      ? await StudySession.find({ userId }).sort({ createdAt: -1 }).limit(500).lean()
+      : [];
 
     let csv = 'Date,Subject,Duration(min),Type\n';
     sessions.forEach(s => {
       csv += `${new Date(s.createdAt).toISOString().split('T')[0]},${s.subject || 'General'},${s.duration || 0},${s.type || 'study'}\n`;
     });
+    csv += `\nSummary,,\nTotal Minutes,${data.totalStudyMinutes},\nTotal Sessions,${data.totalSessions},\nAvg Session,${data.avgSessionMinutes},\nProductivity Score,${data.productivityScore},\n`;
 
     await AuditLog.create({
       userId: req.user._id,
       action: 'DATA_EXPORTED',
-      details: { format: 'csv' },
+      details: { format: 'csv', subjectUserId: String(userId), via: access.role },
       metadata: { ipAddress: req.ip },
       privacyImpact: 'medium'
     });
@@ -431,21 +623,22 @@ const exportCSV = async (req, res) => {
 const exportPDF = async (req, res) => {
   try {
     const userId = req.params.userId || req.user._id;
-    if (userId.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    const access = await resolveAccess(req, userId);
+    if (!access.allowed) {
       return res.status(403).json({ error: 'Access denied' });
     }
-    const data = await buildInsightData(userId, req.query.from, req.query.to);
+    const raw = await buildInsightData(userId, req.query.from, req.query.to);
+    const data = access.allowedFields ? filterByConsent(raw, access.allowedFields) : raw;
     const user = await User.findById(userId).select('profile.displayName email').lean();
 
     await AuditLog.create({
       userId: req.user._id,
       action: 'DATA_EXPORTED',
-      details: { format: 'pdf' },
+      details: { format: 'pdf', subjectUserId: String(userId), via: access.role },
       metadata: { ipAddress: req.ip },
       privacyImpact: 'medium'
     });
 
-    // Return JSON for frontend to use with jsPDF
     res.json({ success: true, pdfData: data, user });
   } catch (err) {
     console.error('exportPDF error:', err);
@@ -455,6 +648,6 @@ const exportPDF = async (req, res) => {
 
 module.exports = {
   getStudentInsights, getGuardianInsights, getTeacherInsights,
-  getSummary, shareAccess, revokeAccess, listAccess,
+  getSummary, shareAccess, revokeAccess, listAccess, listGuardianStudents,
   requestReminder, approveReminder, exportCSV, exportPDF
 };

@@ -230,7 +230,9 @@ const RemindersPanel = ({ accesses, onApprove }) => {
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function InsightsDashboard() {
   const { user, loading: authLoading } = useAuth()
-  const userId = user?.user?._id || user?._id
+  // Profile endpoint returns user.user.id (not _id); keep a wide fallback so
+  // the dashboard works regardless of which auth path populated `user`.
+  const userId = user?.user?._id || user?.user?.id || user?._id || user?.id || null
   const [insights, setInsights] = useState(null)
   const [accesses, setAccesses] = useState([])
   const [loading, setLoading] = useState(false)

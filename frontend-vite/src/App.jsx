@@ -34,6 +34,7 @@ import DistractionBlocker from './pages/Distraction/DistractionBlocker'
 import DataSecurity from './pages/Security/DataSecurity'
 import PresenceDetection from './pages/Presence/PresenceDetection'
 import InsightsDashboard from './pages/Insights/InsightsDashboard'
+import GuardianDashboard from './pages/Guardian/GuardianDashboard'
 
 // Admin Pages
 import { AdminDashboard, AdminUsers } from './pages/Admin'
@@ -226,6 +227,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <InsightsDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/guardian"
+          element={
+            <ProtectedRoute>
+              <GuardianDashboard />
             </ProtectedRoute>
           }
         />

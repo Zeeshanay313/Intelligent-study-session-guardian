@@ -3,7 +3,7 @@ const router = express.Router();
 const { authenticate } = require('../middleware/auth');
 const {
   getStudentInsights, getGuardianInsights, getTeacherInsights,
-  getSummary, shareAccess, revokeAccess, listAccess,
+  getSummary, shareAccess, revokeAccess, listAccess, listGuardianStudents,
   requestReminder, approveReminder, exportCSV, exportPDF
 } = require('../controllers/insightsController');
 
@@ -14,6 +14,7 @@ router.get('/student/:userId', getStudentInsights);
 router.get('/summary/:userId', getSummary);
 
 // Guardian / teacher views
+router.get('/guardian/students', listGuardianStudents);
 router.get('/guardian/:userId', getGuardianInsights);
 router.get('/teacher/:userId', getTeacherInsights);
 

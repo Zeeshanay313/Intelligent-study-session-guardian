@@ -53,6 +53,9 @@ export const insightsApi = {
   getTeacherInsights: (userId, params) => api.get(`/api/insights/teacher/${userId}`, { params }),
   getSummary: (userId) => api.get(`/api/insights/summary/${userId}`),
 
+  // Guardian-side
+  listGuardianStudents: () => api.get('/api/insights/guardian/students'),
+
   listAccess: () => api.get('/api/insights/access'),
   shareAccess: (data) => api.post('/api/insights/share', data),
   revokeAccess: (guardianEmail) => api.delete('/api/insights/share', { data: { guardianEmail } }),
