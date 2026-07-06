@@ -5,6 +5,7 @@ import { Mail, Lock, AlertCircle, ArrowLeft, Sparkles } from 'lucide-react'
 import Button from '../../components/UI/Button'
 import Input from '../../components/UI/Input'
 import SocialLoginSection from '../../components/Auth/SocialLoginSection'
+import RoleSelector from '../../components/Auth/RoleSelector'
 
 const Login = () => {
   const navigate = useNavigate()
@@ -15,6 +16,7 @@ const Login = () => {
     email: '',
     password: '',
   })
+  const [selectedRole, setSelectedRole] = useState(location.state?.role || null)
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const [loading, setLoading] = useState(false)
@@ -74,13 +76,26 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+
+    // Validate role is selected
+    if (!selectedRole) {
+      setError('Please select whether you are a Student or Guardian')
+      return
+    }
+
     setLoading(true)
 
     try {
       const result = await login(formData.email, formData.password)
       
       if (result.success) {
-        navigate('/dashboard')
+        // Route to correct dashboard based on user role
+        const userRole = result.user?.role || selectedRole
+        if (userRole === 'guardian') {
+          navigate('/guardian')
+        } else {
+          navigate('/dashboard')
+        }
       } else {
         setError(result.message || 'Login failed. Please try again.')
       }
@@ -147,6 +162,9 @@ const Login = () => {
 
           {/* Form Card */}
           <div className="bg-white dark:bg-gray-800/60 rounded-2xl shadow-card border border-gray-100 dark:border-gray-700/40 p-6 sm:p-8">
+            {/* Role Selector */}
+            <RoleSelector selectedRole={selectedRole} onSelectRole={setSelectedRole} />
+
             {successMessage && (
               <div className="mb-5 p-3.5 bg-accent-50 dark:bg-accent-900/20 border border-accent-200 dark:border-accent-800/40 rounded-xl flex items-start space-x-3">
                 <svg className="w-5 h-5 text-accent-600 dark:text-accent-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

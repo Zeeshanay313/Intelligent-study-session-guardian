@@ -42,10 +42,16 @@ import AppLoadingScreen from './components/UI/AppLoadingScreen'
 
 // Protected Route wrapper
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth()
+  const { isAuthenticated, loading, user } = useAuth()
   
   if (loading) return <AppLoadingScreen />
   if (!isAuthenticated) return <Navigate to="/login" replace />
+  
+  // If user is guardian, redirect to guardian dashboard
+  if (user?.user?.role === 'guardian') {
+    return <Navigate to="/guardian" replace />
+  }
+  
   return <AppLayout>{children}</AppLayout>
 }
 
@@ -80,6 +86,35 @@ const AdminRoute = ({ children }) => {
   console.log('Is Admin:', isAdmin)
   
   if (!isAdmin) {
+    return <Navigate to="/dashboard" replace />
+  }
+  
+  return <AppLayout>{children}</AppLayout>
+}
+
+// Guardian Route wrapper (requires guardian role)
+const GuardianRoute = ({ children }) => {
+  const { user, isAuthenticated, loading } = useAuth()
+  
+  console.log('GuardianRoute check:', { user, isAuthenticated, loading, role: user?.user?.role })
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    )
+  }
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />
+  }
+  
+  // Check if user is guardian
+  const isGuardian = user?.user?.role === 'guardian'
+  console.log('Is Guardian:', isGuardian)
+  
+  if (!isGuardian) {
     return <Navigate to="/dashboard" replace />
   }
   
@@ -233,9 +268,9 @@ function AppRoutes() {
         <Route
           path="/guardian"
           element={
-            <ProtectedRoute>
+            <GuardianRoute>
               <GuardianDashboard />
-            </ProtectedRoute>
+            </GuardianRoute>
           }
         />
 

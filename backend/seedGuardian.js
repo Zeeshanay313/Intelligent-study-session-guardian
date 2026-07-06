@@ -39,11 +39,26 @@ const run = async () => {
   let guardian = await User.findOne({ email: GUARDIAN.email });
   if (guardian) {
     console.log(`ℹ️  Guardian user already exists: ${guardian.email}`);
+    guardian.password = GUARDIAN.password;
+    guardian.markModified('password');
+    guardian.role = 'guardian';
+    guardian.verified = true;
+    guardian.profile = guardian.profile || {};
+    guardian.profile.displayName = GUARDIAN.displayName;
+    guardian.profile.timezone = 'UTC';
+    guardian.profile.bio = 'Demo guardian account';
+    guardian.profile.preferences = guardian.profile.preferences || {
+      theme: 'system',
+      fontSize: 'medium',
+      language: 'en'
+    };
+    await guardian.save();
+    console.log(`✅ Updated guardian credentials: ${guardian.email}`);
   } else {
     guardian = new User({
       email: GUARDIAN.email,
       password: GUARDIAN.password,
-      role: 'user',
+      role: 'guardian',
       verified: true,
       profile: {
         displayName: GUARDIAN.displayName,

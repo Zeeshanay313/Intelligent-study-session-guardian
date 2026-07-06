@@ -7,6 +7,7 @@
 
 import axios from 'axios'
 import { mockApi } from './mockApi'
+import { extractAccessToken, extractRefreshToken } from './authToken'
 
 // Configuration
 // Support both env var names used across docs and setups.
@@ -69,11 +70,19 @@ axiosInstance.interceptors.response.use(
           const response = await axios.post(`${API_BASE_URL}/api/auth/refresh`, {
             refreshToken,
           })
-          
-          const { token } = response.data
-          localStorage.setItem('authToken', token)
-          
-          originalRequest.headers.Authorization = `Bearer ${token}`
+
+          const token = extractAccessToken(response.data)
+          const refreshedRefreshToken = extractRefreshToken(response.data)
+
+          if (token) {
+            localStorage.setItem('authToken', token)
+            originalRequest.headers.Authorization = `Bearer ${token}`
+          }
+
+          if (refreshedRefreshToken) {
+            localStorage.setItem('refreshToken', refreshedRefreshToken)
+          }
+
           return axiosInstance(originalRequest)
         }
       } catch (refreshError) {

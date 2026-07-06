@@ -21,7 +21,7 @@ router.post('/register', authLimiter, validateRegistration, async (req, res) => 
     console.log('=== REGISTRATION ATTEMPT ===');
     console.log('Request body:', JSON.stringify(req.body, null, 2));
 
-    const { email, password, displayName } = req.body;
+    const { email, password, displayName, role } = req.body;
 
     // Validate required fields
     if (!email || !password || !displayName) {
@@ -31,6 +31,11 @@ router.post('/register', authLimiter, validateRegistration, async (req, res) => 
         details: 'Email, password, and display name are required'
       });
     }
+
+    // Validate role if provided (default to 'student' if not specified)
+    const validRoles = ['student', 'guardian', 'user'];
+    const userRole = role && validRoles.includes(role) ? role : 'student';
+    console.log('Account role:', userRole);
 
     // Check if user already exists
     console.log('Checking if user exists:', email);
@@ -76,7 +81,7 @@ router.post('/register', authLimiter, validateRegistration, async (req, res) => 
         }
       },
       verified: false,
-      role: 'user',
+      role: userRole,
       refreshTokens: [],
       loginCount: 0
     };
@@ -312,7 +317,9 @@ router.post('/logout', authenticate, async (req, res) => {
 // Refresh access token
 router.post('/refresh', async (req, res) => {
   try {
-    const { refreshToken } = req.cookies;
+    const refreshTokenFromCookie = req.cookies?.refreshToken;
+    const refreshTokenFromBody = req.body?.refreshToken;
+    const refreshToken = refreshTokenFromCookie || refreshTokenFromBody;
 
     if (!refreshToken) {
       return res.status(401).json({ error: 'Refresh token not provided' });
@@ -355,6 +362,9 @@ router.post('/refresh', async (req, res) => {
 
     res.json({
       message: 'Token refreshed successfully',
+      token: accessToken,
+      accessToken,
+      refreshToken: newRefreshToken,
       user: {
         id: user._id,
         email: user.email,

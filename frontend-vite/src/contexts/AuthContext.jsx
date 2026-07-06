@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useContext } from 'react'
 import api from '../services/api'
+import { extractAccessToken, extractRefreshToken } from '../services/authToken'
 
 const AuthContext = createContext()
 
@@ -60,11 +61,14 @@ export const AuthProvider = ({ children }) => {
       // Backend returns { message: '...', token, refreshToken, user: {...} }
       if (response && response.user) {
         // Store tokens if provided
-        if (response.token) {
-          localStorage.setItem('authToken', response.token)
+        const accessToken = extractAccessToken(response)
+        const refreshToken = extractRefreshToken(response)
+
+        if (accessToken) {
+          localStorage.setItem('authToken', accessToken)
         }
-        if (response.refreshToken) {
-          localStorage.setItem('refreshToken', response.refreshToken)
+        if (refreshToken) {
+          localStorage.setItem('refreshToken', refreshToken)
         }
         
         // Fetch complete profile to get displayName

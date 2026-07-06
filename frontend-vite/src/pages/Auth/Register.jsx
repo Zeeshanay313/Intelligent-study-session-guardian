@@ -5,6 +5,7 @@ import { Mail, Lock, User, AlertCircle, ArrowLeft, Sparkles, CheckCircle2 } from
 import Button from '../../components/UI/Button'
 import Input from '../../components/UI/Input'
 import SocialLoginSection from '../../components/Auth/SocialLoginSection'
+import RoleSelector from '../../components/Auth/RoleSelector'
 
 const Register = () => {
   const navigate = useNavigate()
@@ -17,6 +18,7 @@ const Register = () => {
     password: '',
     confirmPassword: '',
   })
+  const [selectedRole, setSelectedRole] = useState(location.state?.role || null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -68,6 +70,12 @@ const Register = () => {
     e.preventDefault()
     setError('')
 
+    // Validate role is selected
+    if (!selectedRole) {
+      setError('Please select whether you are a Student or Guardian')
+      return
+    }
+
     // Validate name - only letters and spaces
     const nameRegex = /^[a-zA-Z\s]+$/
     if (!nameRegex.test(formData.name.trim())) {
@@ -107,13 +115,15 @@ const Register = () => {
         name: formData.name,
         email: formData.email,
         password: formData.password,
+        role: selectedRole || 'student', // Send selected role, default to student
       })
       
       if (result.success) {
-        // Redirect to login with success message and pre-filled email
+        // Redirect to login with success message and pre-filled email and role
         navigate('/login', { 
           state: { 
             email: result.email,
+            role: selectedRole,
             successMessage: result.message || 'Account created successfully! Please login.' 
           } 
         })
@@ -186,6 +196,9 @@ const Register = () => {
 
           {/* Form Card */}
           <div className="bg-white dark:bg-gray-800/60 rounded-2xl shadow-card border border-gray-100 dark:border-gray-700/40 p-6 sm:p-8">
+            {/* Role Selector */}
+            <RoleSelector selectedRole={selectedRole} onSelectRole={setSelectedRole} />
+
             {error && (
               <div className="mb-5 p-3.5 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40 rounded-xl flex items-start space-x-3">
                 <AlertCircle className="w-5 h-5 text-red-500 dark:text-red-400 flex-shrink-0 mt-0.5" />

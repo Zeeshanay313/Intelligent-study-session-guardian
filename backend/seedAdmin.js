@@ -49,17 +49,23 @@ const seedAdmin = async () => {
       console.log(`👤 Name: ${existingAdmin.profile.displayName}`);
       console.log(`🔑 Role: ${existingAdmin.role}`);
       console.log(`📅 Created: ${existingAdmin.createdAt}\n`);
-      
-      // Ask if user wants to update to admin role
-      if (existingAdmin.role !== 'admin') {
-        console.log('🔄 Updating user role to admin...');
-        existingAdmin.role = 'admin';
-        existingAdmin.verified = true;
-        await existingAdmin.save();
-        console.log('✅ User role updated to admin!\n');
-      } else {
-        console.log('ℹ️  User is already an admin. No changes needed.\n');
-      }
+
+      console.log('🔄 Updating admin credentials and permissions...');
+      existingAdmin.password = ADMIN_CREDENTIALS.password;
+      existingAdmin.markModified('password');
+      existingAdmin.role = 'admin';
+      existingAdmin.verified = true;
+      existingAdmin.profile = existingAdmin.profile || {};
+      existingAdmin.profile.displayName = ADMIN_CREDENTIALS.displayName;
+      existingAdmin.profile.timezone = 'UTC';
+      existingAdmin.profile.bio = 'System Administrator';
+      existingAdmin.profile.preferences = existingAdmin.profile.preferences || {
+        theme: 'system',
+        fontSize: 'medium',
+        language: 'en'
+      };
+      await existingAdmin.save();
+      console.log('✅ Admin credentials and role updated!\n');
     } else {
       // Create new admin user
       console.log('👤 Creating new admin user...');
